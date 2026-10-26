@@ -5,7 +5,9 @@ const admin = require('firebase-admin');
 
 (async () => {
   if (!process.env.FIREBASE_SERVICE_ACCOUNT) { console.error('Manca il segreto FIREBASE_SERVICE_ACCOUNT.'); process.exit(1); }
-  const email = String(process.env.EMAIL || '').trim().toLowerCase(), togli = process.env.TOGLI === '1';
+  // l'email si legge dalla richiesta di Actions, non da una variabile: i log di GitHub (pubblici) mostrano le variabili
+  let ev = {}; try { ev = JSON.parse(require('fs').readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')).inputs || {}; } catch (e) { }
+  const email = String(ev.email || process.env.EMAIL || '').trim().toLowerCase(), togli = ev.togli === true || ev.togli === 'true' || process.env.TOGLI === '1';
   if (!email) { console.error('Scrivi l’email.'); process.exit(1); }
   admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
   const u = await admin.auth().getUserByEmail(email).catch(() => null);

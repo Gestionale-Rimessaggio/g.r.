@@ -186,7 +186,9 @@
     if (L.unsub) { L.unsub(); L.unsub = null; }
     var fullDue = !L.full || !L.ts || Date.now() - L.full > FULL_EVERY;
     var q = AC(L.name);
-    if (!fullDue) q = q.where('_ts', '>=', TS.fromMillis(L.ts - 5000));
+    // PIN del tablet: chi non è amministratore, gestore in assistenza né tablet legge solo il suo (vedi firestore.rules), sempre per intero
+    if (L.name === 'pin' && !(ME && (ME.ruolo === 'admin' || ME.assist || ME.tablet))) { fullDue = true; q = q.where('utente', '==', ME ? ME.uid : '-'); }
+    else if (!fullDue) q = q.where('_ts', '>=', TS.fromMillis(L.ts - 5000));
     var first = true;
     L.unsub = q.onSnapshot(function (snap) {
       if (first && fullDue) {
@@ -455,7 +457,7 @@
   function codNuovo() { var a = new Uint32Array(8), c = ''; crypto.getRandomValues(a); for (var i = 0; i < 8; i++) c += COD_ABC[a[i] % COD_ABC.length]; return c; }
   function codPulito(v) { return String(v || '').toUpperCase().replace(/[^0-9A-Z]/g, ''); }
   function codBello(c) { c = codPulito(c); return c.length === 8 ? c.slice(0, 4) + '-' + c.slice(4) : c; }
-  var PRIV = 'Per l’assistenza, il gestore del servizio vede gli accessi, le azioni e gli errori dell’app, non i vostri dati.';
+  var PRIV = 'Per l’assistenza, il gestore del servizio vede gli accessi, le azioni e gli errori dell’app, non i vostri dati. Le mappe e gli indirizzi cercati per il percorso del trasporto passano da servizi pubblici gratuiti (OpenStreetMap e OSRM).';
   var COME = '<details class="gd"><summary>Come funziona?</summary><ul>' +
     '<li><b>Un’azienda nuova</b> sceglie «Registro la mia azienda». La richiesta arriva al gestore del servizio: quando la approva, chi l’ha fatta entra come amministratore.</li>' +
     '<li>Ogni azienda ha un suo <b>codice</b> (per esempio K7P4-M2QX). L’amministratore lo trova in Altro › Utenti e permessi e lo manda a colleghi e clienti.</li>' +
@@ -582,7 +584,7 @@
     if (x.stato === 'attivo') {
       var was = ME; ME = x;
       if (!started) { started = true; hideOverlay(); READY_RES(); afterStart(); }
-      else if (was && was.ruolo !== x.ruolo) location.reload();
+      else if (was && (was.ruolo !== x.ruolo || !!was.tablet !== !!x.tablet)) location.reload();
     } else if (started) location.reload();
     else if (x.stato === 'bloccato') showBlocked();
     else showWait(x);
