@@ -77,7 +77,7 @@ async function main() {
   var root = admin.firestore(), az = await root.collection('aziende').where('stato', '==', 'attiva').get();
   var spazi = [];
   for (var a = 0; a < az.docs.length; a++) {
-    console.log('— ' + (az.docs[a].data().nome || az.docs[a].id));
+    console.log('— azienda ' + (a + 1)); // i log di GitHub sono pubblici: niente nomi
     try { await unaAzienda(admin, root, az.docs[a], spazi); } catch (e) { console.error(e); process.exitCode = 1; }
   }
   if (process.env.PROVA !== '1') { try { await gestore.consumi(admin, root, oraRoma(new Date()).oggi); } catch (e) { console.error('Consumi non contati:', e); } }
@@ -132,7 +132,7 @@ async function unaAzienda(admin, root, azDoc, spazi) {
   });
   var solo = String(process.env.SOLO_EMAIL || '').trim().toLowerCase();
   if (solo) iscritti = iscritti.filter(function (n) { return String((utenti[n.utente || n.id] || {}).email || '').toLowerCase() === solo; });
-  if (!iscritti.length) { console.log(solo ? 'Nessun telefono iscritto per ' + solo + '.' : 'Nessun telefono iscritto.'); }
+  if (!iscritti.length) { console.log(solo ? 'Nessun telefono iscritto per quell’account.' : 'Nessun telefono iscritto.'); }
 
   var msg, dest;
   async function spazio() { // una volta al giorno, anche nei festivi e prima dell'ora degli avvisi

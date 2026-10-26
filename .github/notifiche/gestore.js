@@ -26,6 +26,8 @@ async function alGitHub(titolo, testo) {
   console.log('Segnalazione su GitHub:', titolo, r.status);
 }
 
+var TIPI_AVVISO = { richiesta: 'Nuova azienda da approvare', errori: 'Errori ripetuti in un’azienda', inattiva: 'Un’azienda non entra da 30 giorni', spazio: 'Spazio quasi pieno' };
+
 // un avviso al gestore: nel pannello sempre, sul telefono se iscritto, altrimenti su GitHub
 async function avvisa(admin, root, a) {
   var now = new Date().toISOString();
@@ -38,8 +40,9 @@ async function avvisa(admin, root, a) {
     res.responses.forEach(function (x, k) { if (x.success) inviati++; else if (/registration-token-not-registered|invalid-registration-token|invalid-argument/.test((x.error && x.error.code) || '')) morti.push(tokens[k]); });
     if (morti.length) await d.ref.update({ tokens: tokens.filter(function (t) { return morti.indexOf(t) < 0; }) });
   }
-  if (!inviati) await alGitHub(a.titolo, (a.testo || '') + '\n\nLo trovi anche nel Pannello del gestore › Avvisi. Per riceverlo sul telefono: Pannello del gestore › Notifiche su questo telefono.');
-  console.log('Avviso al gestore: ' + a.titolo + ' (' + inviati + ' telefoni)');
+  // il repository è pubblico: nella segnalazione niente nomi, email o telefoni, solo il tipo di avviso
+  if (!inviati) await alGitHub(TIPI_AVVISO[a.tipo] || 'Nuovo avviso', 'C’è un avviso nuovo nel Pannello del gestore › Avvisi. I dettagli sono solo lì.\n\nPer riceverlo sul telefono invece che qui: Pannello del gestore › Notifiche su questo telefono.');
+  console.log('Avviso al gestore: ' + a.tipo + ' (' + inviati + ' telefoni)'); // i log di GitHub sono pubblici: niente nomi
 }
 
 // Consumi del giorno prima, una volta al giorno: tutti numeri contati (foto e documenti contati uno per uno, accessi dal registro)
