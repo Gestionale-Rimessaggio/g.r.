@@ -53,11 +53,11 @@ function scegli(cfg, oggi, scadenze, scadC, barche, avvisate) {
 }
 
 // il nome dell'azienda: quello scelto nell'app (impostazioni/aspetto), altrimenti quello di config.js
-var NOME = (function () { try { var m = require('fs').readFileSync(require('path').join(__dirname, '../../config.js'), 'utf8').match(/NM_ASPETTO\s*=\s*\{[^}]*nome:\s*'([^']+)'/); return m ? m[1] : 'Gestionale cantiere'; } catch (e) { return 'Gestionale cantiere'; } })();
+var NOME0 = (function () { try { var m = require('fs').readFileSync(require('path').join(__dirname, '../../config.js'), 'utf8').match(/NM_ASPETTO\s*=\s*\{[^}]*nome:\s*'([^']+)'/); return m ? m[1] : 'Gestionale cantiere'; } catch (e) { return 'Gestionale cantiere'; } })();
 
-function messaggio(voci) {
+function messaggio0(voci) {
   var late = voci.filter(function (v) { return v.late; }).length;
-  var title = NOME + ' · ' + voci.length + (voci.length === 1 ? ' scadenza' : ' scadenze') + (late ? ' (' + late + (late === 1 ? ' superata)' : ' superate)') : '');
+  var title = NOME0 + ' · ' + voci.length + (voci.length === 1 ? ' scadenza' : ' scadenze') + (late ? ' (' + late + (late === 1 ? ' superata)' : ' superate)') : '');
   var righe = voci.slice(0, 4).map(function (v) { return v.t; });
   if (voci.length > 4) righe.push('e altre ' + (voci.length - 4) + ' nell’app');
   return { title: title, body: righe.join('\n') };
@@ -67,8 +67,18 @@ async function main() {
   var admin = require('firebase-admin');
   if (!process.env.FIREBASE_SERVICE_ACCOUNT) { console.log('Manca il segreto FIREBASE_SERVICE_ACCOUNT: notifiche non attive.'); return; }
   admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
-  var db = admin.firestore(), prova = process.env.PROVA === '1';
-  async function tutti(c) { var s = await db.collection(c).get(), out = []; s.forEach(function (d) { var x = d.data(); if (!x._del) out.push(Object.assign({ id: d.id }, x)); }); return out; }
+  // più aziende: ognuna ha i suoi dati in aziende/{id}/… e le sue regole per le notifiche
+  var root = admin.firestore(), az = await root.collection('aziende').where('stato', '==', 'attiva').get();
+  for (var a = 0; a < az.docs.length; a++) {
+    console.log('— ' + (az.docs[a].data().nome || az.docs[a].id));
+    try { await unaAzienda(admin, root, az.docs[a]); } catch (e) { console.error(e); process.exitCode = 1; }
+  }
+}
+
+async function unaAzienda(admin, root, azDoc) {
+  var db = azDoc.ref, prova = process.env.PROVA === '1', NOME = String(azDoc.data().nome || NOME0).slice(0, 60);
+  function messaggio(voci) { var m = messaggio0(voci); m.title = m.title.replace(NOME0, NOME); return m; }
+  async function tutti(c) { if (c === 'utenti') { var su = await root.collection('utenti').where('azienda', '==', azDoc.id).get(), ou = []; su.forEach(function (d) { ou.push(Object.assign({ id: d.id }, d.data())); }); return ou; } var s = await db.collection(c).get(), out = []; s.forEach(function (d) { var x = d.data(); if (!x._del) out.push(Object.assign({ id: d.id }, x)); }); return out; }
 
   var asp = await db.collection('impostazioni').doc('aspetto').get();
   if (asp.exists && !asp.data()._del && asp.data().nome) NOME = String(asp.data().nome).slice(0, 60);
@@ -117,5 +127,5 @@ async function main() {
   console.log('Mandate ' + inviati + ' notifiche a ' + dest.length + ' persone.');
 }
 
-module.exports = { scegli: scegli, messaggio: messaggio, oraRoma: oraRoma };
+module.exports = { scegli: scegli, messaggio: messaggio0, oraRoma: oraRoma };
 if (require.main === module) main().catch(function (e) { console.error(e); process.exit(1); });

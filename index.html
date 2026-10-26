@@ -6964,7 +6964,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function aspDraft() {
     if (!V.asp) {
       var c = NM_MARCA.get(), a = S.aspetto && !S.aspetto._del ? S.aspetto : {};
-      V.asp = { nome: aspNuovo() ? '' : c.nome, colore1: c.colore1, colore2: c.colore2, logo: a.logo || '', scritta: a.scritta || '', luogo: c.luogo, lat: c.lat, lon: c.lon, spente: sezSpente().slice() };
+      var azn = window.__NM_FB && __NM_FB.azienda ? __NM_FB.azienda().nome : ''; // il nome scritto alla registrazione dell'azienda
+      V.asp = { nome: aspNuovo() ? azn : c.nome, colore1: c.colore1, colore2: c.colore2, logo: a.logo || '', scritta: a.scritta || '', luogo: c.luogo, lat: c.lat, lon: c.lon, spente: sezSpente().slice() };
     }
     return V.asp;
   }
@@ -7019,7 +7020,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['Il luogo', 'Cerca il paese o il porto del cantiere: serve per il meteo.', aspLuogoHtml],
     ['Le sezioni', 'Lascia accese le sezioni che usate. Le altre si possono riaccendere quando vuoi.', aspSezHtml]
   ];
-  function wizOn() { return S.status === 'ready' && S.isOwner && S.canWrite && aspNuovo() && !V.wizDopo; }
+  function wizOn() { return S.status === 'ready' && S.isOwner && S.canWrite && aspNuovo() && !V.wizDopo && !(window.__NM_FB && __NM_FB.azienda && __NM_FB.azienda().assist); } // il gestore in assistenza non la vede
   function viewWizard() {
     aspDraft(); var n = Math.max(0, Math.min(WIZ.length - 1, V.wizStep || 0)), st = WIZ[n], last = n === WIZ.length - 1;
     return '<div class="wiz"><div class="wiz-dots" aria-label="Passo ' + (n + 1) + ' di ' + WIZ.length + '">' + WIZ.map(function (x, i) { return '<i' + (i <= n ? ' class="on"' : '') + '></i>'; }).join('') + '</div>' +
@@ -7946,7 +7947,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'In Home e in Altro c’è la ricerca unica: scrivi una barca, un cliente, un articolo, un codice o un lavoro e l’app cerca dappertutto.',
       'Senza campo l’app si apre lo stesso con gli ultimi dati: quello che salvi parte appena torna la rete.',
       'In alto a destra il wifi barrato con un numero vuol dire: senza rete, tante modifiche ancora da inviare. La nuvola con la freccia vuol dire che le sta inviando, la spunta verde che sono arrivate. Toccalo per leggere la spiegazione.',
-      'A|Se l’app dà un errore sul telefono di qualcuno, ti arriva insieme agli avvisi su chi entra e cosa fa (e in «Mentre non c’eri»), con la sezione in cui è successo.',
+      'A|Se l’app dà un errore sul telefono di qualcuno, arriva a chi ha registrato l’azienda insieme agli avvisi su chi entra e cosa fa (e in «Mentre non c’eri»), con la sezione in cui è successo.',
       'Sul telefono conviene aggiungerla alla schermata Home: su iPhone da Safari › Condividi › «Aggiungi alla schermata Home», su Android da Chrome › tre puntini › «Installa app».'] },
     home: { t: 'Home', p: 'La pagina di riepilogo: cosa c’è da fare subito e com’è la giornata.', li: [
       'In primo piano scorri le schede con le cose urgenti (giornata da confermare, vari di oggi, scadenze, ferie da approvare, batterie, ricambi da riordinare). Ognuna ha il suo tasto per farla subito.',
@@ -8136,13 +8137,16 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     inventario: { rif: 'magazzino' },
     account: { t: 'Account e permessi', p: 'Ognuno entra con la sua email e password; nessuno usa account condivisi.', li: [
       '«Il mio account» (in fondo ad Altro) serve per cambiare la password o uscire.',
-      'Per far entrare un collega basta mandargli il link dell’app: si registra come «Lavoro al cantiere».',
+      'Ogni azienda ha un suo codice di 8 lettere e numeri (per esempio K7P4-M2QX). Per far entrare un collega o un cliente mandagli il link dell’app e il codice: alla registrazione sceglie «Entro nella mia azienda», scrive il codice, poi aspetta di essere approvato.',
+      'A|Il codice lo trovi in Altro › Utenti e permessi, con i tasti «Copia» e «Cambia codice». Se finisce in mani sbagliate cambialo: il vecchio non vale più per le nuove registrazioni, chi è già dentro resta dentro.',
+      'A|Sempre in Utenti e permessi c’è «Permetti assistenza»: se lo accendi, il gestore del servizio può entrare nei vostri dati per aiutarvi. Spento, vede solo accessi, azioni ed errori dell’app, mai barche, clienti o lavori.',
+      'Ogni azienda vede solo i suoi dati: colleghi e clienti di un’altra azienda non possono vederli.',
       'D|Il nuovo account aspetta che l’amministratore lo approvi.',
       'D|Il tasto «Elimina» compare solo dove puoi davvero cancellare: le cose che hai aggiunto tu.',
       'D|Se cancelli qualcosa per sbaglio chiedi all’amministratore: lo recupera dal cestino entro 60 giorni.',
       'A|In Altro › Utenti e permessi approvi i nuovi account, cambi i ruoli (dipendente, amministratore, cliente), sospendi e colleghi le barche ai clienti.',
       'A|Il Cestino tiene per 60 giorni tutto ciò che è stato cancellato, con chi e quando: si recupera con un tocco.',
-      'A|Mentre hai l’app aperta ti arrivano in basso gli avvisi di chi entra e cosa fa; quando torni vedi il riepilogo «Mentre non c’eri».'] },
+      'A|Chi ha registrato l’azienda, mentre ha l’app aperta, riceve in basso gli avvisi di chi entra e cosa fa; quando torna vede il riepilogo «Mentre non c’eri».'] },
     ai: { t: 'Fotocamera e intelligenza artificiale', p: 'In diversi punti c’è un tasto con la fotocamera che legge la foto e compila i campi.', li: [
       'Riconosce una barca, legge una scadenza o l’etichetta di una batteria, riconosce un rifiuto o un ricambio, legge un preventivo.',
       'Non salva mai da sola: controlli e confermi tu.',
