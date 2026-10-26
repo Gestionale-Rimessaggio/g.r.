@@ -5683,13 +5683,48 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   function mmTxt(v, dec) { return fmtNum(v, dec == null ? 2 : dec) + ' mm'; }
   function misUnitSel(id, cur) { return '<div class="seg2 mis-u" role="group"><button type="button" data-act="mis-u" data-f="' + id + '" data-u="mm" aria-pressed="' + (cur !== 'in') + '">mm</button><button type="button" data-act="mis-u" data-f="' + id + '" data-u="in" aria-pressed="' + (cur === 'in') + '">pollici</button></div>'; }
+  /* Altre unità: ogni unità ha il fattore per passare alla prima (la temperatura a parte) */
+  var MIS_UN = {
+    lung: { n: 'Lunghezza', u: [['m', 'Metri', 1], ['ft', 'Piedi', 0.3048], ['in', 'Pollici', 0.0254], ['cm', 'Centimetri', 0.01]], nota: 'Le barche si misurano spesso in piedi: 1 piede = 0,3048 m = 12 pollici. Si può scrivere anche 32\'6" nei piedi.' },
+    vol: { n: 'Volume', u: [['l', 'Litri', 1], ['galus', 'Galloni USA', 3.785411784], ['galuk', 'Galloni inglesi', 4.54609], ['qt', 'Quarti USA', 0.946352946]], nota: 'Olio e carburante dei motori americani sono in galloni o quarti USA; i manuali inglesi usano il gallone imperiale, più grande.' },
+    pot: { n: 'Potenza', u: [['cv', 'Cavalli (CV)', 1], ['kw', 'Kilowatt (kW)', 1 / 0.73549875], ['hp', 'Horsepower (HP)', 1.01386967887]], nota: '1 CV = 0,7355 kW; l\u2019HP americano è un po\u2019 più grande del CV (1 HP = 1,014 CV).' },
+    pres: { n: 'Pressione', u: [['bar', 'Bar', 1], ['psi', 'PSI', 0.0689475729], ['kpa', 'Kilopascal (kPa)', 0.01]], nota: 'Gomme dei carrelli, impianto idraulico e manometri americani: 1 bar = 14,5 psi.' },
+    vel: { n: 'Velocità', u: [['kn', 'Nodi', 1], ['kmh', 'km/h', 1 / 1.852], ['mph', 'Miglia/ora', 0.868976242], ['ms', 'Metri al secondo', 1.94384449]], nota: '1 nodo = 1 miglio nautico all\u2019ora = 1,852 km/h.' },
+    peso: { n: 'Peso', u: [['kg', 'Chilogrammi', 1], ['lb', 'Libbre', 0.45359237], ['t', 'Tonnellate', 1000]], nota: 'Dislocamento e portata dei mezzi: 1 tonnellata = 1.000 kg; 1 libbra = 0,4536 kg.' },
+    coppia: { n: 'Coppia di serraggio', u: [['nm', 'Newton metro (Nm)', 1], ['lbft', 'Libbre piede (lb·ft)', 1.3558179483], ['lbin', 'Libbre pollice (lb·in)', 0.112984829], ['kgm', 'kgf·m', 9.80665]], nota: 'Per la chiave dinamometrica coi manuali americani: 1 lb·ft = 1,356 Nm.' },
+    temp: { n: 'Temperatura', u: [['c', 'Gradi Celsius (°C)'], ['f', 'Gradi Fahrenheit (°F)']], nota: '°F = °C × 1,8 + 32. Acqua di raffreddamento e olio nei manuali americani sono in °F.' }
+  };
+  function misUnParse(g, u, s) {
+    s = String(s || '').trim(); if (!s) return null;
+    if (g === 'lung' && u === 'ft') { var m = /^(\d+(?:[.,]\d+)?)\s*['’]\s*(?:(\d+(?:[.,]\d+)?)\s*(?:"|”|'')?)?$/.exec(s); if (m) return parseFloat(m[1].replace(',', '.')) + (m[2] ? parseFloat(m[2].replace(',', '.')) / 12 : 0); }
+    if (g === 'lung' && u === 'in') return misParseIn(s);
+    var n = parseFloat(s.replace(/\s/g, '').replace(',', '.')); return isFinite(n) ? n : null;
+  }
+  function misUnCalc(g) { // valori da mostrare: quello scritto resta com'è, gli altri calcolati
+    var G = MIS_UN[g], st = (V.misUv && V.misUv.g === g) ? V.misUv : null, out = G.u.map(function () { return ''; });
+    if (!st) return out;
+    var v = misUnParse(g, G.u[st.i][0], st.t); out[st.i] = st.t; if (v == null) return out;
+    var base = g === 'temp' ? (st.i === 0 ? v : (v - 32) / 1.8) : v * G.u[st.i][2];
+    G.u.forEach(function (u, i) {
+      if (i === st.i) return;
+      var x = g === 'temp' ? (i === 0 ? base : base * 1.8 + 32) : base / u[2];
+      var d = Math.abs(x) >= 1000 ? 0 : Math.abs(x) >= 100 ? 1 : Math.abs(x) >= 10 ? 2 : 3;
+      out[i] = String(Math.round(x * Math.pow(10, d)) / Math.pow(10, d)).replace('.', ',');
+    });
+    return out;
+  }
   function viewMisure() {
-    var tab = V.misTab || 'converti', h = '<div class="chips" role="group" aria-label="Strumento">' + [['converti', 'Converti'], ['chiavi', 'Chiavi'], ['filetti', 'Filetti']].map(function (c) {
+    var tab = V.misTab || 'converti', h = '<div class="chips" role="group" aria-label="Strumento">' + [['converti', 'mm e pollici'], ['unita', 'Altre unità'], ['chiavi', 'Chiavi'], ['filetti', 'Filetti']].map(function (c) {
       return '<button type="button" data-act="mis-tab" data-v="' + c[0] + '" aria-pressed="' + (tab === c[0]) + '">' + c[1] + '</button>'; }).join('') + '</div><div id="mis" data-tab="' + tab + '">';
     if (tab === 'converti') {
       h += '<div class="grid2" style="margin-top:12px">' + field(lab('mis-mm', 'Millimetri'), inp('mis-mm', V.misMm || '', 'type="text" inputmode="decimal" placeholder="es. 9,5" autocomplete="off"')) +
         field(lab('mis-in', 'Pollici'), inp('mis-in', V.misIn || '', 'type="text" placeholder="es. 3/8 o 1-1/4" autocomplete="off"')) + '</div><div id="mis-out"></div>' +
         '<p class="cap" style="margin:10px 2px 0">Nei pollici puoi scrivere le frazioni: 3/8, 1-1/4, 1 1/4, oppure 0,375. 1 pollice = 25,4 mm.</p>';
+    } else if (tab === 'unita') {
+      var gq = MIS_UN[V.misUg] ? V.misUg : 'lung', G = MIS_UN[gq], vals = misUnCalc(gq);
+      h += '<div class="chips wrap" role="group" aria-label="Grandezza" style="margin-top:12px">' + Object.keys(MIS_UN).map(function (k) { return '<button type="button" data-act="mis-ug" data-v="' + k + '" aria-pressed="' + (k === gq) + '">' + esc(MIS_UN[k].n) + '</button>'; }).join('') + '</div>' +
+        '<div class="grid2" style="margin-top:12px">' + G.u.map(function (u, i) { return field(lab('mis-un-' + i, u[1]), inp('mis-un-' + i, vals[i], 'type="text" inputmode="decimal" autocomplete="off" data-g="' + gq + '" data-i="' + i + '"')); }).join('') + '</div>' +
+        '<p class="cap" style="margin:10px 2px 0">' + esc(G.nota) + '</p>';
     } else if (tab === 'chiavi') {
       h += '<div class="field" style="margin-top:12px"><label for="mis-k">Misura del dado o della testa</label><div class="mis-in">' + inp('mis-k', V.misK || '', 'type="text" inputmode="decimal" placeholder="' + (V.misKu === 'in' ? 'es. 9/16' : 'es. 14,3') + '" autocomplete="off"') + misUnitSel('k', V.misKu) + '</div><span class="hint">Misurala col calibro tra due facce piane, oppure scrivi la chiave che hai in mano.</span></div><div id="mis-out"></div>';
       h += secH('Vite e chiave') + '<div class="group pan">' + MIS_VITI.map(function (r) { return '<div class="kv-row"><span class="k">Vite ' + esc(r[0]) + '</span><span class="v">chiave ' + esc(r[1]) + (/"/.test(r[1]) ? '' : ' mm') + '</span></div>'; }).join('') + '</div><p class="cap" style="margin:6px 2px 0">Testa esagonale normale; i dadi in pollici a volte sono più grandi della testa della vite.</p>';
@@ -5743,6 +5778,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (id === 'mis-mm') { V.misMm = v; V.misLast = 'mm'; var m = parseDec(v), o = $('#mis-in'); if (o) { V.misIn = m != null ? String(Math.round(m / 25.4 * 10000) / 10000).replace('.', ',') : ''; o.value = V.misIn; } }
     else if (id === 'mis-in') { V.misIn = v; V.misLast = 'in'; var n = misParseIn(v), o2 = $('#mis-mm'); if (o2) { V.misMm = n != null ? String(Math.round(n * 25.4 * 1000) / 1000).replace('.', ',') : ''; o2.value = V.misMm; } }
     else if (id === 'mis-k') V.misK = v; else if (id === 'mis-fd') V.misFd = v; else if (id === 'mis-fp') V.misFp = v;
+    else if (/^mis-un-/.test(id)) { var g = e.target.getAttribute('data-g'), i = +e.target.getAttribute('data-i'); V.misUv = { g: g, i: i, t: v }; misUnCalc(g).forEach(function (x, j) { var el = $('#mis-un-' + j); if (el && j !== i) el.value = x; }); return; }
     misUpdate();
   });
 
@@ -7202,7 +7238,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['giro', 'Giro di controllo', 'dopo il vento forte'], ['meteo', 'Meteo', 'vento e mare in Home'], ['preventivi', 'Preventivi', 'in ore e ricambi'],
     ['ditte', 'Ditte esterne', 'velaio, tappezziere, elettricista…'], ['operazioni', 'Servizi di cantiere', 'trasporti, alaggi, lavaggi'],
     ['scadcantiere', 'Scadenze del cantiere', 'mezzi, attrezzature, sicurezza'], ['magazzino', 'Magazzino', 'ricambi e scorte'], ['rifiuti', 'Rifiuti', 'deposito, ritiri e registro'],
-    ['misure', 'Misure mm e pollici', 'convertitore e filetti']];
+    ['misure', 'Misure e unità', 'convertitore, unità e filetti']];
   // riquadri di Home e Pannello che appartengono a una sezione (spariscono se le loro sezioni sono tutte spente)
   var SEZ_BLOCCHI = { w_mag: ['magazzino'], w_porto: ['porto'], w_rif: ['rifiuti'], w_batt: ['batterie'], vari: ['vari'], prog: ['programma'], meteo: ['meteo'],
     contr: ['porto'], riord: ['magazzino', 'batterie'], serv: ['operazioni'], magb: ['magazzino', 'batterie'] };
@@ -7457,7 +7493,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       ['preventivi', I.doc, 'acc', 'Preventivi', 'In ore e ricambi, con la foto di quello dell’ufficio', (function () { var n = (S.prev || []).filter(function (p) { return p.stato === 'bozza' || p.stato === 'inviato'; }).length; return n ? '<span class="pill acc">' + n + ' in attesa</span>' : ''; })()],
       ['rifiuti', I.trash, 'late', 'Rifiuti', 'Cosa produciamo, deposito, ritiri della ditta e registro', rifDepKg() > 0 ? '<span class="pill">≈ ' + fmtNum(rifDepKg(), 0) + ' kg in deposito</span>' : ''],
       ['assenze', I.cal, 'vio', 'Ferie e permessi', 'Richieste, approvazioni e chi è assente', assAdmin() && assPending().length ? '<span class="pill soon">' + assPending().length + ' da approvare</span>' : assOn(todayISO()).length ? '<span class="pill">' + assOn(todayISO()).length + ' assenti oggi</span>' : ''],
-      ['misure', I.ruler, 'acc', 'Misure: mm e pollici', 'Convertitore, chiavi, filetti metrici, UNC, UNF, BSP e NPT', ''],
+      ['misure', I.ruler, 'acc', 'Misure e unità', 'mm e pollici, piedi, galloni, psi, chiavi e filetti', ''],
       ['ore', I.hours, 'ok', 'Ore del mese', 'Ore di ogni dipendente e giornate confermate', ''],
       ['operazioni', I.list, '', 'Servizi di cantiere', 'Trasporti, alaggi, movimentazioni, vari, lavaggi: passaggi e tempi', runs ? '<span class="pill acc">' + runs + ' in corso</span>' : ''],
       ['scadenze', I.alarm, 'late', 'Scadenze', 'Tagliandi, assicurazioni, contratti', late ? '<span class="pill late">' + late + ' scadute</span>' : ''],
@@ -7960,7 +7996,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
 
   /* ---------- Barre ---------- */
-  var TITOLI = { aspetto: 'Aspetto dell’app', riepiloghi: 'Riepiloghi', scheda: 'Scheda lavoro', scadenze: 'Scadenze', calendario: 'Calendario', barche: 'Barche', lavori: 'Lavorazioni da fare', altro: 'Altro', vari: 'Vari e alaggi', magazzino: 'Magazzino', preventivi: 'Preventivi', assenze: 'Ferie e permessi', misure: 'Misure mm e pollici', rifiuti: 'Rifiuti', scadcantiere: 'Scadenze del cantiere', ore: 'Ore del mese', checklist: 'Checklist', operazioni: 'Servizi di cantiere', backup: 'Copia dei dati', programma: 'Programma', pannello: 'Pannello', batterie: 'Batterie', notifiche: 'Notifiche', categorie: 'Categorie', inventario: 'Inventario', giro: 'Giro di controllo', ditte: 'Ditte esterne' };
+  var TITOLI = { aspetto: 'Aspetto dell’app', riepiloghi: 'Riepiloghi', scheda: 'Scheda lavoro', scadenze: 'Scadenze', calendario: 'Calendario', barche: 'Barche', lavori: 'Lavorazioni da fare', altro: 'Altro', vari: 'Vari e alaggi', magazzino: 'Magazzino', preventivi: 'Preventivi', assenze: 'Ferie e permessi', misure: 'Misure e unità', rifiuti: 'Rifiuti', scadcantiere: 'Scadenze del cantiere', ore: 'Ore del mese', checklist: 'Checklist', operazioni: 'Servizi di cantiere', backup: 'Copia dei dati', programma: 'Programma', pannello: 'Pannello', batterie: 'Batterie', notifiche: 'Notifiche', categorie: 'Categorie', inventario: 'Inventario', giro: 'Giro di controllo', ditte: 'Ditte esterne' };
   // per l'amministratore: quale sezione apre ciascuno (lo registra nm-fb.js)
   function vistaNome() {
     if (V.tab === 'barche' && V.boatId && boatById(V.boatId)) return 'la barca ' + (boatById(V.boatId).nome || 'senza nome');
@@ -8338,8 +8374,9 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'Le assenze compaiono anche in programma, calendario e ore del mese.',
       'D|L’amministratore approva o rifiuta e lo vedi in Home. Puoi cancellare una tua richiesta finché non è decisa.',
       'A|Le richieste da approvare compaiono qui e in Home: approva o rifiuta con un tocco.'] },
-    misure: { t: 'Misure: mm e pollici', p: 'Strumenti di misura per l’officina.', li: [
+    misure: { t: 'Misure e unità', p: 'Strumenti di misura per l’officina.', li: [
       'Convertitore tra millimetri e pollici.',
+      '«Altre unità» converte lunghezza (metri, piedi, pollici), volume (litri, galloni USA e inglesi), potenza (CV, kW, HP), pressione (bar, psi), velocità (nodi, km/h), peso, coppia di serraggio (Nm, lb·ft) e temperatura (°C, °F): scrivi in un campo e gli altri si aggiornano.',
       'Chiavi metriche e in pollici: ti dice se una chiave va bene o è troppo larga.',
       'Riconoscimento dei filetti metrici, UNC, UNF, BSP e NPT dal diametro e dal passo.'] },
     ore: { t: 'Ore del mese', p: 'Le ore di ogni dipendente, prese dalla Scheda lavoro.', li: [
@@ -10305,6 +10342,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'ass-edit': x = (S.assenze || []).find(function (q) { return q.id === id; }); if (x) assSheet(x); break;
       case 'ass-ok': assDecide(id, true); break;
       case 'mis-tab': V.misTab = t.getAttribute('data-v'); render(); break;
+      case 'mis-ug': V.misUg = t.getAttribute('data-v'); render(); break;
       case 'mis-u': (function () { var f = t.getAttribute('data-f'), u = t.getAttribute('data-u'); if (f === 'k') V.misKu = u; else if (f === 'fd') V.misFdu = u; else if (f === 'fp') V.misFpu = u; })(); render(); break;
       case 'ass-no': if (confirm('Rifiutare la richiesta?')) assDecide(id, false); break;
       case 'new-attr': if (S.canWrite) attrSheet(null, t.getAttribute('data-boat') || V.boatId); break;
