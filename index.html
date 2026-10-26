@@ -5229,7 +5229,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     return h + lyRender('pannello', B.concat(LY_W));
   }
   /* ---------- Riepiloghi: scadenze, magazzino, porto e rifiuti in numeri e tabelle ---------- */
-  var RIEP = [['scad', 'Scadenze in arrivo', I.alarm], ['mag', 'Magazzino e consumi', I.box], ['porto', 'Porto e posti', I.map], ['rif', 'Rifiuti e ritiri', I.trash]];
+  var RIEP = [['scad', 'Scadenze in arrivo', I.alarm], ['mag', 'Magazzino e consumi', I.box], ['porto', 'Porto e posti', I.map], ['rif', 'Rifiuti e ritiri', I.trash], ['clienti', 'Clienti da sentire', I.tel]];
   // ogni pezzo di un riepilogo è un riquadro da sistemare: numeri piccoli, grafici medi, tabelle grandi
   function rpBlock(id, t, z, d, html) { return { id: id, t: t, z: z, d: d, h: function () { return html; } }; }
   function rpTab(id, t, html) { return rpBlock(id, t, ['m', 'l'], 'l', html); }
@@ -5260,7 +5260,42 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var k = V.riep || 'scad';
     var h = '<div class="chips riep-chips" role="group" aria-label="Riepilogo">' + riepList().map(function (r) { return '<button type="button" data-act="riep" data-v="' + r[0] + '" aria-pressed="' + (k === r[0]) + '">' + r[1] + '</button>'; }).join('') + '</div>';
     if (!riepList().some(function (r) { return r[0] === k; })) k = 'scad';
-    return h + lyRender('riep_' + k, { scad: riepScad, mag: riepMag, porto: riepPorto, rif: riepRif }[k]().concat(LY_W));
+    return h + lyRender('riep_' + k, { scad: riepScad, mag: riepMag, porto: riepPorto, rif: riepRif, clienti: riepClienti }[k]().concat(LY_W));
+  }
+
+  /* Clienti da sentire (solo amministratore, si spegne): barche ferme da 12 mesi, contratti del posto scaduti, scadenze passate da più di 30 giorni */
+  function cliDaSentire() {
+    var oggi = todayISO(), anno = utcToISO(isoToUTC(oggi) - 365 * 86400000), last = {}, by = {};
+    function seen(id, d) { d = String(d || '').slice(0, 10); if (id && d && d <= oggi && d > (last[id] || '')) last[id] = d; }
+    S.lavori.forEach(function (l) { seen(l.barcaId, l.data); });
+    (S.vari || []).forEach(function (v) { if (v.fatto) seen(v.barcaId, v.fattoIl || v.data); });
+    (S.ops || []).forEach(function (o) { seen(o.barcaId, o.fatto || o.creato); });
+    function add(b, why, ord) { if (!b) return; var r = by[b.id] || (by[b.id] = { b: b, why: [], ord: 9 }); if (r.why.indexOf(why) < 0) r.why.push(why); r.ord = Math.min(r.ord, ord); }
+    var ferme = 0, contr = 0, scad = 0;
+    S.boats.forEach(function (b) {
+      if (b.stato === 'Consegnata' || String(b.creato || '').slice(0, 10) > anno) return;
+      if ((last[b.id] || '') < anno) { ferme++; add(b, last[b.id] ? 'nessun lavoro da ' + cliMesi(last[b.id]) : 'nessun lavoro segnato', 3); }
+    });
+    if (PORTO_ON()) Porto.contratti(-1).forEach(function (x) { if (x.boat) { contr++; add(x.boat, 'contratto del posto ' + x.id + ' scaduto il ' + fmtDate(x.d.fino), 1); } });
+    openScad().forEach(function (x) { var d = x.s.data ? daysUntil(x.s.data) : null; if (d != null && d < -30 && x.i.boat) { scad++; add(x.i.boat, (x.s.tipo || 'scadenza') + ' scaduta il ' + fmtDate(x.s.data), 2); } });
+    var rows = Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return a.ord - b.ord || b.why.length - a.why.length || String(a.b.proprietario || '').localeCompare(String(b.b.proprietario || '')); });
+    return { rows: rows, last: last, ferme: ferme, contr: contr, scad: scad };
+  }
+  function cliMesi(d) { var m = Math.floor((isoToUTC(todayISO()) - isoToUTC(d)) / (30.44 * 86400000)); return m >= 24 ? Math.floor(m / 12) + ' anni' : m + ' mesi'; }
+  function riepClienti() {
+    var c = cliDaSentire(), clienti = {}; c.rows.forEach(function (r) { clienti[String(r.b.proprietario || '').trim().toLowerCase() || r.b.id] = 1; });
+    var B = [rpKpi('Clienti da sentire', String(Object.keys(clienti).length), c.rows.length + (c.rows.length === 1 ? ' barca' : ' barche'), c.rows.length ? 'soon' : 'ok'),
+      rpKpi('Ferme da 12 mesi', String(c.ferme), 'nessun lavoro né varo', c.ferme ? 'soon' : ''),
+      rpKpi('Contratti scaduti', String(c.contr), PORTO_ON() ? 'posto non rinnovato' : 'porto spento', c.contr ? 'late' : ''),
+      rpKpi('Scadenze passate', String(c.scad), 'da più di 30 giorni', c.scad ? 'late' : '')];
+    var h = secH('Da sentire (' + c.rows.length + ')');
+    h += rpTable([['Cliente'], ['Barca'], ['Perché'], ['Ultimo lavoro'], ['Telefono']], c.rows.map(function (r) {
+      var b = r.b, tel = String(b.telefono || '').trim();
+      return { act: ' data-act="open-boat" data-id="' + esc(b.id) + '"', c: ['<b>' + esc(b.proprietario || '–') + '</b>', esc(boatLabel(b)), r.why.map(esc).join('<br>'), esc(c.last[b.id] ? fmtDate(c.last[b.id]) : '–'),
+        tel ? '<a href="tel:' + esc(tel.replace(/[^\d+]/g, '')) + '" onclick="event.stopPropagation()">' + esc(tel) + '</a>' : '–'] };
+    }), 'Nessun cliente da sentire: niente barche ferme da un anno, contratti scaduti o scadenze dimenticate.');
+    B.push(rpTab('sentire', 'Da sentire', h));
+    return B;
   }
   function riepScad() {
     var open = openScad(), late = open.filter(function (x) { return x.i.level === 'late'; }), soon = open.filter(function (x) { return x.i.level === 'soon'; });
@@ -7238,14 +7273,15 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['giro', 'Giro di controllo', 'dopo il vento forte'], ['meteo', 'Meteo', 'vento e mare in Home'], ['preventivi', 'Preventivi', 'in ore e ricambi'],
     ['ditte', 'Ditte esterne', 'velaio, tappezziere, elettricista…'], ['operazioni', 'Servizi di cantiere', 'trasporti, alaggi, lavaggi'],
     ['scadcantiere', 'Scadenze del cantiere', 'mezzi, attrezzature, sicurezza'], ['magazzino', 'Magazzino', 'ricambi e scorte'], ['rifiuti', 'Rifiuti', 'deposito, ritiri e registro'],
-    ['misure', 'Misure e unità', 'convertitore, unità e filetti']];
+    ['misure', 'Misure e unità', 'convertitore, unità e filetti'], ['clienti', 'Clienti da sentire', 'barche ferme, contratti e scadenze dimenticate (solo amministratore)']];
   // riquadri di Home e Pannello che appartengono a una sezione (spariscono se le loro sezioni sono tutte spente)
   var SEZ_BLOCCHI = { w_mag: ['magazzino'], w_porto: ['porto'], w_rif: ['rifiuti'], w_batt: ['batterie'], vari: ['vari'], prog: ['programma'], meteo: ['meteo'],
     contr: ['porto'], riord: ['magazzino', 'batterie'], serv: ['operazioni'], magb: ['magazzino', 'batterie'] };
   function sezSpente() { var c = S.sezCfg; if (c && !c._del && Array.isArray(c.spente)) return c.spente; return window.NM_ASPETTO ? [] : ['porto']; } // il porto disegnato è quello di Nautica Mare
   function sezOn(k) { return sezSpente().indexOf(k) < 0; }
   function sezBlocco(b) { var ks = SEZ_BLOCCHI[b.id]; return !ks || ks.some(sezOn); }
-  function riepList() { var m = { mag: 'magazzino', porto: 'porto', rif: 'rifiuti' }; return RIEP.filter(function (r) { return !m[r[0]] || sezOn(m[r[0]]); }); }
+  function riepList() { var m = { mag: 'magazzino', porto: 'porto', rif: 'rifiuti', clienti: 'clienti' }; return RIEP.filter(function (r) { return (!m[r[0]] || sezOn(m[r[0]])) && (r[0] !== 'clienti' || S.isOwner); }); }
+  function PORTO_ON() { return sezOn('porto'); }
   function aspNuovo() { return !window.NM_ASPETTO && !(S.aspetto && !S.aspetto._del); } // azienda nuova: aspetto mai scelto
   function aspDraft() {
     if (!V.asp) {
@@ -8278,7 +8314,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'Magazzino e consumi: articoli sotto scorta con quanto ordinare, i ricambi più usati del mese e gli articoli fermi da più di un anno.',
       'Porto e posti: posti vostri occupati per zona, barche in acqua e a terra, vari e alaggi in arrivo, contratti in scadenza nei prossimi 60 giorni.',
       'Rifiuti e ritiri: kg in deposito (e quanti pericolosi), costo stimato, rifiuti segnati per mese e ritiri della ditta.',
-      'A|Ognuno dei quattro riepiloghi ha i suoi riquadri da sistemare come in Home: tieni premuto (o «⋯» sul computer) per grandezza, posizione o per toglierli.'] },
+      'A|Clienti da sentire (si spegne in Aspetto › Sezioni): barche senza lavori né vari da 12 mesi, contratti del posto scaduti, scadenze passate da più di 30 giorni, con il telefono del cliente.',
+      'A|Ognuno dei riepiloghi ha i suoi riquadri da sistemare come in Home: tieni premuto (o «⋯» sul computer) per grandezza, posizione o per toglierli.'] },
     barca: { t: 'Scheda della barca', p: 'Qui c’è tutta la storia della barca.', li: [
       'La matita in alto modifica i dati: modello, misure, motori, stato, ore motore, proprietario con telefono ed email.',
       'Nella matita ogni motore è una riga con marca e modello, matricola, cv e ore: «Aggiungi riga» per un altro motore (copia marca e cv del primo), × per toglierlo. Il numero dei motori si conta da solo.',
