@@ -19,3 +19,8 @@ window.NM_AVVISI_A = '';
 /* Aspetto: qui non c'è, quindi al primo accesso l'amministratore trova la procedura guidata (nome, colori, loghi, luogo, sezioni).
    Si può anche fissare qui, per esempio:
    window.NM_ASPETTO = { nome: 'Cantiere Rossi', colore1: '#1F4D3A', colore2: '#04140D', logo: 'marca/logo.png', scritta: 'marca/scritta.png', luogo: 'Piombino', lat: 42.9256, lon: 10.5253 }; */
+
+/* App Check (obbligatorio per l'AI dal 2 novembre 2026): chiave del sito reCAPTCHA registrata in
+   Firebase › App Check › App › app web. tipo: 'v3' (reCAPTCHA v3) oppure 'enterprise'.
+   Non è segreta. Finché è vuota l'app non manda il gettone e, dal 2/11, l'AI dalla foto non risponde. */
+window.NM_APPCHECK = { tipo: 'v3', siteKey: '' };
