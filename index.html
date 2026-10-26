@@ -927,6 +927,27 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .feat-w { flex-basis: 50%; }
 }
+.rt-map { flex: none; height: 320px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--card); position: relative; z-index: 0; }
+@media (min-width: 768px) and (min-height: 500px) { .rt-map { height: 420px; } }
+.rt-wait { display: flex; align-items: center; justify-content: center; height: 100%; padding: 16px; text-align: center; color: var(--muted); font-size: .92rem; }
+.rt-box { display: flex; flex-direction: column; gap: 10px; }
+.rt-box[hidden] { display: none; }
+.rt-acts { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.rt-chk { display: flex; gap: 8px; align-items: center; font-size: .95rem; }
+.rt-rowh { display: flex; gap: 10px; align-items: flex-end; }
+.rt-rowh .field { flex: 1; min-width: 0; }
+.rt-pin { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #ffb020; color: #1a1204; font: 700 13px/1 var(--font-head, sans-serif); border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.45); flex: none; }
+.rt-pin.sm { width: 24px; height: 24px; font-size: 12px; margin-bottom: 8px; }
+.row .rt-pin.sm { margin: 0 4px 0 0; vertical-align: middle; }
+.rt-pin.da, .rt-pin.a { background: #2EC4B6; color: #04201d; }
+.rt-pin.via { width: 14px; height: 14px; background: #2EC4B6; color: transparent; }
+.rt-pin.ok { background: #38c172; color: #062010; }
+.rt-pin.no { background: #f2473d; color: #fff; }
+.rt-pin.off { background: #8a8f98; color: #fff; }
+.rt-det { margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+.rt-det summary { cursor: pointer; font-weight: 600; }
+.rt-det ol { margin: 8px 0 2px; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; font-size: .93rem; }
+.leaflet-container a.leaflet-control-zoom-in, .leaflet-container a.leaflet-control-zoom-out { color: #222; }
 </style>
 
 <div class="splash" id="splash" role="img" aria-label=""><img id="logo-src" alt=""></div>
@@ -3384,7 +3405,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         return '<button type="button" data-act="m-mezzo-go" data-id="' + esc(m.id) + '"><span class="ic-circle" style="background:var(--card-2);color:var(--ink)">' + I.updown + '</span><span class="main"><span class="title">' + esc(m.nome || 'Carrello') + '</span><span class="sub">' +
           esc(m.tipo || 'Mezzo') + (d ? ' · ' + fmtNum(d.L, 2) + ' × ' + fmtNum(d.B, 2) + ' m' : '') + ' · ' + (mezzoPos(m) ? (c ? 'a bordo ' + esc(c.nome) : 'sulla mappa') : 'da posizionare') + '</span></span></button>';
       }).join('') + '</div>' : '<p class="context">Nessun mezzo. Aggiungi carrelli, muletti e gli altri mezzi che si muovono nel cantiere.</p>') +
-        (S.canWrite ? '<button type="button" class="btn sec self-start" data-act="m-mezzo-new">' + I.plus + 'Nuovo mezzo</button><button type="button" class="link" data-act="mz-seed" style="align-self:flex-start">Aggiungi i mezzi del cantiere (BoatLift, motrice, trattore…)</button><button type="button" class="link" data-act="perc-edit" style="align-self:flex-start">Percorso MSV → cantiere e portoni</button>' : '')
+        (S.canWrite ? '<button type="button" class="btn sec self-start" data-act="m-mezzo-new">' + I.plus + 'Nuovo mezzo</button><button type="button" class="link" data-act="mz-seed" style="align-self:flex-start">Aggiungi i mezzi del cantiere (BoatLift, motrice, trattore…)</button><button type="button" class="link" data-act="perc-edit" style="align-self:flex-start">' + (mapLibera() ? 'Percorso del trasporto' : 'Percorso MSV → cantiere e portoni') + '</button>' : '')
     });
   }
   var TIPI_MEZZO = ['BoatLift (semovente)', 'Carrello autotaccante con timone snodato', 'Carrello autolivellante', 'Carrello stradale', 'Carrello', 'Motrice', 'Trattore', 'Furgone', 'Muletto', 'Altro'];
@@ -3463,6 +3484,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   LIB_SRI[THREE_URL] = 'sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu';
   LIB_SRI[ORBIT_URL] = 'sha384-wagZhIFgY4hD+7awjQjR4e2E294y6J2HSnd8eTNc15ZubTeQeVRZwhQJ+W6hnBsf';
   LIB_SRI['https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js'] = 'sha384-BzBxP10ZE72aitqj5UMmUsbKFliP/DZqA8Wq+BNNhlIJDGoEd1tpkMYXOg9+n6sB';
+  LIB_SRI['https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js'] = 'sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH';
+  LIB_SRI['https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css'] = 'sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H';
   function loadScript(src) { return new Promise(function (res, rej) { var s = document.createElement('script'); if (LIB_SRI[src]) { s.integrity = LIB_SRI[src]; s.crossOrigin = 'anonymous'; } s.src = src; s.onload = res; s.onerror = function () { rej(new Error('script')); }; (document.head || document.body).appendChild(s); }); }
   function getThree() {
     if (!threeP) {
@@ -3780,7 +3803,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function gapLevel(d) { return d < 0.5 ? 'late' : d < 1 ? 'soon' : 'ok'; }
   function gapHex(d) { return d < 0.5 ? 0xf2473d : d < 1 ? 0xffb020 : 0x38c172; }
 
-  /* Passa? Altezza e larghezza della barca sul suo carrello (o su quello scelto) contro portoni, sagoma stradale e percorso MSV → cantiere */
+  /* Passa? Altezza e larghezza della barca sul suo carrello (o su quello scelto) contro portoni, sagoma stradale e passaggi del percorso del trasporto */
   var PERC_DEF = [{ nome: 'Sottopasso ferroviario', tipo: 'altezza' }, { nome: 'Ponte o cavalcavia', tipo: 'altezza' }, { nome: 'Strettoie e rotonde', tipo: 'larghezza' }];
   function percorso() { var p = S.percorso && Array.isArray(S.percorso.passaggi) ? S.percorso.passaggi : null; return p && p.length ? p : PERC_DEF; }
   function portaAlt(cfg) { var a = (S.mapCfg || {}).alt || {}; return { pitagora: num(a.porta) > 0 ? +a.porta : 4.6, talete: num(a.portaT) > 0 ? +a.portaT : 4.2, stime: !(num(a.porta) > 0 && num(a.portaT) > 0) }; }
@@ -3820,35 +3843,262 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       return '<div class="row"><span class="main"><span class="title">' + esc(c.nome) + '</span><span class="sub">' + esc(c.nota || '') + '</span></span>' + pill + '</div>';
     }).join('') + '</div>';
     if (P.Hest) h += '<p class="cap" style="margin:6px 2px 0">Per un risultato sicuro inserisci l’altezza totale della barca (dalla chiglia al punto più alto) nella scheda.</p>';
-    h += '<button type="button" class="link" data-act="perc-edit" style="margin-top:6px">Misure del percorso MSV → cantiere</button>';
+    if (percStrada()) h += '<button type="button" class="btn sec self-start" data-act="perc-vedi" data-id="' + esc(b.id) + '" style="margin-top:8px">Vedi la strada sulla mappa</button>';
+    if (S.canWrite) h += '<button type="button" class="link" data-act="perc-edit" style="margin-top:6px">' + (mapLibera() ? (percStrada() ? 'Cambia la strada o i passaggi' : 'Scegli la strada del trasporto e i passaggi') : 'Misure del percorso MSV → cantiere') + '</button>';
     return h;
   }
+  function percTitolo() { return mapLibera() ? 'Percorso del trasporto' : 'Percorso MSV → cantiere'; }
+  function percStrada() { var s = S.percorso && S.percorso.strada; return s && Array.isArray(s.linea) && s.linea.length >= 4 ? s : null; }
+
+  /* Strada del trasporto su una mappa vera (OpenStreetMap, gratis e senza chiavi): la libreria si carica solo quando serve */
+  var LEAF_JS = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js', LEAF_CSS = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css', leafP = null;
+  var RT = { osrm: 'https://router.project-osrm.org/route/v1/driving/', geo: 'https://nominatim.openstreetmap.org/search', ovp: 'https://overpass-api.de/api/interpreter' };
+  function getLeaflet() {
+    if (!leafP) {
+      if (!document.querySelector('link[data-leaf]')) { var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = LEAF_CSS; l.integrity = LIB_SRI[LEAF_CSS]; l.crossOrigin = 'anonymous'; l.setAttribute('data-leaf', '1'); document.head.appendChild(l); }
+      leafP = (window.L && window.L.map ? Promise.resolve() : loadScript(LEAF_JS)).then(function () { return window.L; });
+      leafP.catch(function () { leafP = null; });
+    }
+    return leafP;
+  }
+  function rtFlat(pts) { var o = []; pts.forEach(function (p) { o.push(Math.round(p[0] * 1e5) / 1e5, Math.round(p[1] * 1e5) / 1e5); }); return o; } // Firestore non accetta liste dentro liste
+  function rtPts(flat) { var o = []; for (var i = 0; i + 1 < (flat || []).length; i += 2) o.push([flat[i], flat[i + 1]]); return o; }
+  function rtDist(a, b) { var R = 6371000, r = Math.PI / 180, dLa = (b[0] - a[0]) * r, dLo = (b[1] - a[1]) * r, s = Math.sin(dLa / 2) * Math.sin(dLa / 2) + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLo / 2) * Math.sin(dLo / 2); return 2 * R * Math.asin(Math.sqrt(s)); }
+  function rtLen(pts) { var m = 0; for (var i = 1; i < pts.length; i++) m += rtDist(pts[i - 1], pts[i]); return m; }
+  function rtThin(pts, max) { if (pts.length <= max) return pts; var o = [], step = (pts.length - 1) / (max - 1); for (var i = 0; i < max; i++) o.push(pts[Math.round(i * step)]); return o; }
+  function fmtKm(m) { return m < 1000 ? Math.round(m / 10) * 10 + ' m' : fmtNum(m / 1000, 1) + ' km'; }
+  function rtLuogo() { var c = window.NM_MARCA && NM_MARCA.get ? NM_MARCA.get() : {}, la = num(c.lat), lo = num(c.lon); return la != null && lo != null ? [la, lo] : [42.5, 12.5]; }
+  // indicazioni in italiano dai passi di OSRM
+  var RT_DIR = { right: 'Gira a destra', left: 'Gira a sinistra', 'slight right': 'Tieni la destra', 'slight left': 'Tieni la sinistra', 'sharp right': 'Svolta stretta a destra', 'sharp left': 'Svolta stretta a sinistra', straight: 'Prosegui dritto', uturn: 'Fai inversione' };
+  function rtStep(s) {
+    var m = s.maneuver || {}, n = s.name || s.ref || '', su = n ? ' su ' + n : '';
+    if (m.type === 'depart') return 'Parti' + (n ? ' da ' + n : '');
+    if (m.type === 'arrive') return 'Arrivo';
+    if (m.type === 'roundabout' || m.type === 'rotary') return 'Alla rotonda prendi la ' + (m.exit || 1) + 'ª uscita' + (n ? ' verso ' + n : '');
+    if (m.type === 'exit roundabout' || m.type === 'exit rotary') return 'Esci dalla rotonda' + su;
+    if (m.type === 'continue' || m.type === 'new name' || m.type === 'notification') return (m.modifier && m.modifier !== 'straight' && RT_DIR[m.modifier] ? RT_DIR[m.modifier] : 'Continua') + su;
+    return (RT_DIR[m.modifier] || 'Prosegui') + su;
+  }
+  async function rtRoute(pts) {
+    var url = RT.osrm + pts.map(function (p) { return p[1].toFixed(6) + ',' + p[0].toFixed(6); }).join(';') + '?overview=full&geometries=geojson&steps=true';
+    var r = await fetch(url); if (!r.ok) throw new Error('strada');
+    var j = await r.json(); if (!j.routes || !j.routes[0]) throw new Error('strada');
+    var ro = j.routes[0], ind = [];
+    (ro.legs || []).forEach(function (lg, li) { (lg.steps || []).forEach(function (s) {
+      var t = rtStep(s); if (t === 'Arrivo' && li < ro.legs.length - 1) return; if (t.indexOf('Parti') === 0 && li > 0) return;
+      ind.push({ t: t, m: Math.round(s.distance || 0) });
+    }); });
+    return { linea: rtThin(ro.geometry.coordinates.map(function (c) { return [c[1], c[0]]; }), 1500), m: Math.round(ro.distance || 0), min: Math.round((ro.duration || 0) / 60), ind: ind.slice(0, 120) };
+  }
+  async function rtGeo(q) {
+    var c = rtLuogo(), url = RT.geo + '?format=jsonv2&limit=1&accept-language=it&q=' + encodeURIComponent(q) + '&viewbox=' + (c[1] - 1) + ',' + (c[0] + 1) + ',' + (c[1] + 1) + ',' + (c[0] - 1);
+    var r = await fetch(url); if (!r.ok) throw new Error('indirizzo');
+    var j = await r.json(); if (!j[0]) return null;
+    return { testo: q, nome: String(j[0].display_name || q).split(',').slice(0, 3).join(','), lat: +j[0].lat, lon: +j[0].lon };
+  }
+  function rtMis(v) { // altezza o larghezza da OpenStreetMap: «3.5», «3,5 m», «11'6"»
+    var s = String(v || '').trim().toLowerCase(); if (!s || /default|none|unsigned|below/.test(s)) return null;
+    var ft = /^(\d+)\s*'\s*(\d+)?/.exec(s); if (ft) return Math.round((+ft[1] * 0.3048 + (+(ft[2] || 0)) * 0.0254) * 100) / 100;
+    var n = parseFloat(s.replace(',', '.')); return n > 0 && n < 30 ? n : null;
+  }
+  async function rtOsm(linea) {
+    var pts = rtThin(linea, 180).map(function (p) { return p[0].toFixed(5) + ',' + p[1].toFixed(5); }).join(',');
+    var q = '[out:json][timeout:25];(way(around:12,' + pts + ')["maxheight"];way(around:12,' + pts + ')["maxwidth"];node(around:12,' + pts + ')["maxheight"];);out center tags 80;';
+    var r = await fetch(RT.ovp, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(q) });
+    if (!r.ok) throw new Error('osm');
+    var j = await r.json(), seen = {}, out = [];
+    (j.elements || []).forEach(function (e) {
+      var t = e.tags || {}, h = rtMis(t.maxheight), w = rtMis(t.maxwidth), la = e.center ? e.center.lat : e.lat, lo = e.center ? e.center.lon : e.lon;
+      if ((h == null && w == null) || la == null) return;
+      var k = (h || '') + '|' + (w || '') + '|' + la.toFixed(3) + lo.toFixed(3); if (seen[k]) return; seen[k] = 1;
+      var tipo = t.tunnel ? 'Sottopasso' : t.bridge ? 'Ponte' : h != null ? 'Passaggio basso' : 'Strettoia';
+      out.push({ nome: tipo + (t.name ? ' · ' + t.name : ''), altezza: h, larghezza: w, lat: Math.round(la * 1e5) / 1e5, lon: Math.round(lo * 1e5) / 1e5, osm: e.type + '/' + e.id });
+    });
+    return out;
+  }
+  function rtMap(L, el) {
+    var map = L.map(el, { zoomControl: true, attributionControl: true }).setView(rtLuogo(), 13);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' }).addTo(map);
+    map.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
+    setTimeout(function () { map.invalidateSize(); }, 60);
+    return map;
+  }
+  function rtPin(L, txt, cls) { return L.divIcon({ className: '', html: '<span class="rt-pin ' + (cls || '') + '">' + esc(txt) + '</span>', iconSize: [26, 26], iconAnchor: [13, 13] }); }
+  function passaUno(p, tr) { // come passaChecks: true passa, false non passa, null misura mancante
+    var h = num(p.altezza), w = num(p.larghezza);
+    if (!(h > 0) && !(w > 0)) return null;
+    return !(h > 0 && tr.H > h - 0.1) && !(w > 0 && tr.W > w - 0.3);
+  }
+
   function percSheet() {
-    var list = percorso().map(function (p) { return Object.assign({}, p); }), pa = portaAlt(mapCfg());
-    function row(p, i) { return '<div class="vbox" data-pi="' + i + '">' + field('<label>Nome</label>', '<input class="p-n" type="text" value="' + esc(p.nome || '') + '" placeholder="es. Sottopasso di via …">') +
-      '<div class="grid2">' + field('<label>Altezza libera (m)</label>', '<input class="p-h" type="text" inputmode="decimal" value="' + esc(num(p.altezza) != null ? String(p.altezza).replace('.', ',') : '') + '" placeholder="dal cartello">') +
-      field('<label>Larghezza utile (m)</label>', '<input class="p-w" type="text" inputmode="decimal" value="' + esc(num(p.larghezza) != null ? String(p.larghezza).replace('.', ',') : '') + '" placeholder="facoltativa">') + '</div>' +
-      '<button type="button" class="link" data-act="perc-del" style="align-self:flex-start;color:var(--late)">Togli questo passaggio</button></div>'; }
+    var lib = mapLibera(), list = percorso().map(function (p) { return Object.assign({}, p); }), pa = portaAlt(mapCfg());
+    var s0 = (S.percorso && S.percorso.strada) || {};
+    var st = { modo: s0.modo === 'indirizzi' ? 'indirizzi' : 'mappa', segui: s0.segui !== false, punti: rtPts(s0.punti), linea: rtPts(s0.linea), m: num(s0.m), min: num(s0.min), ind: Array.isArray(s0.ind) ? s0.ind : [], da: s0.da || null, a: s0.a || null, placing: null, map: null, L: null, lay: null, busy: 0 };
+    function misVal(v) { return num(v) != null ? String(v).replace('.', ',') : ''; }
+    function row(p, i) { return '<div class="vbox" data-pi="' + i + '" data-lat="' + esc(num(p.lat) != null ? p.lat : '') + '" data-lon="' + esc(num(p.lon) != null ? p.lon : '') + '" data-osm="' + esc(p.osm || '') + '">' +
+      '<div class="rt-rowh"><span class="rt-pin sm">' + '</span>' + field('<label>Nome</label>', '<input class="p-n" type="text" value="' + esc(p.nome || '') + '" placeholder="es. Sottopasso di via …">') + '</div>' +
+      '<div class="grid2">' + field('<label>Altezza libera (m)</label>', '<input class="p-h" type="text" inputmode="decimal" value="' + esc(misVal(p.altezza)) + '" placeholder="dal cartello">') +
+      field('<label>Larghezza utile (m)</label>', '<input class="p-w" type="text" inputmode="decimal" value="' + esc(misVal(p.larghezza)) + '" placeholder="facoltativa">') + '</div>' +
+      '<div class="rt-acts"><button type="button" class="link" data-act="rt-place"></button><button type="button" class="link" data-act="perc-del" style="color:var(--late)">Togli questo passaggio</button></div></div>'; }
+    var portoni = lib ? '' : '<div class="lbl">Portoni del capannone</div><div class="grid2">' + field(lab('f-pah', 'Altezza portone Via Pitagora (m)'), inp('f-pah', String(pa.pitagora).replace('.', ','), 'type="text" inputmode="decimal"')) + field(lab('f-pat', 'Altezza portone Via Talete (m)'), inp('f-pat', String(pa.talete).replace('.', ','), 'type="text" inputmode="decimal"')) + '</div>';
     openSheet({
-      title: 'Percorso MSV → cantiere', submitLabel: 'Salva',
-      body: '<p class="context">I punti stretti o bassi della strada tra la Marina e il cantiere. Scrivi l’altezza che c’è sul cartello (o misurata) e, se serve, la larghezza utile. L’app li controlla per ogni barca sul suo carrello.</p>' +
-        '<div class="lbl">Portoni del capannone</div><div class="grid2">' + field(lab('f-pah', 'Altezza portone Via Pitagora (m)'), inp('f-pah', String(pa.pitagora).replace('.', ','), 'type="text" inputmode="decimal"')) + field(lab('f-pat', 'Altezza portone Via Talete (m)'), inp('f-pat', String(pa.talete).replace('.', ','), 'type="text" inputmode="decimal"')) + '</div>' +
+      title: percTitolo(), submitLabel: 'Salva',
+      body: '<p class="context">La strada che fanno le barche sul carrello, per esempio dal porto al cantiere, e i punti bassi o stretti che ci sono. L’app li controlla per ogni barca nel «Passa?».</p>' +
+        '<div class="lbl">Strada</div>' +
+        '<div class="chips wrap" role="group" aria-label="Come scegliere la strada"><button type="button" data-act="rt-modo" data-v="mappa">Disegna sulla mappa</button><button type="button" data-act="rt-modo" data-v="indirizzi">Da indirizzo a indirizzo</button></div>' +
+        '<div id="rt-ind" class="rt-box">' + field(lab('f-rda', 'Partenza'), inp('f-rda', st.da ? st.da.testo : '', 'type="text" placeholder="es. Porto di …, via …" enterkeyhint="next"')) +
+          field(lab('f-ra', 'Arrivo'), inp('f-ra', st.a ? st.a.testo : '', 'type="text" placeholder="es. via del cantiere, città" enterkeyhint="go"')) +
+          '<button type="button" class="btn sec self-start" data-act="rt-calc">Calcola la strada</button></div>' +
+        '<div id="rt-dis" class="rt-box"><span class="hint">Tocca la mappa dalla partenza all’arrivo per mettere i punti della strada.</span>' +
+          '<label class="rt-chk"><input type="checkbox" id="f-rsegui"' + (st.segui ? ' checked' : '') + '> La linea segue le strade</label>' +
+          '<div class="rt-acts"><button type="button" class="link" data-act="rt-back">Togli l’ultimo punto</button><button type="button" class="link" data-act="rt-reset" style="color:var(--late)">Ricomincia</button></div></div>' +
+        '<div id="rt-place-msg" class="notice" hidden>Tocca la mappa dove si trova il passaggio.</div>' +
+        '<div id="rt-map" class="rt-map"><div class="rt-wait">Carico la mappa…</div></div>' +
+        '<p id="rt-info" class="cap" style="margin:2px 2px 0"></p>' +
+        '<div id="rt-steps"></div>' +
+        portoni +
         '<div class="lbl">Passaggi sulla strada</div><div id="perc-box" style="display:flex;flex-direction:column;gap:10px">' + list.map(row).join('') + '</div>' +
-        '<button type="button" class="btn sec self-start" data-act="perc-add">' + I.plus + 'Aggiungi un passaggio</button>',
+        '<div class="rt-acts"><button type="button" class="btn sec self-start" data-act="perc-add">' + I.plus + 'Aggiungi un passaggio</button><button type="button" class="btn sec self-start" data-act="rt-osm" id="rt-osm">Cerca ponti e strettoie sulla strada</button></div>' +
+        '<div id="rt-osm-out"></div>',
       onOpen: function (f) {
-        f.addEventListener('click', function (e) {
+        function rows() { return Array.prototype.slice.call(f.querySelectorAll('#perc-box .vbox')); }
+        function info() {
+          var el = $('#rt-info'), n = st.linea.length;
+          el.textContent = n >= 2 ? 'Strada di ' + fmtKm(st.m != null ? st.m : rtLen(st.linea)) + (st.min ? ' · circa ' + st.min + ' min in auto (col carrello di più)' : '') : st.modo === 'mappa' ? (st.punti.length === 1 ? 'Partenza messa: tocca il punto successivo.' : 'Nessuna strada ancora.') : 'Scrivi partenza e arrivo e tocca «Calcola la strada».';
+          var sb = $('#rt-steps'); sb.innerHTML = st.ind.length && n >= 2 ? '<details class="rt-det"><summary>Indicazioni (' + st.ind.length + ')</summary><ol>' + st.ind.map(function (x) { return '<li>' + esc(x.t) + (x.m ? ' <span class="cap">' + fmtKm(x.m) + '</span>' : '') + '</li>'; }).join('') + '</ol></details>' : '';
+          $('#rt-osm').disabled = n < 2;
+        }
+        function modo() {
+          Array.prototype.forEach.call(f.querySelectorAll('[data-act="rt-modo"]'), function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-v') === st.modo)); });
+          $('#rt-ind').hidden = st.modo !== 'indirizzi'; $('#rt-dis').hidden = st.modo !== 'mappa'; info();
+        }
+        function pinsRows() {
+          rows().forEach(function (v, i) {
+            var has = v.getAttribute('data-lat') !== '', b = v.querySelector('[data-act="rt-place"]'), pin = v.querySelector('.rt-pin');
+            pin.textContent = String(i + 1); pin.classList.toggle('off', !has);
+            b.textContent = st.placing === v ? 'Tocca la mappa…' : has ? 'Sposta sulla mappa' : 'Metti sulla mappa';
+          });
+        }
+        function draw() {
+          pinsRows(); info();
+          var L = st.L, map = st.map; if (!L || !map) return;
+          if (st.lay) st.lay.remove(); st.lay = L.layerGroup().addTo(map);
+          if (st.linea.length >= 2) L.polyline(st.linea, { color: '#2EC4B6', weight: 5, opacity: .9 }).addTo(st.lay);
+          var ends = st.modo === 'mappa' ? st.punti : [st.da && [st.da.lat, st.da.lon], st.a && [st.a.lat, st.a.lon]].filter(Boolean);
+          ends.forEach(function (p, i) { var last = i === ends.length - 1 && i > 0; L.marker(p, { icon: rtPin(L, i === 0 ? 'P' : last ? 'A' : '·', i === 0 ? 'da' : last ? 'a' : 'via'), keyboard: false }).addTo(st.lay); });
+          rows().forEach(function (v, i) {
+            var la = parseFloat(v.getAttribute('data-lat')), lo = parseFloat(v.getAttribute('data-lon')); if (isNaN(la) || isNaN(lo)) return;
+            L.marker([la, lo], { icon: rtPin(L, String(i + 1), 'pass') }).bindTooltip(esc(v.querySelector('.p-n').value || 'Passaggio')).addTo(st.lay);
+          });
+        }
+        function fit() { if (!st.map) return; var all = st.linea.length >= 2 ? st.linea : st.punti; if (all.length >= 2) st.map.fitBounds(all, { padding: [24, 24] }); else if (all.length === 1) st.map.setView(all[0], 15); }
+        async function ricalcola() {
+          if (st.punti.length < 2) { st.linea = st.punti.slice(); st.m = null; st.min = null; st.ind = []; draw(); return; }
+          if (!$('#f-rsegui').checked) { st.linea = st.punti.slice(); st.m = Math.round(rtLen(st.punti)); st.min = null; st.ind = []; draw(); return; }
+          var my = ++st.busy; $('#rt-info').textContent = 'Cerco la strada…';
+          try { var r = await rtRoute(st.punti.slice(-25)); if (my !== st.busy) return; st.linea = r.linea; st.m = r.m; st.min = r.min; st.ind = r.ind; }
+          catch (e) { if (my !== st.busy) return; st.linea = st.punti.slice(); st.m = Math.round(rtLen(st.punti)); st.min = null; st.ind = []; toast('Strada non trovata: unisco i punti in linea retta', true); }
+          draw();
+        }
+        f.__rt = st;
+        modo(); pinsRows();
+        getLeaflet().then(function (L) {
+          if (!document.body.contains(f)) return;
+          var el = $('#rt-map'); el.innerHTML = '';
+          st.L = L; st.map = rtMap(L, el);
+          st.map.on('click', function (e) {
+            var p = [Math.round(e.latlng.lat * 1e5) / 1e5, Math.round(e.latlng.lng * 1e5) / 1e5];
+            if (st.placing) { st.placing.setAttribute('data-lat', p[0]); st.placing.setAttribute('data-lon', p[1]); st.placing = null; $('#rt-place-msg').hidden = true; draw(); return; }
+            if (st.modo !== 'mappa') return;
+            st.punti.push(p); ricalcola();
+          });
+          draw(); fit();
+        }).catch(function () { $('#rt-map').innerHTML = '<div class="rt-wait">La mappa non si apre: serve internet. Le misure dei passaggi si possono scrivere lo stesso.</div>'; });
+        f.addEventListener('change', function (e) { if (e.target.id === 'f-rsegui') { st.segui = e.target.checked; ricalcola(); } });
+        f.addEventListener('input', function (e) { if (e.target.classList && e.target.classList.contains('p-n')) draw(); });
+        f.addEventListener('keydown', function (e) { if (e.key === 'Enter' && (e.target.id === 'f-rda' || e.target.id === 'f-ra')) { e.preventDefault(); if (e.target.id === 'f-rda') $('#f-ra').focus(); else f.querySelector('[data-act="rt-calc"]').click(); } });
+        f.addEventListener('click', async function (e) {
           var a = e.target.closest && e.target.closest('[data-act]'); if (!a) return; var k = a.getAttribute('data-act');
-          if (k === 'perc-add') { e.stopPropagation(); $('#perc-box').insertAdjacentHTML('beforeend', row({}, Date.now())); }
-          else if (k === 'perc-del') { e.stopPropagation(); a.closest('.vbox').remove(); }
+          if (!/^(perc-|rt-)/.test(k)) return; e.stopPropagation();
+          if (k === 'perc-add') { $('#perc-box').insertAdjacentHTML('beforeend', row({}, Date.now())); pinsRows(); }
+          else if (k === 'perc-del') { var v = a.closest('.vbox'); if (st.placing === v) { st.placing = null; $('#rt-place-msg').hidden = true; } v.remove(); draw(); }
+          else if (k === 'rt-modo') { st.modo = a.getAttribute('data-v'); modo(); draw(); }
+          else if (k === 'rt-back') { st.punti.pop(); ricalcola(); }
+          else if (k === 'rt-reset') { st.punti = []; st.linea = []; st.m = null; st.min = null; st.ind = []; st.busy++; draw(); }
+          else if (k === 'rt-place') {
+            var v2 = a.closest('.vbox'); if (!st.map) { toast('La mappa non è ancora pronta', true); return; }
+            st.placing = st.placing === v2 ? null : v2; $('#rt-place-msg').hidden = !st.placing; pinsRows();
+            if (st.placing) $('#rt-map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+          else if (k === 'rt-calc') {
+            var qa = val(f, 'f-rda'), qb = val(f, 'f-ra'); if (!qa || !qb) { toast('Scrivi partenza e arrivo', true); return; }
+            a.disabled = true; $('#rt-info').textContent = 'Cerco gli indirizzi…';
+            try {
+              var da = await rtGeo(qa), ar = await rtGeo(qb);
+              if (!da || !ar) { toast('Non trovo ' + (!da ? 'la partenza' : 'l’arrivo') + ': aggiungi la città', true); info(); return; }
+              st.da = da; st.a = ar; $('#rt-info').textContent = 'Cerco la strada…';
+              var r = await rtRoute([[da.lat, da.lon], [ar.lat, ar.lon]]); st.linea = r.linea; st.m = r.m; st.min = r.min; st.ind = r.ind;
+              draw(); fit(); toast('Da ' + da.nome + ' a ' + ar.nome);
+            } catch (err) { toast('Strada non trovata: controlla internet o gli indirizzi', true); info(); }
+            finally { a.disabled = false; }
+          }
+          else if (k === 'rt-osm') {
+            if (st.linea.length < 2) return; var out = $('#rt-osm-out'); a.disabled = true; out.innerHTML = '<div class="notice">Cerco su OpenStreetMap…</div>';
+            try {
+              var got = await rtOsm(st.linea), have = {}; rows().forEach(function (v) { var o = v.getAttribute('data-osm'); if (o) have[o] = 1; });
+              got = got.filter(function (g) { return !have[g.osm]; });
+              f.__osm = got;
+              out.innerHTML = got.length ? '<div class="group">' + got.map(function (g, i) { return '<div class="row"><span class="main"><span class="title">' + esc(g.nome) + '</span><span class="sub">' + [g.altezza != null ? 'altezza ' + fmtNum(g.altezza, 2) + ' m' : '', g.larghezza != null ? 'larghezza ' + fmtNum(g.larghezza, 2) + ' m' : ''].filter(Boolean).join(' · ') + '</span></span><button type="button" class="btn sec" data-act="rt-osm-add" data-i="' + i + '">Aggiungi</button></div>'; }).join('') + '</div><p class="cap" style="margin:6px 2px 0">Sono i limiti segnati su OpenStreetMap vicino alla strada: controllali col cartello vero prima di fidarti.</p>'
+                : '<div class="notice">Su OpenStreetMap non c’è nessun limite di altezza o larghezza lungo questa strada. Aggiungi a mano quelli che conoscete.</div>';
+            } catch (err2) { out.innerHTML = '<div class="notice">OpenStreetMap non risponde. Riprova tra poco.</div>'; }
+            finally { a.disabled = false; }
+          }
+          else if (k === 'rt-osm-add') {
+            var g2 = (f.__osm || [])[+a.getAttribute('data-i')]; if (!g2) return;
+            $('#perc-box').insertAdjacentHTML('beforeend', row(g2, Date.now())); a.closest('.row').remove(); draw();
+          }
         }, true);
       },
       onSubmit: async function (f) {
-        var ps = Array.prototype.map.call(f.querySelectorAll('#perc-box .vbox'), function (v) { return { nome: String(v.querySelector('.p-n').value || '').trim(), altezza: parseDec(v.querySelector('.p-h').value), larghezza: parseDec(v.querySelector('.p-w').value) }; }).filter(function (p) { return p.nome; });
+        var ps = Array.prototype.map.call(f.querySelectorAll('#perc-box .vbox'), function (v) {
+          var p = { nome: String(v.querySelector('.p-n').value || '').trim(), altezza: parseDec(v.querySelector('.p-h').value), larghezza: parseDec(v.querySelector('.p-w').value) };
+          var la = parseFloat(v.getAttribute('data-lat')), lo = parseFloat(v.getAttribute('data-lon')); if (!isNaN(la) && !isNaN(lo)) { p.lat = la; p.lon = lo; }
+          if (v.getAttribute('data-osm')) p.osm = v.getAttribute('data-osm');
+          return p;
+        }).filter(function (p) { return p.nome; });
+        var strada = { modo: st.modo, segui: st.segui, punti: rtFlat(st.punti.slice(0, 60)), linea: rtFlat(st.linea), m: st.linea.length >= 2 ? (st.m != null ? st.m : Math.round(rtLen(st.linea))) : null, min: st.linea.length >= 2 ? st.min : null, ind: st.linea.length >= 2 ? st.ind : [],
+          da: st.da ? { testo: val(f, 'f-rda') || st.da.testo, nome: st.da.nome || '', lat: st.da.lat, lon: st.da.lon } : null, a: st.a ? { testo: val(f, 'f-ra') || st.a.testo, nome: st.a.nome || '', lat: st.a.lat, lon: st.a.lon } : null };
         var now = new Date().toISOString(), r1 = S.db.collection('impostazioni').doc('percorso');
-        if (!(await w(function () { return r1.set({ passaggi: ps, modificato: now }); }))) return false;
-        var ph = parseDec(val(f, 'f-pah')), pt = parseDec(val(f, 'f-pat'));
-        if (ph > 0 && pt > 0 && (ph !== pa.pitagora || pt !== pa.talete || pa.stime)) { if (!(await saveMapCfg({ alt: { porta: ph, portaT: pt } }))) return false; }
+        if (!(await w(function () { return r1.set({ passaggi: ps, strada: strada, modificato: now }); }))) return false;
+        if (!lib) { var ph = parseDec(val(f, 'f-pah')), pt = parseDec(val(f, 'f-pat'));
+          if (ph > 0 && pt > 0 && (ph !== pa.pitagora || pt !== pa.talete || pa.stime)) { if (!(await saveMapCfg({ alt: { porta: ph, portaT: pt } }))) return false; } }
         toast('Percorso salvato'); return true;
+      }
+    });
+  }
+
+  // Strada vista dalla scheda della barca: i passaggi colorati per quella barca (verde passa, rosso no, grigio misura mancante)
+  function percVedi(b) {
+    var s = percStrada(), cur = carrierOf(b.id), sel = V.passaM && V.passaM[b.id] != null ? mezzoById(V.passaM[b.id]) : cur || S.mezzi.filter(function (m) { return mezzoDims(m) && (isTrailer(m) || mezzoKind(m) === 'boatlift'); })[0] || null;
+    var tr = trasportoDi(b, sel), ps = percorso();
+    var lst = ps.map(function (p, i) { var ok = passaUno(p, tr); return '<div class="row"><span class="main"><span class="title"><span class="rt-pin sm ' + (ok === null ? 'off' : ok ? 'ok' : 'no') + '">' + (i + 1) + '</span> ' + esc(p.nome) + '</span><span class="sub">' + (num(p.lat) != null ? '' : 'non messo sulla mappa') + '</span></span>' + (ok === null ? '<span class="pill">?</span>' : ok ? '<span class="pill ok">Passa</span>' : '<span class="pill late">Non passa</span>') + '</div>'; }).join('');
+    openSheet({
+      title: percTitolo(), menu: true,
+      body: '<p class="context">' + esc(b.nome || 'Barca') + (tr ? ': ' + fmtNum(tr.H, 2) + ' m di altezza e ' + fmtNum(tr.W, 2) + ' m di larghezza' + (sel ? ' su ' + esc(sel.nome || 'carrello') : '') : '') + '.</p>' +
+        '<div id="rt-map" class="rt-map"><div class="rt-wait">Carico la mappa…</div></div>' +
+        '<p class="cap" style="margin:2px 2px 0">' + (s.da && s.a && s.modo === 'indirizzi' ? esc(s.da.nome || s.da.testo) + ' → ' + esc(s.a.nome || s.a.testo) + ' · ' : '') + fmtKm(num(s.m) || rtLen(rtPts(s.linea))) + (s.min ? ' · circa ' + s.min + ' min in auto' : '') + '</p>' +
+        (s.ind && s.ind.length ? '<details class="rt-det"><summary>Indicazioni (' + s.ind.length + ')</summary><ol>' + s.ind.map(function (x) { return '<li>' + esc(x.t) + (x.m ? ' <span class="cap">' + fmtKm(x.m) + '</span>' : '') + '</li>'; }).join('') + '</ol></details>' : '') +
+        (lst ? '<div class="group" style="margin-top:10px">' + lst + '</div>' : '') +
+        (S.canWrite ? '<button type="button" class="link" data-act="perc-edit" style="margin-top:8px">Cambia la strada o i passaggi</button>' : ''),
+      onOpen: function () {
+        getLeaflet().then(function (L) {
+          var el = $('#rt-map'); if (!el) return; el.innerHTML = '';
+          var map = rtMap(L, el), linea = rtPts(s.linea);
+          L.polyline(linea, { color: '#2EC4B6', weight: 5, opacity: .9 }).addTo(map);
+          L.marker(linea[0], { icon: rtPin(L, 'P', 'da') }).addTo(map); L.marker(linea[linea.length - 1], { icon: rtPin(L, 'A', 'a') }).addTo(map);
+          ps.forEach(function (p, i) { if (num(p.lat) == null || num(p.lon) == null) return; var ok = passaUno(p, tr); L.marker([p.lat, p.lon], { icon: rtPin(L, String(i + 1), ok === null ? 'off' : ok ? 'ok' : 'no') }).bindTooltip(esc(p.nome)).addTo(map); });
+          map.fitBounds(linea, { padding: [24, 24] });
+        }).catch(function () { var el = $('#rt-map'); if (el) el.innerHTML = '<div class="rt-wait">La mappa non si apre: serve internet.</div>'; });
       }
     });
   }
@@ -7998,7 +8248,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'Nella matita ogni motore è una riga con marca e modello, matricola, cv e ore: «Aggiungi riga» per un altro motore (copia marca e cv del primo), × per toglierlo. Il numero dei motori si conta da solo.',
       'Toccando «Ore motore» si aggiornano le ore di ogni motore; per scadenze e tagliandi conta il motore con più ore.',
       'Sotto trovi attrezzatura di bordo, ricambi montati, batterie, vari, scadenze, servizi, preventivi e lavori: ognuno ha il suo + per aggiungere da qui.',
-      '«Trasporto: passa?» controlla se la barca sul carrello passa dai portoni e dalla strada fino alla Marina.',
+      'N|«Trasporto: passa?» controlla se la barca sul carrello passa dai portoni e dalla strada fino alla Marina.',
+      'L|«Trasporto: passa?» controlla se la barca sul carrello passa dai ponti, sottopassi e strettoie della strada del trasporto. «Vedi la strada sulla mappa» la mostra con i passaggi colorati: verde passa, rosso non passa, grigio misura mancante.',
+      'L|La strada si sceglie da «Scegli la strada del trasporto» (o da Mezzi › Percorso del trasporto): «Disegna sulla mappa» (tocchi i punti dalla partenza all’arrivo e la linea segue le strade) oppure «Da indirizzo a indirizzo» (scrivi partenza e arrivo e l’app calcola la strada con le indicazioni).',
+      'L|Ogni passaggio ha altezza e larghezza dal cartello e si mette sulla mappa con «Metti sulla mappa». «Cerca ponti e strettoie sulla strada» propone i limiti già segnati su OpenStreetMap: vanno controllati col cartello vero.',
       '«Resoconto» prepara il riepilogo dei lavori di un periodo, pronto da copiare e mandare al cliente.',
       '«Storia della barca» mette in fila, dal più recente, tutto quello che è successo: lavori fatti, scheda lavoro giorno per giorno, ricambi dal magazzino, vari e alaggi, cariche delle batterie, scadenze fatte, servizi, preventivi, giri dopo il vento e lavori dati fuori. In alto scegli cosa vedere; tocca una riga per aprirla.',
       'I tasti mappa e porto mostrano dove si trova la barca.',
@@ -10035,6 +10288,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'sc-done': x = (S.scadC || []).find(function (q) { return q.id === id; }); if (x && S.canWrite) scDone(x); break;
       case 'sc-toggle': V.scShowDone = !V.scShowDone; render(); break;
       case 'perc-edit': if (S.db && S.canWrite) percSheet(); break;
+      case 'perc-vedi': { var pvb = boatById(id); if (pvb && percStrada()) percVedi(pvb); } break;
       case 'mag-scan': magScan(t.closest('form')); break;
       case 'mag-ai': magAI(t.closest('form')); break;
       case 'boat-ai': boatAiList(); break;
