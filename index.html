@@ -25,6 +25,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check-compat.js"></script>
 <script src="config.js"></script>
 <script>
 /* Aspetto dell'azienda: nome, i due colori della sfumatura, logo d'apertura e logo in alto nella Home.
@@ -9865,9 +9866,12 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   async function aiAsk(dataUrl, prompt) {
     if (!aiOn()) throw { code: 'ai_off' };
     var c = window.NM_FIREBASE_CONFIG, b64 = String(dataUrl).split(',')[1], last = null;
+    var hd = { 'Content-Type': 'application/json', 'x-goog-api-key': c.apiKey, 'X-Firebase-AppId': c.appId || '' };
+    var tk = window.__NM_FB.appCheckToken ? await window.__NM_FB.appCheckToken() : ''; // App Check: dal 2/11/2026 senza gettone l'AI risponde «non autorizzato»
+    if (tk) hd['X-Firebase-AppCheck'] = tk;
     for (var i = 0; i < AI_MODELS.length; i++) {
       var r = await fetch('https://firebasevertexai.googleapis.com/v1beta/projects/' + encodeURIComponent(c.projectId) + '/models/' + AI_MODELS[i] + ':generateContent', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': c.apiKey, 'X-Firebase-AppId': c.appId || '' },
+        method: 'POST', headers: hd,
         body: JSON.stringify({ contents: [{ role: 'user', parts: [{ inlineData: { mimeType: 'image/jpeg', data: b64 } }, { text: prompt }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.1 } })
       }).catch(function () { return null; });
       if (!r) throw { code: 'rete' };

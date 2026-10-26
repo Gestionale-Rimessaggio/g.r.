@@ -156,6 +156,21 @@
 
   /* ---------- Firebase ---------- */
   firebase.initializeApp(CFG);
+  /* App Check: dimostra a Google che le richieste all'AI arrivano dal nostro sito (obbligatorio per AI Logic dal 2/11/2026).
+     Per le prove fuori dal sito: localStorage 'nm_appcheck_debug' = gettone di debug registrato nella console. */
+  var APPC = null, ACK = window.NM_APPCHECK || {};
+  if (ACK.siteKey && firebase.appCheck) {
+    try {
+      var dbg = null; try { dbg = localStorage.getItem('nm_appcheck_debug'); } catch (e) { }
+      if (dbg) self.FIREBASE_APPCHECK_DEBUG_TOKEN = dbg === 'true' ? true : dbg;
+      APPC = firebase.appCheck();
+      APPC.activate(ACK.tipo === 'enterprise' ? new firebase.appCheck.ReCaptchaEnterpriseProvider(ACK.siteKey) : new firebase.appCheck.ReCaptchaV3Provider(ACK.siteKey), true);
+    } catch (e) { APPC = null; console.warn('App Check', e); }
+  }
+  function appCheckToken() {
+    if (!APPC) return Promise.resolve('');
+    return APPC.getToken(false).then(function (r) { return r && r.token || ''; }, function (e) { console.warn('App Check', e); return ''; });
+  }
   var auth = firebase.auth(); auth.languageCode = 'it';
   var fs = firebase.firestore();
   try { fs.settings({ cacheSizeBytes: 100 * 1024 * 1024, ignoreUndefinedProperties: true, merge: true }); } catch (e) { }
@@ -1674,6 +1689,7 @@
     },
     photoSrc: function (id) { if (PH[id]) return PH[id]; if (started) loadPhoto(id); else READY.then(function () { loadPhoto(id); }); return GIF0; },
     altroRows: altroRows,
+    appCheckToken: appCheckToken,
     open: open,
     vista: attVista,
     clientiBarca: clientiBarca,
