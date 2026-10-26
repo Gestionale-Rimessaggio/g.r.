@@ -1,0 +1,45 @@
+# Notifiche del mattino: ogni mezz'ora tra le 6 e le 11 (ora italiana) controlla se è l'ora scelta
+# nell'app (Altro › Notifiche) e manda il riepilogo delle scadenze, una volta al giorno.
+# Serve il segreto FIREBASE_SERVICE_ACCOUNT (Impostazioni del repository › Secrets and variables › Actions).
+name: Notifiche del mattino
+
+on:
+  schedule:
+    - cron: '0,30 4-9 * * *'
+  workflow_dispatch:
+    inputs:
+      prova:
+        description: 'Manda una notifica di prova a tutti i telefoni iscritti'
+        type: boolean
+        default: true
+      email:
+        description: 'Solo a questo account (email); vuoto = a tutti gli iscritti'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: notifiche
+  cancel-in-progress: false
+
+jobs:
+  invia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Installa
+        working-directory: .github/notifiche
+        run: npm ci --no-audit --no-fund
+      - name: Invia
+        working-directory: .github/notifiche
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PROVA: ${{ github.event_name == 'workflow_dispatch' && inputs.prova && '1' || '' }}
+          SOLO_EMAIL: ${{ github.event_name == 'workflow_dispatch' && inputs.email || '' }}
+        run: node invia.js

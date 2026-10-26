@@ -1,0 +1,34 @@
+# Cronometro dimenticato: ogni ora controlla i cronometri accesi da più di 9 ore (o dal giorno prima)
+# e avvisa sul telefono chi lo usa, una volta per ogni avvio. Orario: dalle 7 alle 22:30 (ora italiana).
+# Usa il segreto FIREBASE_SERVICE_ACCOUNT, come le notifiche del mattino.
+name: Cronometri dimenticati
+
+on:
+  schedule:
+    - cron: '20 4-21 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cronometri
+  cancel-in-progress: false
+
+jobs:
+  avvisa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Installa
+        working-directory: .github/notifiche
+        run: npm ci --no-audit --no-fund
+      - name: Avvisa
+        working-directory: .github/notifiche
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node cronometri.js

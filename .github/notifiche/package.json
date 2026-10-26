@@ -1,0 +1,8 @@
+{
+  "name": "nauticamare-notifiche",
+  "private": true,
+  "description": "Riepilogo del mattino delle scadenze, mandato sul telefono con Firebase Cloud Messaging",
+  "dependencies": {
+    "firebase-admin": "12.7.0"
+  }
+}

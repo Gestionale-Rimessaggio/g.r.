@@ -1,0 +1,34 @@
+# Regole del database: quando firestore.rules cambia sul sito, le pubblica in Firebase
+# (al posto di incollarle a mano in Firestore Database › Regole). Usa il segreto FIREBASE_SERVICE_ACCOUNT.
+name: Regole del database
+
+on:
+  push:
+    branches: [main]
+    paths: [firestore.rules]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: regole
+  cancel-in-progress: false
+
+jobs:
+  pubblica:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Installa
+        working-directory: .github/notifiche
+        run: npm ci --no-audit --no-fund
+      - name: Pubblica le regole
+        working-directory: .github/notifiche
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node regole.js
