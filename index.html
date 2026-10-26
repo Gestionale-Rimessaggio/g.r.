@@ -948,6 +948,19 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
 .rt-det summary { cursor: pointer; font-weight: 600; }
 .rt-det ol { margin: 8px 0 2px; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; font-size: .93rem; }
 .leaflet-container a.leaflet-control-zoom-in, .leaflet-container a.leaflet-control-zoom-out { color: #222; }
+/* Tablet condiviso: «Chi lavora adesso?» e tastierino del PIN */
+#tablet { position: fixed; inset: 0; z-index: 900; background: radial-gradient(110% 60% at 50% 0%, #1b2a6b 0%, #0a0f45 45%, var(--bg) 80%); overflow-y: auto; padding: max(18px, env(safe-area-inset-top)) 16px 24px; text-align: center; }
+#tablet h1 { font-size: 28px; margin: 18px 0 6px; } #tablet .tb-sub { color: var(--muted); margin: 0 0 22px; }
+#tablet .tb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 14px; max-width: 860px; margin: 0 auto; }
+#tablet .tb-p { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 8px; display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 17px; font-weight: 600; color: var(--ink); }
+#tablet .tb-av { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700; background: var(--accent); color: var(--accent-ink); }
+#tablet .tb-dots { display: flex; gap: 14px; justify-content: center; margin: 16px 0 10px; } #tablet .tb-dots span { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--accent); } #tablet .tb-dots span.on { background: var(--accent); }
+#tablet .tb-pad { display: grid; grid-template-columns: repeat(3, 84px); gap: 12px; justify-content: center; margin-top: 14px; }
+#tablet .tb-pad button { height: 84px; border-radius: 50%; background: var(--card); border: 1px solid var(--line); font-size: 30px; font-weight: 600; color: var(--ink); }
+#tablet .tb-pad button.x { background: none; border: 0; font-size: 16px; color: var(--muted); }
+#tablet .tb-err { color: var(--late, #ff6b5e); min-height: 22px; margin: 6px 0 0; }
+.tb-bar { display: flex; align-items: center; gap: 12px; background: var(--accent-bg); border: 1px solid rgba(46, 196, 182, .5); border-radius: 14px; padding: 10px 14px; margin: 12px 0 4px; }
+.tb-bar .t { flex: 1; } .tb-bar .t small { display: block; color: var(--muted); font-size: 13px; }
 </style>
 
 <div class="splash" id="splash" role="img" aria-label=""><img id="logo-src" alt=""></div>
@@ -2128,7 +2141,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
           '<div class="nome-row"><input id="nome-in" type="text" value="' + esc(draft) + '" placeholder="es. Melani" autocapitalize="words" aria-label="Il tuo nome nella scheda"><button type="submit" class="btn">Salva</button></div></form>';
       } else {
         h += '<div class="me-card">' + avatar(S.myId) + '<div class="main"><span class="title">' + esc(nameOf(S.myId)) + '</span><span class="sub">Le mansioni che aggiungi vengono segnate con questo nome</span></div>' +
-          (S.canWrite ? '<button type="button" class="link" data-act="edit-nome">Cambia</button>' : '') + '</div>';
+          (S.canWrite && !TAB.as ? '<button type="button" class="link" data-act="edit-nome">Cambia</button>' : '') + '</div>';
       }
     }
     h += '<div class="cal-nav" style="margin-top:14px"><button type="button" class="icon-btn blue" data-act="sd-prev" aria-label="Giorno precedente">' + I.left + '</button><h2 class="day-t">' + esc(day === today ? 'Oggi, ' + fmtDayLong(day) : cap(fmtDayLong(day))) + '</h2><button type="button" class="icon-btn blue" data-act="sd-next" aria-label="Giorno successivo">' + I.right + '</button></div>';
@@ -7281,11 +7294,17 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['giro', 'Giro di controllo', 'dopo il vento forte'], ['meteo', 'Meteo', 'vento e mare in Home'], ['preventivi', 'Preventivi', 'in ore e ricambi'],
     ['ditte', 'Ditte esterne', 'velaio, tappezziere, elettricista…'], ['operazioni', 'Servizi di cantiere', 'trasporti, alaggi, lavaggi'],
     ['scadcantiere', 'Scadenze del cantiere', 'mezzi, attrezzature, sicurezza'], ['magazzino', 'Magazzino', 'ricambi e scorte'], ['rifiuti', 'Rifiuti', 'deposito, ritiri e registro'],
-    ['misure', 'Misure e unità', 'convertitore, unità e filetti'], ['clienti', 'Clienti da sentire', 'barche ferme, contratti e scadenze dimenticate (solo amministratore)']];
+    ['misure', 'Misure e unità', 'convertitore, unità e filetti'], ['clienti', 'Clienti da sentire', 'barche ferme, contratti e scadenze dimenticate (solo amministratore)'],
+    ['tablet', 'Tablet condiviso con PIN', 'un tablet in officina per tutti: nome, PIN di 4 cifre, si richiude dopo 5 minuti (spento di base)']];
+  var SEZ_OFF = ['tablet']; // sezioni spente finché l'amministratore non le accende
   // riquadri di Home e Pannello che appartengono a una sezione (spariscono se le loro sezioni sono tutte spente)
   var SEZ_BLOCCHI = { w_mag: ['magazzino'], w_porto: ['porto'], w_rif: ['rifiuti'], w_batt: ['batterie'], vari: ['vari'], prog: ['programma'], meteo: ['meteo'],
     contr: ['porto'], riord: ['magazzino', 'batterie'], serv: ['operazioni'], magb: ['magazzino', 'batterie'] };
-  function sezSpente() { var c = S.sezCfg; if (c && !c._del && Array.isArray(c.spente)) return c.spente; return window.NM_ASPETTO ? [] : ['porto']; } // il porto disegnato è quello di Nautica Mare
+  function sezSpente() {
+    var c = S.sezCfg;
+    if (c && !c._del && Array.isArray(c.spente)) { var l = c.spente.slice(), con = c.conosce || []; SEZ_OFF.forEach(function (k) { if (con.indexOf(k) < 0 && l.indexOf(k) < 0) l.push(k); }); return l; }
+    return (window.NM_ASPETTO ? [] : ['porto']).concat(SEZ_OFF);
+  } // il porto disegnato è quello di Nautica Mare
   function sezOn(k) { return sezSpente().indexOf(k) < 0; }
   function sezBlocco(b) { var ks = SEZ_BLOCCHI[b.id]; return !ks || ks.some(sezOn); }
   function riepList() { var m = { mag: 'magazzino', porto: 'porto', rif: 'rifiuti', clienti: 'clienti' }; return RIEP.filter(function (r) { return (!m[r[0]] || sezOn(m[r[0]])) && (r[0] !== 'clienti' || S.isOwner); }); }
@@ -7394,7 +7413,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   async function aspSave() {
     var d = aspDraft(), now = new Date().toISOString(),
       data = { nome: String(d.nome || '').trim().slice(0, 60), colore1: d.colore1, colore2: d.colore2, logo: d.logo || '', scritta: d.scritta || '', luogo: d.luogo || '', lat: d.lat, lon: d.lon, modificato: now },
-      sez = { spente: d.spente.filter(function (k) { return SEZIONI.some(function (x) { return x[0] === k; }); }), modificato: now };
+      sez = { spente: d.spente.filter(function (k) { return SEZIONI.some(function (x) { return x[0] === k; }); }), conosce: SEZ_OFF.slice(), modificato: now };
     if (!data.nome) { if (V.wizStep) V.wizStep = 0; render(); toast('Scrivi il nome dell’azienda.', true); return; }
     var r = S.db.collection('impostazioni').doc('aspetto'), r2 = S.db.collection('impostazioni').doc('sezioni');
     if (!(await w(function () { return Promise.all([r.set(data), r2.set(sez)]); }))) return;
@@ -7406,7 +7425,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function aspBase() {
     var b = window.NM_ASPETTO || {}, D = NM_MARCA.DEF, ok = typeof b.lat === 'number' && typeof b.lon === 'number';
     V.asp = { nome: b.nome || D.nome, colore1: NM_MARCA.hex(b.colore1) || D.colore1, colore2: NM_MARCA.hex(b.colore2) || D.colore2, logo: '', scritta: '',
-      luogo: ok ? b.luogo || '' : '', lat: ok ? b.lat : null, lon: ok ? b.lon : null, spente: window.NM_ASPETTO ? [] : ['porto'] };
+      luogo: ok ? b.luogo || '' : '', lat: ok ? b.lat : null, lon: ok ? b.lon : null, spente: (window.NM_ASPETTO ? [] : ['porto']).concat(SEZ_OFF) };
     aspPreview(); render(); toast('Questo è l’aspetto di base: premi «Salva per tutti» per tenerlo');
   }
   function viewCategorie() {
@@ -8167,13 +8186,78 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     else if (S.status === 'loading') html = '<div class="notice" style="margin-top:14px">Carico barche, lavori e scadenze…</div>';
     else if (wizOn()) html = viewWizard();
     else html = ({ programma: viewProgramma, pannello: viewPannello, riepiloghi: viewRiepiloghi, batterie: viewBatterie, mappa: viewMappa, altro: viewAltro, backup: viewBackup, vari: viewVari, magazzino: viewMagazzino, preventivi: viewPreventivi, assenze: viewAssenze, misure: viewMisure, notifiche: viewNotifiche, categorie: viewCategorie, aspetto: viewAspetto, inventario: viewInventario, rifiuti: viewRifiuti, scadcantiere: viewScadCantiere, ore: viewOre, checklist: viewChecklist, operazioni: viewOperazioni, giro: viewGiro, ditte: viewDitte, home: viewHome, scheda: viewScheda, scadenze: viewScadenze, calendario: viewCalendario, lavori: viewLavori, barche: function () { return V.boatId ? viewBoat() : viewBarche(); } })[V.tab]();
+    if (TAB.as && S.status === 'ready') html = tabBar() + html;
     $('#view').innerHTML = html;
-    renderTop(); renderTabs(); bindFeat();
+    renderTop(); renderTabs(); bindFeat(); tabCheck();
     if (V.tab === 'misure') misUpdate();
     if (V.tab === 'mappa' && S.status === 'ready') { if (M.area === 'porto') { M.mounted = null; Porto.mount(); } else { M.mounted = M.mode; mapMount(); } } else M.mounted = null;
     if (S.status !== 'loading') hideSplash();
     if (fid) { var el = document.getElementById(fid); if (el) { el.focus({ preventScroll: true }); try { if (sel) el.setSelectionRange(sel[0], sel[1]); } catch (e) { } } }
   }
+
+  /* ---------- Tablet condiviso (sezione «tablet», spenta di base) ----------
+     L'account segnato «tablet» in Utenti e permessi apre «Chi lavora adesso?»: ognuno tocca il suo nome e scrive il suo PIN.
+     Poi l'app lavora a nome suo (scheda, cronometro, lavori) con i permessi da dipendente; «Ho finito» o 5 minuti senza tocchi la richiudono. */
+  var TAB_MIN = 5, TAB = { as: null, sel: null, pin: '', err: '', sbagli: 0, ferma: 0, t: null, base: null };
+  function tabOn() { return S.status === 'ready' && sezOn('tablet') && !!(window.__NM_FB && __NM_FB.tablet && __NM_FB.tablet.si()); }
+  function tabBar() {
+    return '<div class="tb-bar"><span class="av av-i">' + esc((nameOf(TAB.as) || '?').charAt(0).toUpperCase()) + '</span><span class="t"><b>Stai lavorando come ' + esc(nameOf(TAB.as)) + '</b><small>Tablet condiviso · si richiude da solo dopo ' + TAB_MIN + ' minuti senza tocchi</small></span>' +
+      '<button type="button" class="btn" data-act="tb-fine">Ho finito</button></div>';
+  }
+  function tabHtml() {
+    var h = '<div class="tb-sub" style="margin:0;text-align:left;font-weight:600">' + esc(((S.aspetto && !S.aspetto._del && S.aspetto.nome) || 'Tablet officina') + ' · Tablet officina') + '</div>';
+    if (!TAB.sel) {
+      var ps = __NM_FB.tablet.persone().sort(function (a, b) { return a.nome.localeCompare(b.nome, 'it'); });
+      h += '<h1>Chi lavora adesso?</h1><p class="tb-sub">Tocca il tuo nome e scrivi il tuo PIN</p>';
+      h += ps.length ? '<div class="tb-grid">' + ps.map(function (p) { return '<button type="button" class="tb-p" data-tb="chi" data-id="' + esc(p.id) + '"><span class="tb-av">' + esc((p.nome || '?').charAt(0).toUpperCase()) + '</span>' + esc(p.nome || 'Dipendente') + '</button>'; }).join('') + '</div>'
+        : '<div class="notice" style="max-width:520px;margin:0 auto">Nessuno ha ancora un PIN. Ognuno lo mette dal suo telefono in Altro › Il mio account › PIN per il tablet, oppure lo mette l’amministratore in Utenti e permessi.</div>';
+      return h;
+    }
+    var nome = nameOf(TAB.sel), wait = Math.max(0, Math.ceil((TAB.ferma - Date.now()) / 1000));
+    h += '<h1>Ciao ' + esc(nome) + '</h1><p class="tb-sub">Scrivi il tuo PIN</p><div class="tb-dots">' + [0, 1, 2, 3].map(function (i) { return '<span' + (i < TAB.pin.length ? ' class="on"' : '') + '></span>'; }).join('') + '</div>' +
+      '<p class="tb-err">' + esc(wait ? 'Troppi tentativi: riprova tra ' + wait + ' secondi' : TAB.err) + '</p><div class="tb-pad">' +
+      ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(function (n) { return '<button type="button" data-tb="n" data-n="' + n + '">' + n + '</button>'; }).join('') +
+      '<button type="button" class="x" data-tb="indietro">Non sono io</button><button type="button" data-tb="n" data-n="0">0</button><button type="button" class="x" data-tb="canc">Cancella</button></div>';
+    return h;
+  }
+  function tabCheck() {
+    var on = tabOn() && !TAB.as, o = document.getElementById('tablet');
+    if (!on) { if (o) o.remove(); if (TAB.as && !tabOn()) tabFine(); return; }
+    if (!o) { o = document.createElement('div'); o.id = 'tablet'; document.body.appendChild(o); }
+    o.innerHTML = tabHtml();
+  }
+  function tabTocco() { if (!TAB.as) return; clearTimeout(TAB.t); TAB.t = setTimeout(function () { tabFine(); toast('Tablet richiuso dopo ' + TAB_MIN + ' minuti senza tocchi'); }, TAB_MIN * 60000); }
+  function tabEntra(uid) {
+    TAB.base = { myId: S.myId, me: S.me }; TAB.as = uid; TAB.sel = null; TAB.pin = ''; TAB.err = ''; TAB.sbagli = 0;
+    __NM_FB.tablet.come(uid); S.myId = uid; S.me = { id: uid, name: nameOf(uid) };
+    V.tab = 'scheda'; V.boatId = null; V.boatView = null; V.schedaDay = todayISO(); window.scrollTo(0, 0); tabTocco(); render();
+  }
+  function tabFine() {
+    if (!TAB.as) return;
+    clearTimeout(TAB.t); __NM_FB.tablet.come(null);
+    if (TAB.base) { S.myId = TAB.base.myId; S.me = TAB.base.me; }
+    TAB.as = null; TAB.base = null; V.tab = 'home'; V.boatId = null; V.boatView = null; window.scrollTo(0, 0); render();
+  }
+  async function tabCifra(n) {
+    if (Date.now() < TAB.ferma) { tabCheck(); return; }
+    if (TAB.pin.length >= 4) return;
+    TAB.pin += n; TAB.err = ''; tabCheck();
+    if (TAB.pin.length < 4) return;
+    var ok = await __NM_FB.tablet.prova(TAB.sel, TAB.pin);
+    if (ok) { tabEntra(TAB.sel); return; }
+    TAB.pin = ''; TAB.sbagli++; TAB.err = 'PIN sbagliato';
+    if (TAB.sbagli >= 3) { TAB.sbagli = 0; TAB.ferma = Date.now() + 30000; setTimeout(tabCheck, 30500); }
+    tabCheck();
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest && e.target.closest('#tablet [data-tb]'); if (!t) return;
+    var k = t.getAttribute('data-tb');
+    if (k === 'chi') { TAB.sel = t.getAttribute('data-id'); TAB.pin = ''; TAB.err = ''; tabCheck(); }
+    else if (k === 'indietro') { TAB.sel = null; TAB.pin = ''; TAB.err = ''; tabCheck(); }
+    else if (k === 'canc') { TAB.pin = TAB.pin.slice(0, -1); tabCheck(); }
+    else if (k === 'n') tabCifra(t.getAttribute('data-n'));
+  });
+  ['pointerdown', 'keydown'].forEach(function (ev) { document.addEventListener(ev, tabTocco, true); });
 
   /* ---------- Ricerca unica: la lente in alto cerca in tutto ---------- */
   function gqNorm(s) { return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim(); }
@@ -8455,6 +8539,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'A|Con «Scegli un’immagine» carichi il logo d’apertura (avvio, caricamento, resoconti) e quello in alto nella Home. Senza, c’è una barca stilizzata con il nome dell’azienda.',
       'A|In «Dove si trova il cantiere» cerchi il paese o il porto: da lì prende il meteo in Home e il vento per il giro di controllo.',
       'A|In «Sezioni dell’app» spegni quelle che non usate (porto, rifiuti, batterie…): spariscono da menù, Home e guida, ma i dati restano e tornano se le riaccendi.',
+      'A|«Tablet condiviso con PIN» è spento finché non lo accendi qui. Acceso, in Utenti e permessi tocchi «Usa come tablet condiviso» sull’account del tablet: lì si apre «Chi lavora adesso?», ognuno tocca il suo nome e scrive il suo PIN, e lavora a nome suo con i permessi da dipendente. Il PIN (4 cifre) si mette da Il mio account, o lo mette l’amministratore; «Ho finito» o 5 minuti senza tocchi richiudono il tablet.',
       'A|Finché non premi «Salva per tutti» le modifiche le vedi solo tu; se esci senza salvare torna com’era.',
       'A|«Torna all’aspetto di base» rimette tutto com’era all’inizio (poi va salvato).'] },
     categorie: { t: 'Categorie dei lavori', p: 'L’elenco delle categorie: motore, carena, coperta…', li: [
@@ -8472,7 +8557,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'A|«Tutte le foto in un file» prepara un file .zip con le foto divise per barca (oltre 150 MB in più parti): tocca «Salva» su ogni parte.',
       'A|Una volta a settimana l’app toglie da sola le voci cancellate da più di 60 giorni, che non si possono più recuperare dal cestino: non cambia niente di quello che vedete.'] },
     inventario: { rif: 'magazzino' },
-    account: { t: 'Account e permessi', p: 'Ognuno entra con la sua email e password; nessuno usa account condivisi.', li: [
+    account: { t: 'Account e permessi', p: 'Ognuno entra con la sua email e password; l’unico account condiviso può essere quello del tablet dell’officina, se acceso.', li: [
       '«Il mio account» (in fondo ad Altro) serve per cambiare la password o uscire.',
       'Ogni azienda ha un suo codice di 8 lettere e numeri (per esempio K7P4-M2QX). Per far entrare un collega o un cliente mandagli il link dell’app e il codice: alla registrazione sceglie «Entro nella mia azienda», scrive il codice, poi aspetta di essere approvato.',
       'A|Il codice lo trovi in Altro › Utenti e permessi, con i tasti «Copia» e «Cambia codice». Se finisce in mani sbagliate cambialo: il vecchio non vale più per le nuove registrazioni, chi è già dentro resta dentro.',
@@ -10335,6 +10420,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'm-overlap':
         if (M.an) { var ob = M.an.items.find(function (it) { return M.an.bad[it.id] === true && !it.ghost; }); if (ob) { M.sel = ob.id; M.move = false; x = $('#map-root'); if (x) { M.tx = x.clientWidth / 2 - ob.p.x * M.s; M.ty = x.clientHeight * 0.4 - ob.p.y * M.s; applyView(); } mapDraw(); } }
         break;
+      case 'tb-fine': tabFine(); break;
       case 'go-scheda': V.tab = 'scheda'; V.boatId = null; V.boatView = null; V.schedaDay = t.getAttribute('data-d') || todayISO(); window.scrollTo(0, 0); render(); break;
       case 'sd-prev': case 'sd-next': V.schedaDay = utcToISO(isoToUTC(V.schedaDay) + (act === 'sd-next' ? 1 : -1) * 86400000); render(); break;
       case 'sd-today': V.schedaDay = todayISO(); render(); break;
@@ -10545,6 +10631,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     sub('ditte', function (x) { S.ditte = x; });
     sub('assenze', function (x) { S.assenze = x; });
     sub('notifiche', function (x) { S.notif = toMap(x); });
+    sub('pin', function () { });
     CLD().use('assets').then(function (a) { S.assets = a || null; if (a) render(); }, function () { });
     CLD().use('downloads').then(function (d) { S.dl = d || null; if (V.tab === 'backup') render(); }, function () { S.dl = null; if (V.tab === 'backup') render(); });
     try {

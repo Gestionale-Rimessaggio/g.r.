@@ -6,7 +6,7 @@
   'use strict';
   var CFG = window.NM_FIREBASE_CONFIG || null;
   var COLLS = ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
-    'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'programma', 'cariche', 'posti', 'richieste', 'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte'];
+    'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'programma', 'cariche', 'posti', 'richieste', 'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin'];
   var RUOLI = { base: 'Dipendente', editor: 'Dipendente', admin: 'Amministratore', cliente: 'Cliente' }; // «editor» era «Può cancellare»: ora vale come Dipendente
   var FULL_EVERY = 7 * 864e5;            // una rilettura completa a settimana per sicurezza
   var GIF0 = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
@@ -246,7 +246,7 @@
       // chi l'ha aggiunto: serve per sapere chi può cancellarlo. Si conserva quando si riscrive.
       var prev = L.map[id];
       if (prev && prev.creatoDa) data.creatoDa = prev.creatoDa;
-      else if (!prev && L.ready && !data.creatoDa && ME && name !== 'portale') data.creatoDa = ME.uid;
+      else if (!prev && L.ready && !data.creatoDa && ME && name !== 'portale') { data.creatoDa = chi(); if (AS) data.via = ME.uid; }
       var x = enc(clone(data)); x._ts = ts; p = r.set(x); L.map[id] = clone(data); L.pend[id] = 'set';
     } else if (kind === 'update') {
       if (L.ready && !L.map[id]) return Promise.reject({ code: 'not_found', message: 'Elemento non trovato' });
@@ -262,7 +262,7 @@
       if (old) { // una copia va nel cestino, nella stessa scrittura
         var b = fs.batch();
         if (Date.now() - DELG.t > 3000) DELG.id = rid('g'); DELG.t = Date.now(); // cancellate di seguito (una barca con i suoi lavori): stesso gruppo
-        b.set(AC('cestino').doc(rid('c')), { coll: name, docId: id, dati: enc(clone(old)), gruppo: DELG.id, da: ME.uid, daNome: ME.nome || '', il: nowISO(), _ts: ts });
+        b.set(AC('cestino').doc(rid('c')), { coll: name, docId: id, dati: enc(clone(old)), gruppo: DELG.id, da: ME.uid, daNome: (ME.nome || '') + (AS ? ' (tablet, ' + ((UT[AS] && UT[AS].nome) || '') + ')' : ''), il: nowISO(), _ts: ts });
         b.set(r, { _del: true, _ts: ts }); p = b.commit();
       } else p = r.set({ _del: true, _ts: ts });
       delete L.map[id]; L.pend[id] = 'del';
@@ -276,15 +276,18 @@
   // chi può cancellare: l'amministratore tutto; gli altri ciò che hanno aggiunto loro, le proprie mansioni della
   // scheda, le proprie giornate confermate, le proprie richieste di ferie non ancora decise, e i posti al porto.
   // Le stesse regole stanno in firestore.rules.
+  // Tablet condiviso: l'account segnato «tablet» lavora a nome di chi ha scritto il suo PIN (AS); quello che aggiunge resta suo, con «via» = il tablet
+  var AS = null;
+  function chi() { return AS || (ME && ME.uid); }
   function canDel(name, d) {
     if (!ME) return false;
     if (ME.ruolo === 'admin') return true;
     if (!d) return false;
     if (name === 'posti') return true;
-    if (name !== 'assenze' && d.creatoDa === ME.uid) return true; // l'ha aggiunto chi cancella
-    if (name === 'lavori') return d.fonte === 'scheda' && d.utente === ME.uid;
-    if (name === 'conferme') return d.utente === ME.uid;
-    if (name === 'assenze') return d.utente === ME.uid && d.stato === 'richiesta';
+    if (name !== 'assenze' && (AS ? d.via === ME.uid : d.creatoDa === ME.uid)) return true; // l'ha aggiunto chi cancella (dal tablet: ciò che è stato aggiunto dal tablet)
+    if (name === 'lavori') return d.fonte === 'scheda' && d.utente === chi();
+    if (name === 'conferme') return d.utente === chi();
+    if (name === 'assenze') return d.utente === chi() && d.stato === 'richiesta';
     return false;
   }
   function ref(name, id) {
@@ -372,7 +375,7 @@
         if (b.size > 700 * 1024) throw { code: 'too_large', message: 'Foto troppo grande' };
         var url = await blobToDataUrl(b), id = rid('f');
         // con la foto, una scheda leggera in «fotoInfo» (quanto pesa): così lo spazio si conta senza scaricare le foto
-        var fb = fs.batch(), cr = nowISO(), da = ME ? ME.uid : '';
+        var fb = fs.batch(), cr = nowISO(), da = ME ? chi() : '';
         fb.set(AC('foto').doc(id), { data: url, creato: cr, da: da, _ts: FV.serverTimestamp() });
         fb.set(AC('fotoInfo').doc(id), { kb: Math.ceil(url.length / 1024), creato: cr, da: da, _ts: FV.serverTimestamp() });
         var fp = fb.commit(); pendAdd(fp);
@@ -609,6 +612,20 @@
     if (IMP_KEY) setTimeout(offerImport, 800);
   }
 
+  /* ---------- tablet condiviso: sezione accesa in Altro › Aspetto › Sezioni, PIN di 4 cifre (si salva solo l'impronta) ---------- */
+  function tabStr() { var L = LIVE.impostazioni, c = L && L.map && L.map.sezioni; return !!(c && !c._del && (c.conosce || []).indexOf('tablet') >= 0 && (c.spente || []).indexOf('tablet') < 0); }
+  function pinDi(uid) { var L = LIVE.pin, x = L && L.map && L.map[uid]; return x && !x._del && x.hash ? x : null; }
+  async function pinHash(uid, pin) {
+    var b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('nm-pin|' + uid + '|' + pin));
+    return Array.prototype.map.call(new Uint8Array(b), function (x) { return (x < 16 ? '0' : '') + x.toString(16); }).join('');
+  }
+  async function pinSalva(uid, pin) {
+    pin = String(pin || '').trim();
+    if (!/^\d{4}$/.test(pin)) { toast('Il PIN è di 4 cifre.'); return; }
+    if (/^(\d)\1{3}$/.test(pin) || pin === '1234') { toast('Scegli un PIN meno facile da indovinare.'); return; }
+    try { await write('pin', uid, 'set', { utente: uid, hash: await pinHash(uid, pin), modificato: nowISO() }); toast('PIN salvato.'); renderPanel(); } catch (e) { toast('Non riuscito: ' + errOf(e).code); }
+  }
+
   /* ---------- pannelli: utenti e permessi, il mio account ---------- */
   var PAN = null;
   function altroRows() {
@@ -744,7 +761,10 @@
       h = '<div class="top"><button class="back" data-nm="close">‹ Indietro</button><h3>Il mio account</h3><span style="min-width:64px"></span></div>' +
         '<div class="grp"><div class="u"><div class="nm">' + esc(ME.nome || '') + '</div><div class="em">' + esc(ME.email || '') + '</div><div class="note" style="margin:6px 0 0">Ruolo: ' + esc(RUOLI[ME.ruolo] || ME.ruolo) + '</div>' +
         '<div class="acts"><button class="b" data-nm="pw">Cambia password</button><button class="b red" data-nm="out">Esci</button></div></div></div>' +
-        '<p class="note">«Cambia password» ti manda un’email con il link. Uscendo, da questo telefono vengono tolti i dati salvati per lavorare senza campo.</p>';
+        '<p class="note">«Cambia password» ti manda un’email con il link. Uscendo, da questo telefono vengono tolti i dati salvati per lavorare senza campo.</p>' +
+        (tabStr() && ME.ruolo !== 'cliente' && !ME.tablet && !ME.assist ? '<h4>PIN per il tablet</h4><div class="grp"><div class="u"><div class="em">' + (pinDi(ME.uid) ? 'Hai già un PIN: scrivine uno nuovo per cambiarlo.' : 'Sul tablet dell’officina tocchi il tuo nome e scrivi questo PIN.') + '</div>' +
+          '<div class="acts"><input id="nm-pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="4 cifre" style="width:110px"><button class="b pri" data-nm="pin" data-id="' + ME.uid + '">Salva PIN</button>' +
+          (pinDi(ME.uid) ? '<button class="b red" data-nm="pin-no" data-id="' + ME.uid + '">Togli</button>' : '') + '</div></div></div>' : '');
     } else if (PAN === 'utenti' && ME.ruolo === 'admin') {
       var ids = Object.keys(UT), by = function (st) { return ids.filter(function (id) { return (UT[id].stato || '') === st; }).sort(function (a, b) { return String(UT[a].nome || '').localeCompare(String(UT[b].nome || ''), 'it'); }); };
       var olds = oldPeople();
@@ -755,7 +775,9 @@
         if (u.stato === 'in_attesa') a = '<button class="b pri" data-nm="ok" data-id="' + id + '">' + (u.tipo === 'cliente' ? 'Approva come cliente' : 'Approva') + '</button><button class="b red" data-nm="no" data-id="' + id + '">Rifiuta</button>';
         else if (u.stato === 'attivo') a = self ? '<span class="note" style="margin:0">Sei tu</span>' :
           '<select data-nm="ruolo" data-id="' + id + '">' + ['base', 'admin', 'cliente'].map(function (r) { return '<option value="' + r + '"' + ((u.ruolo === 'editor' ? 'base' : u.ruolo) === r ? ' selected' : '') + '>' + RUOLI[r] + '</option>'; }).join('') + '</select>' +
-          '<button class="b red" data-nm="block" data-id="' + id + '">Sospendi</button>';
+          '<button class="b red" data-nm="block" data-id="' + id + '">Sospendi</button>' +
+          (tabStr() && !isCl ? '<button class="b' + (u.tablet ? ' pri' : '') + '" data-nm="tab" data-id="' + id + '">' + (u.tablet ? 'È il tablet condiviso' : 'Usa come tablet condiviso') + '</button>' +
+            (u.tablet ? '' : '<button class="b" data-nm="pin-a" data-id="' + id + '">' + (pinDi(id) ? 'Cambia PIN tablet' : 'Metti PIN tablet') + '</button>') : '');
         else a = '<button class="b" data-nm="ok" data-id="' + id + '">Riattiva</button>';
         if (isCl && u.stato === 'attivo') {
           var mine = u.barche || [], others = Object.keys(B).filter(function (b) { return mine.indexOf(b) < 0; }).sort(function (x, y) { return bname(x).localeCompare(bname(y), 'it'); });
@@ -796,6 +818,10 @@
     }
     else if (k === 'unb') { var ub = (UT[id].barche || []).filter(function (b) { return b !== t.getAttribute('data-b'); }); setUser(id, { barche: ub }); }
     else if (k === 'no') { if (confirm('Rifiutare la richiesta di ' + (UT[id] && UT[id].nome || '') + '?')) setUser(id, { stato: 'bloccato' }); }
+    else if (k === 'tab') { var ut = !UT[id].tablet; if (!ut || confirm('Questo account diventa il tablet condiviso: chi lo apre trova «Chi lavora adesso?» e lavora a nome di chi scrive il suo PIN. Continuo?')) setUser(id, { tablet: ut }).then(function () { toast(ut ? 'Fatto: è il tablet condiviso.' : 'Non è più il tablet condiviso.'); renderPanel(); }); }
+    else if (k === 'pin-a') { var pa = prompt('PIN di 4 cifre per il tablet di ' + ((UT[id] && UT[id].nome) || '') + ':'); if (pa != null) pinSalva(id, pa); }
+    else if (k === 'pin') pinSalva(id, ($('#nm-pin') || {}).value || '');
+    else if (k === 'pin-no') { if (confirm('Togliere il tuo PIN? Sul tablet non comparirai più.')) write('pin', id, 'update', { hash: '', modificato: nowISO() }).then(function () { toast('PIN tolto.'); renderPanel(); }, function () { toast('Non riuscito.'); }); }
     else if (k === 'block') { if (confirm('Sospendere ' + (UT[id] && UT[id].nome || '') + '? Non potrà più entrare finché non lo riattivi.')) setUser(id, { stato: 'bloccato' }); }
   });
   document.addEventListener('change', function (e) {
@@ -1196,7 +1222,7 @@
     var k = cosa, t = Date.now();
     if (ATT.last[k] && t - ATT.last[k] < 60000) return; // la stessa cosa ripetuta subito (salvataggi di fila) conta una volta
     ATT.last[k] = t;
-    AC('attivita').add({ uid: ME.uid, nome: ME.nome || ME.email || '', cosa: String(cosa).slice(0, 200), il: nowISO(), disp: attDisp(), _ts: FV.serverTimestamp() }).catch(function () { });
+    AC('attivita').add({ uid: ME.uid, nome: (ME.nome || ME.email || '') + (AS ? ' come ' + ((UT[AS] && UT[AS].nome) || '?') : ''), cosa: String(cosa).slice(0, 200), il: nowISO(), disp: attDisp(), _ts: FV.serverTimestamp() }).catch(function () { });
   }
   function attEntra() { if (ATT.entrato || !ME) return; ATT.entrato = true; attScrittura.ok = true; attScrivi(CLIENTE ? 'è entrato nell’area clienti' : 'è entrato nell’app'); }
   function attVista(n) { if (!started || !n || n === ATT.vista) return; ATT.vista = n; attScrivi('apre ' + n); }
@@ -1484,6 +1510,13 @@
     clientiBarca: clientiBarca,
     spostaClienti: spostaClienti,
     foto: FOTO,
+    tablet: {
+      si: function () { return !!(ME && ME.tablet && ME.stato === 'attivo' && ME.ruolo !== 'cliente' && !ME.assist) && tabStr(); },
+      come: function (uid) { AS = uid || null; attScrivi(uid ? 'sul tablet lavora ' + ((UT[uid] && UT[uid].nome) || '') : 'sul tablet: ha finito'); },
+      chi: chi,
+      prova: function (uid, pin) { var x = pinDi(uid); return x ? pinHash(uid, pin).then(function (h) { return h === x.hash; }) : Promise.resolve(false); },
+      persone: function () { var L = LIVE.pin, m = (L && L.map) || {}; return Object.keys(m).filter(function (id) { return pinDi(id) && UT[id] && UT[id].stato === 'attivo' && UT[id].ruolo !== 'cliente' && !UT[id].tablet; }).map(function (id) { return { id: id, nome: UT[id].nome || '' }; }); }
+    },
     azienda: function () { return { nome: (AZD && AZD.nome) || '', assist: !!(ME && ME.assist) }; } // l'azienda in uso (per la procedura guidata)
   };
 })();
