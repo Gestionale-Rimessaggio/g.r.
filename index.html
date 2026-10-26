@@ -948,6 +948,26 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
 .rt-det summary { cursor: pointer; font-weight: 600; }
 .rt-det ol { margin: 8px 0 2px; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; font-size: .93rem; }
 .leaflet-container a.leaflet-control-zoom-in, .leaflet-container a.leaflet-control-zoom-out { color: #222; }
+/* Controllo dei mezzi: una voce per riga, «Va bene» o «Non va» */
+.cv-list { display: flex; flex-direction: column; gap: 10px; }
+.cv-row { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.cv-opt { display: flex; gap: 10px; } .cv-opt label { flex: 1; position: relative; }
+.cv-opt input { position: absolute; opacity: 0; } .cv-opt span { display: block; text-align: center; padding: 10px; border-radius: 10px; border: 1px solid var(--line); font-weight: 600; }
+.cv-opt input:checked + span { background: var(--ok-bg); border-color: var(--ok, #4ade9b); } .cv-opt .no input:checked + span { background: var(--late-bg); border-color: var(--late, #ff6b5e); }
+.cv-opt input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Tablet condiviso: «Chi lavora adesso?» e tastierino del PIN */
+#tablet { position: fixed; inset: 0; z-index: 900; background: radial-gradient(110% 60% at 50% 0%, #1b2a6b 0%, #0a0f45 45%, var(--bg) 80%); overflow-y: auto; padding: max(18px, env(safe-area-inset-top)) 16px 24px; text-align: center; }
+#tablet h1 { font-size: 28px; margin: 18px 0 6px; } #tablet .tb-sub { color: var(--muted); margin: 0 0 22px; }
+#tablet .tb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 14px; max-width: 860px; margin: 0 auto; }
+#tablet .tb-p { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 8px; display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 17px; font-weight: 600; color: var(--ink); }
+#tablet .tb-av { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700; background: var(--accent); color: var(--accent-ink); }
+#tablet .tb-dots { display: flex; gap: 14px; justify-content: center; margin: 16px 0 10px; } #tablet .tb-dots span { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--accent); } #tablet .tb-dots span.on { background: var(--accent); }
+#tablet .tb-pad { display: grid; grid-template-columns: repeat(3, 84px); gap: 12px; justify-content: center; margin-top: 14px; }
+#tablet .tb-pad button { height: 84px; border-radius: 50%; background: var(--card); border: 1px solid var(--line); font-size: 30px; font-weight: 600; color: var(--ink); }
+#tablet .tb-pad button.x { background: none; border: 0; font-size: 16px; color: var(--muted); }
+#tablet .tb-err { color: var(--late, #ff6b5e); min-height: 22px; margin: 6px 0 0; }
+.tb-bar { display: flex; align-items: center; gap: 12px; background: var(--accent-bg); border: 1px solid rgba(46, 196, 182, .5); border-radius: 14px; padding: 10px 14px; margin: 12px 0 4px; }
+.tb-bar .t { flex: 1; } .tb-bar .t small { display: block; color: var(--muted); font-size: 13px; }
 </style>
 
 <div class="splash" id="splash" role="img" aria-label=""><img id="logo-src" alt=""></div>
@@ -1030,7 +1050,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     brush: svg('<path d="M14.5 4.5l5 5-8.5 8.5h-5v-5z"/><path d="M12.5 6.5l5 5"/><path d="M4 20.5h6"/>'),
     help: svg('<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.6"/><path d="M12 16.6v.4"/>')
   };
-  var ALTRO = ['altro', 'programma', 'pannello', 'riepiloghi', 'batterie', 'scadenze', 'vari', 'giro', 'ditte', 'magazzino', 'preventivi', 'rifiuti', 'scadcantiere', 'assenze', 'misure', 'ore', 'operazioni', 'backup', 'notifiche', 'categorie', 'aspetto'];
+  var ALTRO = ['altro', 'programma', 'pannello', 'riepiloghi', 'batterie', 'scadenze', 'vari', 'giro', 'ditte', 'magazzino', 'preventivi', 'rifiuti', 'scadcantiere', 'assenze', 'misure', 'ore', 'operazioni', 'backup', 'notifiche', 'categorie', 'aspetto', 'controllo'];
   function NOME() { return NM_MARCA.nome(); } // il nome dell'azienda (Altro › Aspetto)
   var LOGO_IMG = document.createElement('img'); LOGO_IMG.className = 'logo';
   function logoHome() { LOGO_IMG.alt = NOME(); LOGO_IMG.src = document.getElementById('scritta-src').getAttribute('src'); }
@@ -1485,6 +1505,13 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
 
   /* ---------- Viste ---------- */
+  // Spazio quasi pieno: lo misura ogni mattina l'invio delle notifiche (impostazioni/notifiche.spazioLiv) rispetto alla quota dell'azienda
+  function spazioHome() {
+    var c = S.notifCfg || {}, liv = c.spazioLiv || 0;
+    if (!S.isOwner || liv < 80) return '';
+    return featCard(liv >= 95 ? 'late' : 'soon', I.photo, 'Spazio ' + (liv >= 95 ? 'quasi finito' : 'quasi pieno') + ': ' + Math.round(c.spazioPct || liv) + '%',
+      Math.round(c.spazioMb || 0) + ' MB di foto su ' + (c.spazioQuota || 100) + ' MB dell’azienda', '', '<button type="button" class="btn" data-act="tab" data-tab="backup">Vedi le foto non più usate</button>');
+  }
   function viewHome() {
     var h = (window.__NM_DEMO ? '<div class="banner"><p><b>Versione di prova.</b> Puoi toccare e modificare tutto: i dati sono di esempio e restano solo su questo dispositivo.</p><div class="acts"><button type="button" class="link" data-act="demo-reset">Ricomincia da capo</button></div></div>' : '') + exampleBanner();
     if (!S.boats.length) {
@@ -1499,6 +1526,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     function primo() { // «In primo piano»: con «Cosa mostrare» si scelgono i tipi di avviso
     var cards = [], no = lyOpz('home', 'primo').no || [], push = function (k, c) { if (c && no.indexOf(k) < 0) cards.push(c); };
     push('crono', crHome()); push('giro', giroHome()); push('fuori', lfHome());
+    push('spazio', spazioHome()); push('mezzi', ctrlHome());
     var pend = myPendingDays();
     if (pend.length) push('conferme', featCard('soon', I.check, pend.length === 1 ? 'Conferma la tua giornata' : 'Hai ' + pend.length + ' giornate da confermare',
       cap(fmtDayLong(pend[0])) + (pend.length > 1 ? ' e altre' : ''), '', '<button type="button" class="btn" data-act="go-scheda" data-d="' + pend[0] + '">Vai alla scheda lavoro</button>'));
@@ -1594,7 +1622,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     return h + lyRender('home', [
       { id: 'cerca', t: 'Cerca', sub: 'barca, cliente, articolo, lavoro', z: ['l'], d: 'l', h: gqBar },
       { id: 'primo', t: 'In primo piano', sub: 'gli avvisi da guardare subito', z: sec, d: 'l', h: primo, opz: [['crono', 'Cronometri in corso o dimenticati'], ['giro', 'Giro di controllo'], ['fuori', 'Barche fuori in ritardo o che rientrano oggi'],
-        ['conferme', 'Giornate da confermare'], ['vari', 'Vari e alaggi di oggi e domani'], ['scad', 'Scadenze delle barche'], ['ferie', 'Ferie e permessi'], ['scadc', 'Scadenze del cantiere'], ['batt', 'Batterie da caricare'], ['mag', 'Ricambi da riordinare']] },
+        ['conferme', 'Giornate da confermare'], ['spazio', 'Spazio quasi pieno (amministratori)'], ['mezzi', 'Mezzi fermi o da controllare'], ['vari', 'Vari e alaggi di oggi e domani'], ['scad', 'Scadenze delle barche'], ['ferie', 'Ferie e permessi'], ['scadc', 'Scadenze del cantiere'], ['batt', 'Batterie da caricare'], ['mag', 'Ricambi da riordinare']] },
       { id: 'meteo', t: 'Meteo', sub: 'vento e mare dei prossimi giorni', z: sec, d: 'l', h: metHome },
       { id: 'prog', t: 'Programma di oggi', z: sec, d: 'l', h: homeProgHtml },
       { id: 'breve', t: 'In breve', sub: 'scadenze, lavorazioni, barche, lavori del mese', z: ['l'], d: 'l', h: breve },
@@ -2120,7 +2148,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
           '<div class="nome-row"><input id="nome-in" type="text" value="' + esc(draft) + '" placeholder="es. Melani" autocapitalize="words" aria-label="Il tuo nome nella scheda"><button type="submit" class="btn">Salva</button></div></form>';
       } else {
         h += '<div class="me-card">' + avatar(S.myId) + '<div class="main"><span class="title">' + esc(nameOf(S.myId)) + '</span><span class="sub">Le mansioni che aggiungi vengono segnate con questo nome</span></div>' +
-          (S.canWrite ? '<button type="button" class="link" data-act="edit-nome">Cambia</button>' : '') + '</div>';
+          (S.canWrite && !TAB.as ? '<button type="button" class="link" data-act="edit-nome">Cambia</button>' : '') + '</div>';
       }
     }
     h += '<div class="cal-nav" style="margin-top:14px"><button type="button" class="icon-btn blue" data-act="sd-prev" aria-label="Giorno precedente">' + I.left + '</button><h2 class="day-t">' + esc(day === today ? 'Oggi, ' + fmtDayLong(day) : cap(fmtDayLong(day))) + '</h2><button type="button" class="icon-btn blue" data-act="sd-next" aria-label="Giorno successivo">' + I.right + '</button></div>';
@@ -3403,7 +3431,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       body: (list.length ? '<div class="menu">' + list.map(function (m) {
         var d = mezzoDims(m), c = m.barcaId && boatById(m.barcaId);
         return '<button type="button" data-act="m-mezzo-go" data-id="' + esc(m.id) + '"><span class="ic-circle" style="background:var(--card-2);color:var(--ink)">' + I.updown + '</span><span class="main"><span class="title">' + esc(m.nome || 'Carrello') + '</span><span class="sub">' +
-          esc(m.tipo || 'Mezzo') + (d ? ' · ' + fmtNum(d.L, 2) + ' × ' + fmtNum(d.B, 2) + ' m' : '') + ' · ' + (mezzoPos(m) ? (c ? 'a bordo ' + esc(c.nome) : 'sulla mappa') : 'da posizionare') + '</span></span></button>';
+          (m.fermo && ctrlOn() ? '<b class="t-late">FERMO</b> · ' : '') + esc(m.tipo || 'Mezzo') + (d ? ' · ' + fmtNum(d.L, 2) + ' × ' + fmtNum(d.B, 2) + ' m' : '') + ' · ' + (mezzoPos(m) ? (c ? 'a bordo ' + esc(c.nome) : 'sulla mappa') : 'da posizionare') + '</span></span></button>';
       }).join('') + '</div>' : '<p class="context">Nessun mezzo. Aggiungi carrelli, muletti e gli altri mezzi che si muovono nel cantiere.</p>') +
         (S.canWrite ? '<button type="button" class="btn sec self-start" data-act="m-mezzo-new">' + I.plus + 'Nuovo mezzo</button><button type="button" class="link" data-act="mz-seed" style="align-self:flex-start">Aggiungi i mezzi del cantiere (BoatLift, motrice, trattore…)</button><button type="button" class="link" data-act="perc-edit" style="align-self:flex-start">' + (mapLibera() ? 'Percorso del trasporto' : 'Percorso MSV → cantiere e portoni') + '</button>' : '')
     });
@@ -3439,7 +3467,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       field(lab('f-mzc', 'Colore'), '<input id="f-mzc" type="color" value="' + esc(/^#[0-9a-f]{6}$/i.test(m.colore || '') ? m.colore : '#23306e') + '">') + '</div>' +
       '<div class="grid2">' + field(lab('f-mzl', 'Lunghezza con timone (m)'), inp('f-mzl', num(m.lunghezza) != null ? String(m.lunghezza).replace('.', ',') : '', 'type="text" inputmode="decimal" required')) +
       field(lab('f-mzb', 'Larghezza (m)'), inp('f-mzb', num(m.larghezza) != null ? String(m.larghezza).replace('.', ',') : '', 'type="text" inputmode="decimal" required')) + '</div>' +
-      field(lab('f-mznote', 'Note'), '<textarea id="f-mznote" placeholder="es. portata massima, numero pistoni, targa">' + esc(m.note || '') + '</textarea>');
+      field(lab('f-mznote', 'Note'), '<textarea id="f-mznote" placeholder="es. portata massima, numero pistoni, targa">' + esc(m.note || '') + '</textarea>') +
+      (ctrlOn() ? '<label class="check" style="margin-top:4px"><input type="checkbox" id="f-mzctrl"' + (m.controllo ? ' checked' : '') + '> Controllo prima dell’uso</label>' +
+        field(lab('f-mzvoci', 'Voci del controllo (una per riga)'), '<textarea id="f-mzvoci" rows="5" placeholder="' + esc(ctrlVoci(m).join('\n')) + '">' + esc(m.vociControllo || '') + '</textarea>') +
+        '<span class="hint" style="margin-top:-6px">Vuoto = le voci di base per il tipo di mezzo (quelle in grigio).</span>' : '');
     openSheet({
       title: isNew ? 'Nuovo mezzo' : 'Modifica mezzo', body: body, deleteLabel: 'Elimina mezzo',
       deleteText: 'Elimini ' + (m.nome || 'questo mezzo') + '. Se ha una barca a bordo, la barca resta sulla mappa.',
@@ -3449,6 +3480,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         if (!nome) { formErr('Scrivi il nome del mezzo.'); return false; }
         if (!L || !B || L <= 0 || B <= 0) { formErr('Scrivi lunghezza e larghezza in metri.'); return false; }
         var now = new Date().toISOString(), data = { nome: nome, tipo: val(f, 'f-mzt'), lunghezza: L, larghezza: B, altezzaCarico: parseDec(val(f, 'f-mzh')), colore: val(f, 'f-mzc'), note: val(f, 'f-mznote'), misureStimate: false, modificato: now }, ok;
+        if (f.querySelector('#f-mzctrl')) { data.controllo = !!f.querySelector('#f-mzctrl').checked; data.vociControllo = val(f, 'f-mzvoci'); if (!data.controllo) data.fermo = false; }
         if (isNew) { data.creato = now; data.barcaId = null; var ref = S.db.collection('mezzi').doc(); ok = await w(function () { return ref.set(data); }); }
         else { var r2_ = S.db.collection('mezzi').doc(m.id); ok = await w(function () { return r2_.update(data); }); }
         if (ok) toast('Mezzo salvato');
@@ -5229,7 +5261,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     return h + lyRender('pannello', B.concat(LY_W));
   }
   /* ---------- Riepiloghi: scadenze, magazzino, porto e rifiuti in numeri e tabelle ---------- */
-  var RIEP = [['scad', 'Scadenze in arrivo', I.alarm], ['mag', 'Magazzino e consumi', I.box], ['porto', 'Porto e posti', I.map], ['rif', 'Rifiuti e ritiri', I.trash]];
+  var RIEP = [['scad', 'Scadenze in arrivo', I.alarm], ['mag', 'Magazzino e consumi', I.box], ['porto', 'Porto e posti', I.map], ['rif', 'Rifiuti e ritiri', I.trash], ['clienti', 'Clienti da sentire', I.tel]];
   // ogni pezzo di un riepilogo è un riquadro da sistemare: numeri piccoli, grafici medi, tabelle grandi
   function rpBlock(id, t, z, d, html) { return { id: id, t: t, z: z, d: d, h: function () { return html; } }; }
   function rpTab(id, t, html) { return rpBlock(id, t, ['m', 'l'], 'l', html); }
@@ -5260,7 +5292,42 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var k = V.riep || 'scad';
     var h = '<div class="chips riep-chips" role="group" aria-label="Riepilogo">' + riepList().map(function (r) { return '<button type="button" data-act="riep" data-v="' + r[0] + '" aria-pressed="' + (k === r[0]) + '">' + r[1] + '</button>'; }).join('') + '</div>';
     if (!riepList().some(function (r) { return r[0] === k; })) k = 'scad';
-    return h + lyRender('riep_' + k, { scad: riepScad, mag: riepMag, porto: riepPorto, rif: riepRif }[k]().concat(LY_W));
+    return h + lyRender('riep_' + k, { scad: riepScad, mag: riepMag, porto: riepPorto, rif: riepRif, clienti: riepClienti }[k]().concat(LY_W));
+  }
+
+  /* Clienti da sentire (solo amministratore, si spegne): barche ferme da 12 mesi, contratti del posto scaduti, scadenze passate da più di 30 giorni */
+  function cliDaSentire() {
+    var oggi = todayISO(), anno = utcToISO(isoToUTC(oggi) - 365 * 86400000), last = {}, by = {};
+    function seen(id, d) { d = String(d || '').slice(0, 10); if (id && d && d <= oggi && d > (last[id] || '')) last[id] = d; }
+    S.lavori.forEach(function (l) { seen(l.barcaId, l.data); });
+    (S.vari || []).forEach(function (v) { if (v.fatto) seen(v.barcaId, v.fattoIl || v.data); });
+    (S.ops || []).forEach(function (o) { seen(o.barcaId, o.fatto || o.creato); });
+    function add(b, why, ord) { if (!b) return; var r = by[b.id] || (by[b.id] = { b: b, why: [], ord: 9 }); if (r.why.indexOf(why) < 0) r.why.push(why); r.ord = Math.min(r.ord, ord); }
+    var ferme = 0, contr = 0, scad = 0;
+    S.boats.forEach(function (b) {
+      if (b.stato === 'Consegnata' || String(b.creato || '').slice(0, 10) > anno) return;
+      if ((last[b.id] || '') < anno) { ferme++; add(b, last[b.id] ? 'nessun lavoro da ' + cliMesi(last[b.id]) : 'nessun lavoro segnato', 3); }
+    });
+    if (PORTO_ON()) Porto.contratti(-1).forEach(function (x) { if (x.boat) { contr++; add(x.boat, 'contratto del posto ' + x.id + ' scaduto il ' + fmtDate(x.d.fino), 1); } });
+    openScad().forEach(function (x) { var d = x.s.data ? daysUntil(x.s.data) : null; if (d != null && d < -30 && x.i.boat) { scad++; add(x.i.boat, (x.s.tipo || 'scadenza') + ' scaduta il ' + fmtDate(x.s.data), 2); } });
+    var rows = Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return a.ord - b.ord || b.why.length - a.why.length || String(a.b.proprietario || '').localeCompare(String(b.b.proprietario || '')); });
+    return { rows: rows, last: last, ferme: ferme, contr: contr, scad: scad };
+  }
+  function cliMesi(d) { var m = Math.floor((isoToUTC(todayISO()) - isoToUTC(d)) / (30.44 * 86400000)); return m >= 24 ? Math.floor(m / 12) + ' anni' : m + ' mesi'; }
+  function riepClienti() {
+    var c = cliDaSentire(), clienti = {}; c.rows.forEach(function (r) { clienti[String(r.b.proprietario || '').trim().toLowerCase() || r.b.id] = 1; });
+    var B = [rpKpi('Clienti da sentire', String(Object.keys(clienti).length), c.rows.length + (c.rows.length === 1 ? ' barca' : ' barche'), c.rows.length ? 'soon' : 'ok'),
+      rpKpi('Ferme da 12 mesi', String(c.ferme), 'nessun lavoro né varo', c.ferme ? 'soon' : ''),
+      rpKpi('Contratti scaduti', String(c.contr), PORTO_ON() ? 'posto non rinnovato' : 'porto spento', c.contr ? 'late' : ''),
+      rpKpi('Scadenze passate', String(c.scad), 'da più di 30 giorni', c.scad ? 'late' : '')];
+    var h = secH('Da sentire (' + c.rows.length + ')');
+    h += rpTable([['Cliente'], ['Barca'], ['Perché'], ['Ultimo lavoro'], ['Telefono']], c.rows.map(function (r) {
+      var b = r.b, tel = String(b.telefono || '').trim();
+      return { act: ' data-act="open-boat" data-id="' + esc(b.id) + '"', c: ['<b>' + esc(b.proprietario || '–') + '</b>', esc(boatLabel(b)), r.why.map(esc).join('<br>'), esc(c.last[b.id] ? fmtDate(c.last[b.id]) : '–'),
+        tel ? '<a href="tel:' + esc(tel.replace(/[^\d+]/g, '')) + '" onclick="event.stopPropagation()">' + esc(tel) + '</a>' : '–'] };
+    }), 'Nessun cliente da sentire: niente barche ferme da un anno, contratti scaduti o scadenze dimenticate.');
+    B.push(rpTab('sentire', 'Da sentire', h));
+    return B;
   }
   function riepScad() {
     var open = openScad(), late = open.filter(function (x) { return x.i.level === 'late'; }), soon = open.filter(function (x) { return x.i.level === 'soon'; });
@@ -5683,13 +5750,48 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   function mmTxt(v, dec) { return fmtNum(v, dec == null ? 2 : dec) + ' mm'; }
   function misUnitSel(id, cur) { return '<div class="seg2 mis-u" role="group"><button type="button" data-act="mis-u" data-f="' + id + '" data-u="mm" aria-pressed="' + (cur !== 'in') + '">mm</button><button type="button" data-act="mis-u" data-f="' + id + '" data-u="in" aria-pressed="' + (cur === 'in') + '">pollici</button></div>'; }
+  /* Altre unità: ogni unità ha il fattore per passare alla prima (la temperatura a parte) */
+  var MIS_UN = {
+    lung: { n: 'Lunghezza', u: [['m', 'Metri (m)', 1], ['mm', 'Millimetri (mm)', 0.001], ['cm', 'Centimetri (cm)', 0.01], ['dm', 'Decimetri (dm)', 0.1], ['km', 'Chilometri (km)', 1000], ['ft', 'Piedi', 0.3048], ['in', 'Pollici', 0.0254], ['yd', 'Iarde', 0.9144], ['nmi', 'Miglia nautiche', 1852]], nota: 'Le barche si misurano spesso in piedi: 1 piede = 0,3048 m = 12 pollici. Si può scrivere anche 32\'6" nei piedi.' },
+    vol: { n: 'Volume', u: [['l', 'Litri (l)', 1], ['ml', 'Millilitri (ml)', 0.001], ['cl', 'Centilitri (cl)', 0.01], ['dl', 'Decilitri (dl)', 0.1], ['m3', 'Metri cubi (m³)', 1000], ['galus', 'Galloni USA', 3.785411784], ['galuk', 'Galloni inglesi', 4.54609], ['qt', 'Quarti USA', 0.946352946], ['floz', 'Once liquide USA', 0.0295735295625]], nota: 'Olio e carburante dei motori americani sono in galloni o quarti USA; i manuali inglesi usano il gallone imperiale, più grande.' },
+    pot: { n: 'Potenza', u: [['cv', 'Cavalli (CV)', 1], ['kw', 'Kilowatt (kW)', 1 / 0.73549875], ['w', 'Watt (W)', 1 / 735.49875], ['hp', 'Horsepower (HP)', 1.01386967887]], nota: '1 CV = 0,7355 kW; l\u2019HP americano è un po\u2019 più grande del CV (1 HP = 1,014 CV).' },
+    pres: { n: 'Pressione', u: [['bar', 'Bar', 1], ['mbar', 'Millibar (mbar)', 0.001], ['psi', 'PSI', 0.0689475729], ['kpa', 'Kilopascal (kPa)', 0.01], ['mpa', 'Megapascal (MPa)', 10], ['atm', 'Atmosfere (atm)', 1.01325], ['kgcm2', 'kg/cm²', 0.980665]], nota: 'Gomme dei carrelli, impianto idraulico e manometri americani: 1 bar = 14,5 psi.' },
+    vel: { n: 'Velocità', u: [['kn', 'Nodi', 1], ['kmh', 'km/h', 1 / 1.852], ['mph', 'Miglia/ora', 0.868976242], ['ms', 'Metri al secondo', 1.94384449]], nota: '1 nodo = 1 miglio nautico all\u2019ora = 1,852 km/h.' },
+    peso: { n: 'Peso', u: [['kg', 'Chilogrammi (kg)', 1], ['g', 'Grammi (g)', 0.001], ['q', 'Quintali (q)', 100], ['t', 'Tonnellate (t)', 1000], ['lb', 'Libbre (lb)', 0.45359237], ['oz', 'Once (oz)', 0.028349523125]], nota: 'Dislocamento e portata dei mezzi: 1 tonnellata = 1.000 kg; 1 libbra = 0,4536 kg.' },
+    coppia: { n: 'Coppia di serraggio', u: [['nm', 'Newton metro (Nm)', 1], ['lbft', 'Libbre piede (lb·ft)', 1.3558179483], ['lbin', 'Libbre pollice (lb·in)', 0.112984829], ['kgm', 'kgf·m', 9.80665]], nota: 'Per la chiave dinamometrica coi manuali americani: 1 lb·ft = 1,356 Nm.' },
+    temp: { n: 'Temperatura', u: [['c', 'Gradi Celsius (°C)'], ['f', 'Gradi Fahrenheit (°F)']], nota: '°F = °C × 1,8 + 32. Acqua di raffreddamento e olio nei manuali americani sono in °F.' }
+  };
+  function misUnParse(g, u, s) {
+    s = String(s || '').trim(); if (!s) return null;
+    if (g === 'lung' && u === 'ft') { var m = /^(\d+(?:[.,]\d+)?)\s*['’]\s*(?:(\d+(?:[.,]\d+)?)\s*(?:"|”|'')?)?$/.exec(s); if (m) return parseFloat(m[1].replace(',', '.')) + (m[2] ? parseFloat(m[2].replace(',', '.')) / 12 : 0); }
+    if (g === 'lung' && u === 'in') return misParseIn(s);
+    var n = parseFloat(s.replace(/\s/g, '').replace(',', '.')); return isFinite(n) ? n : null;
+  }
+  function misUnCalc(g) { // valori da mostrare: quello scritto resta com'è, gli altri calcolati
+    var G = MIS_UN[g], st = (V.misUv && V.misUv.g === g) ? V.misUv : null, out = G.u.map(function () { return ''; });
+    if (!st) return out;
+    var v = misUnParse(g, G.u[st.i][0], st.t); out[st.i] = st.t; if (v == null) return out;
+    var base = g === 'temp' ? (st.i === 0 ? v : (v - 32) / 1.8) : v * G.u[st.i][2];
+    G.u.forEach(function (u, i) {
+      if (i === st.i) return;
+      var x = g === 'temp' ? (i === 0 ? base : base * 1.8 + 32) : base / u[2];
+      var ax = Math.abs(x), d = ax >= 1000 ? 0 : ax >= 100 ? 1 : ax >= 10 ? 2 : ax >= 0.1 || ax === 0 ? 3 : Math.min(9, 2 - Math.floor(Math.log10(ax)) + 1);
+      out[i] = String(Math.round(x * Math.pow(10, d)) / Math.pow(10, d)).replace('.', ',');
+    });
+    return out;
+  }
   function viewMisure() {
-    var tab = V.misTab || 'converti', h = '<div class="chips" role="group" aria-label="Strumento">' + [['converti', 'Converti'], ['chiavi', 'Chiavi'], ['filetti', 'Filetti']].map(function (c) {
+    var tab = V.misTab || 'converti', h = '<div class="chips" role="group" aria-label="Strumento">' + [['converti', 'mm e pollici'], ['unita', 'Altre unità'], ['chiavi', 'Chiavi'], ['filetti', 'Filetti']].map(function (c) {
       return '<button type="button" data-act="mis-tab" data-v="' + c[0] + '" aria-pressed="' + (tab === c[0]) + '">' + c[1] + '</button>'; }).join('') + '</div><div id="mis" data-tab="' + tab + '">';
     if (tab === 'converti') {
       h += '<div class="grid2" style="margin-top:12px">' + field(lab('mis-mm', 'Millimetri'), inp('mis-mm', V.misMm || '', 'type="text" inputmode="decimal" placeholder="es. 9,5" autocomplete="off"')) +
         field(lab('mis-in', 'Pollici'), inp('mis-in', V.misIn || '', 'type="text" placeholder="es. 3/8 o 1-1/4" autocomplete="off"')) + '</div><div id="mis-out"></div>' +
         '<p class="cap" style="margin:10px 2px 0">Nei pollici puoi scrivere le frazioni: 3/8, 1-1/4, 1 1/4, oppure 0,375. 1 pollice = 25,4 mm.</p>';
+    } else if (tab === 'unita') {
+      var gq = MIS_UN[V.misUg] ? V.misUg : 'lung', G = MIS_UN[gq], vals = misUnCalc(gq);
+      h += '<div class="chips wrap" role="group" aria-label="Grandezza" style="margin-top:12px">' + Object.keys(MIS_UN).map(function (k) { return '<button type="button" data-act="mis-ug" data-v="' + k + '" aria-pressed="' + (k === gq) + '">' + esc(MIS_UN[k].n) + '</button>'; }).join('') + '</div>' +
+        '<div class="grid2" style="margin-top:12px">' + G.u.map(function (u, i) { return field(lab('mis-un-' + i, u[1]), inp('mis-un-' + i, vals[i], 'type="text" inputmode="decimal" autocomplete="off" data-g="' + gq + '" data-i="' + i + '"')); }).join('') + '</div>' +
+        '<p class="cap" style="margin:10px 2px 0">' + esc(G.nota) + '</p>';
     } else if (tab === 'chiavi') {
       h += '<div class="field" style="margin-top:12px"><label for="mis-k">Misura del dado o della testa</label><div class="mis-in">' + inp('mis-k', V.misK || '', 'type="text" inputmode="decimal" placeholder="' + (V.misKu === 'in' ? 'es. 9/16' : 'es. 14,3') + '" autocomplete="off"') + misUnitSel('k', V.misKu) + '</div><span class="hint">Misurala col calibro tra due facce piane, oppure scrivi la chiave che hai in mano.</span></div><div id="mis-out"></div>';
       h += secH('Vite e chiave') + '<div class="group pan">' + MIS_VITI.map(function (r) { return '<div class="kv-row"><span class="k">Vite ' + esc(r[0]) + '</span><span class="v">chiave ' + esc(r[1]) + (/"/.test(r[1]) ? '' : ' mm') + '</span></div>'; }).join('') + '</div><p class="cap" style="margin:6px 2px 0">Testa esagonale normale; i dadi in pollici a volte sono più grandi della testa della vite.</p>';
@@ -5743,6 +5845,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (id === 'mis-mm') { V.misMm = v; V.misLast = 'mm'; var m = parseDec(v), o = $('#mis-in'); if (o) { V.misIn = m != null ? String(Math.round(m / 25.4 * 10000) / 10000).replace('.', ',') : ''; o.value = V.misIn; } }
     else if (id === 'mis-in') { V.misIn = v; V.misLast = 'in'; var n = misParseIn(v), o2 = $('#mis-mm'); if (o2) { V.misMm = n != null ? String(Math.round(n * 25.4 * 1000) / 1000).replace('.', ',') : ''; o2.value = V.misMm; } }
     else if (id === 'mis-k') V.misK = v; else if (id === 'mis-fd') V.misFd = v; else if (id === 'mis-fp') V.misFp = v;
+    else if (/^mis-un-/.test(id)) { var g = e.target.getAttribute('data-g'), i = +e.target.getAttribute('data-i'); V.misUv = { g: g, i: i, t: v }; misUnCalc(g).forEach(function (x, j) { var el = $('#mis-un-' + j); if (el && j !== i) el.value = x; }); return; }
     misUpdate();
   });
 
@@ -7040,7 +7143,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   async function ntSave(d) {
     if (!S.myId) return false;
     var cur = ntMine() || {}, r = S.db.collection('notifiche').doc(S.myId);
-    return w(function () { return r.set(Object.assign({ utente: S.myId, tokens: cur.tokens || [], scadenze: cur.scadenze !== false, cronometro: cur.cronometro !== false }, d, { modificato: new Date().toISOString() })); });
+    return w(function () { return r.set(Object.assign({ utente: S.myId, tokens: cur.tokens || [], scadenze: cur.scadenze !== false, cronometro: cur.cronometro !== false, spazio: cur.spazio !== false }, d, { modificato: new Date().toISOString() })); });
   }
   async function ntAttiva() {
     var why = ntSupport(); if (why) { toast(why, true); return; }
@@ -7202,14 +7305,22 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['giro', 'Giro di controllo', 'dopo il vento forte'], ['meteo', 'Meteo', 'vento e mare in Home'], ['preventivi', 'Preventivi', 'in ore e ricambi'],
     ['ditte', 'Ditte esterne', 'velaio, tappezziere, elettricista…'], ['operazioni', 'Servizi di cantiere', 'trasporti, alaggi, lavaggi'],
     ['scadcantiere', 'Scadenze del cantiere', 'mezzi, attrezzature, sicurezza'], ['magazzino', 'Magazzino', 'ricambi e scorte'], ['rifiuti', 'Rifiuti', 'deposito, ritiri e registro'],
-    ['misure', 'Misure mm e pollici', 'convertitore e filetti']];
+    ['misure', 'Misure e unità', 'convertitore, unità e filetti'], ['clienti', 'Clienti da sentire', 'barche ferme, contratti e scadenze dimenticate (solo amministratore)'],
+    ['controllo', 'Controllo dei mezzi', 'prima dell’uso: gomme, freni, perdite; i mezzi che non vanno restano fermi (spento di base)'],
+    ['tablet', 'Tablet condiviso con PIN', 'un tablet in officina per tutti: nome, PIN di 4 cifre, si richiude dopo 5 minuti (spento di base)']];
+  var SEZ_OFF = ['tablet', 'controllo']; // sezioni spente finché l'amministratore non le accende
   // riquadri di Home e Pannello che appartengono a una sezione (spariscono se le loro sezioni sono tutte spente)
   var SEZ_BLOCCHI = { w_mag: ['magazzino'], w_porto: ['porto'], w_rif: ['rifiuti'], w_batt: ['batterie'], vari: ['vari'], prog: ['programma'], meteo: ['meteo'],
     contr: ['porto'], riord: ['magazzino', 'batterie'], serv: ['operazioni'], magb: ['magazzino', 'batterie'] };
-  function sezSpente() { var c = S.sezCfg; if (c && !c._del && Array.isArray(c.spente)) return c.spente; return window.NM_ASPETTO ? [] : ['porto']; } // il porto disegnato è quello di Nautica Mare
+  function sezSpente() {
+    var c = S.sezCfg;
+    if (c && !c._del && Array.isArray(c.spente)) { var l = c.spente.slice(), con = c.conosce || []; SEZ_OFF.forEach(function (k) { if (con.indexOf(k) < 0 && l.indexOf(k) < 0) l.push(k); }); return l; }
+    return (window.NM_ASPETTO ? [] : ['porto']).concat(SEZ_OFF);
+  } // il porto disegnato è quello di Nautica Mare
   function sezOn(k) { return sezSpente().indexOf(k) < 0; }
   function sezBlocco(b) { var ks = SEZ_BLOCCHI[b.id]; return !ks || ks.some(sezOn); }
-  function riepList() { var m = { mag: 'magazzino', porto: 'porto', rif: 'rifiuti' }; return RIEP.filter(function (r) { return !m[r[0]] || sezOn(m[r[0]]); }); }
+  function riepList() { var m = { mag: 'magazzino', porto: 'porto', rif: 'rifiuti', clienti: 'clienti' }; return RIEP.filter(function (r) { return (!m[r[0]] || sezOn(m[r[0]])) && (r[0] !== 'clienti' || S.isOwner); }); }
+  function PORTO_ON() { return sezOn('porto'); }
   function aspNuovo() { return !window.NM_ASPETTO && !(S.aspetto && !S.aspetto._del); } // azienda nuova: aspetto mai scelto
   function aspDraft() {
     if (!V.asp) {
@@ -7314,7 +7425,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   async function aspSave() {
     var d = aspDraft(), now = new Date().toISOString(),
       data = { nome: String(d.nome || '').trim().slice(0, 60), colore1: d.colore1, colore2: d.colore2, logo: d.logo || '', scritta: d.scritta || '', luogo: d.luogo || '', lat: d.lat, lon: d.lon, modificato: now },
-      sez = { spente: d.spente.filter(function (k) { return SEZIONI.some(function (x) { return x[0] === k; }); }), modificato: now };
+      sez = { spente: d.spente.filter(function (k) { return SEZIONI.some(function (x) { return x[0] === k; }); }), conosce: SEZ_OFF.slice(), modificato: now };
     if (!data.nome) { if (V.wizStep) V.wizStep = 0; render(); toast('Scrivi il nome dell’azienda.', true); return; }
     var r = S.db.collection('impostazioni').doc('aspetto'), r2 = S.db.collection('impostazioni').doc('sezioni');
     if (!(await w(function () { return Promise.all([r.set(data), r2.set(sez)]); }))) return;
@@ -7326,7 +7437,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function aspBase() {
     var b = window.NM_ASPETTO || {}, D = NM_MARCA.DEF, ok = typeof b.lat === 'number' && typeof b.lon === 'number';
     V.asp = { nome: b.nome || D.nome, colore1: NM_MARCA.hex(b.colore1) || D.colore1, colore2: NM_MARCA.hex(b.colore2) || D.colore2, logo: '', scritta: '',
-      luogo: ok ? b.luogo || '' : '', lat: ok ? b.lat : null, lon: ok ? b.lon : null, spente: window.NM_ASPETTO ? [] : ['porto'] };
+      luogo: ok ? b.luogo || '' : '', lat: ok ? b.lat : null, lon: ok ? b.lon : null, spente: (window.NM_ASPETTO ? [] : ['porto']).concat(SEZ_OFF) };
     aspPreview(); render(); toast('Questo è l’aspetto di base: premi «Salva per tutti» per tenerlo');
   }
   function viewCategorie() {
@@ -7417,7 +7528,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var nDev = me ? (me.tokens || []).length : 0;
     if (nDev) h += '<p class="cap" style="margin:8px 4px 0">Attive su ' + nDev + (nDev === 1 ? ' dispositivo' : ' dispositivi') + ' con il tuo account.</p>';
     h += secH('Cosa ricevo') + '<div class="group"><label class="row check" style="padding:12px 14px"><input type="checkbox" data-nt="scadenze"' + (!me || me.scadenze !== false ? ' checked' : '') + (c.chi === 'admin' && !S.isOwner ? ' disabled' : '') + '> Scadenze' + (c.cantiere ? ' delle barche e del cantiere' : ' delle barche') + '</label>' +
-      '<label class="row check" style="padding:12px 14px"><input type="checkbox" data-nt="cronometro"' + (!me || me.cronometro !== false ? ' checked' : '') + '> Il mio cronometro dimenticato acceso (oltre ' + CR_DIMENTICATO + ' ore)</label></div>';
+      '<label class="row check" style="padding:12px 14px"><input type="checkbox" data-nt="cronometro"' + (!me || me.cronometro !== false ? ' checked' : '') + '> Il mio cronometro dimenticato acceso (oltre ' + CR_DIMENTICATO + ' ore)</label>' +
+      (S.isOwner ? '<label class="row check" style="padding:12px 14px"><input type="checkbox" data-nt="spazio"' + (!me || me.spazio !== false ? ' checked' : '') + '> <span>Spazio quasi pieno (foto all’80% e al 95% dello spazio dell’azienda' + (c.spazioQuota ? ', ' + c.spazioQuota + ' MB' : '') + ')</span></label>' : '') + '</div>';
     if (c.chi === 'admin' && !S.isOwner) h += '<p class="cap" style="margin:8px 4px 0">Per ora le scadenze arrivano solo agli amministratori.</p>';
     h += '<p class="cap" style="margin:8px 4px 0">Gli altri avvisi (vari del giorno, programma, magazzino, meteo) arriveranno qui quando li decidete.</p>';
     if (S.isOwner) {
@@ -7457,13 +7569,14 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       ['preventivi', I.doc, 'acc', 'Preventivi', 'In ore e ricambi, con la foto di quello dell’ufficio', (function () { var n = (S.prev || []).filter(function (p) { return p.stato === 'bozza' || p.stato === 'inviato'; }).length; return n ? '<span class="pill acc">' + n + ' in attesa</span>' : ''; })()],
       ['rifiuti', I.trash, 'late', 'Rifiuti', 'Cosa produciamo, deposito, ritiri della ditta e registro', rifDepKg() > 0 ? '<span class="pill">≈ ' + fmtNum(rifDepKg(), 0) + ' kg in deposito</span>' : ''],
       ['assenze', I.cal, 'vio', 'Ferie e permessi', 'Richieste, approvazioni e chi è assente', assAdmin() && assPending().length ? '<span class="pill soon">' + assPending().length + ' da approvare</span>' : assOn(todayISO()).length ? '<span class="pill">' + assOn(todayISO()).length + ' assenti oggi</span>' : ''],
-      ['misure', I.ruler, 'acc', 'Misure: mm e pollici', 'Convertitore, chiavi, filetti metrici, UNC, UNF, BSP e NPT', ''],
+      ['misure', I.ruler, 'acc', 'Misure e unità', 'mm e pollici, piedi, galloni, psi, chiavi e filetti', ''],
       ['ore', I.hours, 'ok', 'Ore del mese', 'Ore di ogni dipendente e giornate confermate', ''],
       ['operazioni', I.list, '', 'Servizi di cantiere', 'Trasporti, alaggi, movimentazioni, vari, lavaggi: passaggi e tempi', runs ? '<span class="pill acc">' + runs + ' in corso</span>' : ''],
       ['scadenze', I.alarm, 'late', 'Scadenze', 'Tagliandi, assicurazioni, contratti', late ? '<span class="pill late">' + late + ' scadute</span>' : ''],
       ['scadcantiere', I.alarm, 'soon', 'Scadenze del cantiere', 'Mezzi, attrezzature e sicurezza: revisioni, verifiche, estintori', scCounts().late ? '<span class="pill late">' + scCounts().late + (scCounts().late === 1 ? ' scaduta' : ' scadute') + '</span>' : scCounts().soon ? '<span class="pill soon">' + scCounts().soon + ' entro 30 giorni</span>' : ''],
       ['notifiche', I.bell, 'acc', 'Notifiche', 'Avvisi sul telefono per le scadenze e il cronometro', ''],
       ['categorie', I.list, '', 'Categorie dei lavori', 'Motore, carena, coperta…: aggiungi, rinomina o togli', ''],
+      ['controllo', I.truck, 'soon', 'Controllo dei mezzi', 'Prima di usarli: gomme, freni, perdite… e i mezzi fermi', (function () { var f = ctrlList().filter(function (m) { return m.fermo; }).length, n = ctrlDaFare().length; return f ? '<span class="pill late">' + f + (f === 1 ? ' fermo' : ' fermi') + '</span>' : n ? '<span class="pill soon">' + n + ' da controllare</span>' : ''; })()],
       S.isOwner ? ['aspetto', I.brush, 'vio', 'Aspetto dell’app', 'Nome dell’azienda, colori dello sfondo e loghi', ''] : null,
       ['backup', I.dl, 'ok', 'Copia dei dati', 'Scarica una copia di tutto o recupera ciò che è stato cancellato', '']
     ];
@@ -7960,7 +8073,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
 
   /* ---------- Barre ---------- */
-  var TITOLI = { aspetto: 'Aspetto dell’app', riepiloghi: 'Riepiloghi', scheda: 'Scheda lavoro', scadenze: 'Scadenze', calendario: 'Calendario', barche: 'Barche', lavori: 'Lavorazioni da fare', altro: 'Altro', vari: 'Vari e alaggi', magazzino: 'Magazzino', preventivi: 'Preventivi', assenze: 'Ferie e permessi', misure: 'Misure mm e pollici', rifiuti: 'Rifiuti', scadcantiere: 'Scadenze del cantiere', ore: 'Ore del mese', checklist: 'Checklist', operazioni: 'Servizi di cantiere', backup: 'Copia dei dati', programma: 'Programma', pannello: 'Pannello', batterie: 'Batterie', notifiche: 'Notifiche', categorie: 'Categorie', inventario: 'Inventario', giro: 'Giro di controllo', ditte: 'Ditte esterne' };
+  var TITOLI = { controllo: 'Controllo dei mezzi', aspetto: 'Aspetto dell’app', riepiloghi: 'Riepiloghi', scheda: 'Scheda lavoro', scadenze: 'Scadenze', calendario: 'Calendario', barche: 'Barche', lavori: 'Lavorazioni da fare', altro: 'Altro', vari: 'Vari e alaggi', magazzino: 'Magazzino', preventivi: 'Preventivi', assenze: 'Ferie e permessi', misure: 'Misure e unità', rifiuti: 'Rifiuti', scadcantiere: 'Scadenze del cantiere', ore: 'Ore del mese', checklist: 'Checklist', operazioni: 'Servizi di cantiere', backup: 'Copia dei dati', programma: 'Programma', pannello: 'Pannello', batterie: 'Batterie', notifiche: 'Notifiche', categorie: 'Categorie', inventario: 'Inventario', giro: 'Giro di controllo', ditte: 'Ditte esterne' };
   // per l'amministratore: quale sezione apre ciascuno (lo registra nm-fb.js)
   function vistaNome() {
     if (V.tab === 'barche' && V.boatId && boatById(V.boatId)) return 'la barca ' + (boatById(V.boatId).nome || 'senza nome');
@@ -7988,7 +8101,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var left = V.tab === 'home' ? '<button type="button" class="icon-btn" data-act="tab" data-tab="scadenze" aria-label="Scadenze scadute: ' + late + '">' + I.bell + (late ? '<span class="dot">' + late + '</span>' : '') + '</button>'
       : V.tab === 'inventario' ? '<button type="button" class="icon-btn blue" data-act="tab" data-tab="magazzino" aria-label="Torna al magazzino">' + I.back + '</button>'
       : (ALTRO.indexOf(V.tab) > 0 ? '<button type="button" class="icon-btn blue" data-act="tab" data-tab="altro" aria-label="Torna ad Altro">' + I.back + '</button>' : '');
-    var addAct = ({ scheda: S.myId ? 'new-entry' : '', lavori: 'new-lav', vari: 'new-vari', magazzino: 'new-mag', checklist: 'new-modello', operazioni: 'new-op', giro: '', ditte: S.canWrite ? 'ditta-new' : '', ore: '', backup: '', notifiche: '', categorie: '', inventario: '', programma: 'new-prog', pannello: '', riepiloghi: '', batterie: '', rifiuti: 'rif-new', scadcantiere: 'sc-new', preventivi: 'prev-new', assenze: S.myId ? 'ass-new' : '', misure: '' })[V.tab];
+    var addAct = ({ scheda: S.myId ? 'new-entry' : '', lavori: 'new-lav', vari: 'new-vari', magazzino: 'new-mag', checklist: 'new-modello', operazioni: 'new-op', giro: '', ditte: S.canWrite ? 'ditta-new' : '', ore: '', backup: '', notifiche: '', categorie: '', inventario: '', programma: 'new-prog', pannello: '', riepiloghi: '', batterie: '', rifiuti: 'rif-new', scadcantiere: 'sc-new', preventivi: 'prev-new', assenze: S.myId ? 'ass-new' : '', misure: '', controllo: '' })[V.tab];
     if (addAct == null) addAct = 'add-menu';
     var ro = S.status === 'ready' && !S.canWrite ? ' · sola lettura' : '';
     t.innerHTML = '<div class="l">' + left + '</div><h1' + (V.tab === 'home' ? ' id="logo-slot"' : '') + '>' + (V.tab === 'home' ? '' : titles[V.tab] + ro) + '</h1>' +
@@ -8004,7 +8117,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   /* menù completo a sinistra, solo su computer e tablet (sul telefono resta nascosto) */
   var SIDE_GRUPPI = [['Officina', ['scheda', 'lavori', 'programma', 'calendario', 'assenze', 'misure']], ['Barche e clienti', ['barche', 'mappa', 'vari', 'scadenze', 'batterie', 'preventivi']],
-    ['Cantiere', ['operazioni', 'giro', 'scadcantiere', 'magazzino', 'ditte', 'rifiuti']], ['Amministrazione', ['pannello', 'riepiloghi', 'ore', 'notifiche', 'categorie', 'aspetto', 'backup']]];
+    ['Cantiere', ['operazioni', 'controllo', 'giro', 'scadcantiere', 'magazzino', 'ditte', 'rifiuti']], ['Amministrazione', ['pannello', 'riepiloghi', 'ore', 'notifiche', 'categorie', 'aspetto', 'backup']]];
   // ordine del menù: ogni amministratore può riordinare gruppi e voci con la matita in alto (si salva con i riquadri, in impostazioni/layout_<uid>)
   function sideGruppi() {
     var saved = lyCan() && lyCfg().side, def = {}, out = [], seen = {};
@@ -8085,14 +8198,151 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (S.status === 'absent') html = '<div class="notice" style="margin-top:14px">I dati del registro si aprono solo da Claude, con il tuo account. Apri il link della pagina da claude.ai o dall’app Claude per vedere e salvare barche, lavori e scadenze.</div>';
     else if (S.status === 'loading') html = '<div class="notice" style="margin-top:14px">Carico barche, lavori e scadenze…</div>';
     else if (wizOn()) html = viewWizard();
-    else html = ({ programma: viewProgramma, pannello: viewPannello, riepiloghi: viewRiepiloghi, batterie: viewBatterie, mappa: viewMappa, altro: viewAltro, backup: viewBackup, vari: viewVari, magazzino: viewMagazzino, preventivi: viewPreventivi, assenze: viewAssenze, misure: viewMisure, notifiche: viewNotifiche, categorie: viewCategorie, aspetto: viewAspetto, inventario: viewInventario, rifiuti: viewRifiuti, scadcantiere: viewScadCantiere, ore: viewOre, checklist: viewChecklist, operazioni: viewOperazioni, giro: viewGiro, ditte: viewDitte, home: viewHome, scheda: viewScheda, scadenze: viewScadenze, calendario: viewCalendario, lavori: viewLavori, barche: function () { return V.boatId ? viewBoat() : viewBarche(); } })[V.tab]();
+    else html = ({ controllo: viewControllo, programma: viewProgramma, pannello: viewPannello, riepiloghi: viewRiepiloghi, batterie: viewBatterie, mappa: viewMappa, altro: viewAltro, backup: viewBackup, vari: viewVari, magazzino: viewMagazzino, preventivi: viewPreventivi, assenze: viewAssenze, misure: viewMisure, notifiche: viewNotifiche, categorie: viewCategorie, aspetto: viewAspetto, inventario: viewInventario, rifiuti: viewRifiuti, scadcantiere: viewScadCantiere, ore: viewOre, checklist: viewChecklist, operazioni: viewOperazioni, giro: viewGiro, ditte: viewDitte, home: viewHome, scheda: viewScheda, scadenze: viewScadenze, calendario: viewCalendario, lavori: viewLavori, barche: function () { return V.boatId ? viewBoat() : viewBarche(); } })[V.tab]();
+    if (TAB.as && S.status === 'ready') html = tabBar() + html;
     $('#view').innerHTML = html;
-    renderTop(); renderTabs(); bindFeat();
+    renderTop(); renderTabs(); bindFeat(); tabCheck();
     if (V.tab === 'misure') misUpdate();
     if (V.tab === 'mappa' && S.status === 'ready') { if (M.area === 'porto') { M.mounted = null; Porto.mount(); } else { M.mounted = M.mode; mapMount(); } } else M.mounted = null;
     if (S.status !== 'loading') hideSplash();
     if (fid) { var el = document.getElementById(fid); if (el) { el.focus({ preventScroll: true }); try { if (sel) el.setSelectionRange(sel[0], sel[1]); } catch (e) { } } }
   }
+
+  /* ---------- Controllo dei mezzi prima dell'uso (sezione «controllo», spenta di base) ----------
+     Su ogni mezzo si sceglie se va controllato (mezzi.controllo). Il primo che lo usa nella giornata risponde alle voci:
+     se una non va il mezzo diventa «fermo», lo vedono tutti in Home e lo rimette in uso solo l'amministratore. */
+  var CTRL_VOCI = {
+    boatlift: ['Nessuna perdita d’olio da tubi e pistoni', 'Livello olio idraulico', 'Gomme e ruote', 'Fasce e cinghie di sollevamento integre', 'Radiocomando e arresto d’emergenza', 'Freni', 'Luci e lampeggiante'],
+    muletto: ['Forche e catene', 'Nessuna perdita d’olio', 'Freni', 'Clacson, luci e cicalino retromarcia', 'Cintura e sedile', 'Gomme'],
+    strada: ['Gomme', 'Luci e frecce', 'Freni', 'Olio motore e liquidi', 'Gancio di traino e spinotto luci', 'Specchi e vetri'],
+    carrello: ['Gomme e ruote', 'Luci e catarifrangenti', 'Gancio e sicura', 'Cinghie e cavalletti', 'Freno']
+  };
+  function ctrlOn() { return sezOn('controllo'); }
+  function ctrlTipo(t) { t = String(t || '').toLowerCase(); return /boatlift|semovente/.test(t) ? 'boatlift' : /muletto/.test(t) ? 'muletto' : /motrice|trattore|furgone/.test(t) ? 'strada' : 'carrello'; }
+  function ctrlVoci(m) { var v = String(m.vociControllo || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); return v.length ? v : CTRL_VOCI[ctrlTipo(m.tipo)]; }
+  function ctrlList() { return S.mezzi.filter(function (m) { return m.controllo; }).sort(function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || ''), 'it'); }); }
+  function ctrlOggi(m) { var t = todayISO(); return (S.ctrlMz || []).filter(function (c) { return c.mezzoId === m.id && c.data === t && !c._del; }).sort(function (a, b) { return String(b.ora).localeCompare(String(a.ora)); })[0] || null; }
+  function ctrlDaFare() { return ctrlOn() ? ctrlList().filter(function (m) { return !m.fermo && !ctrlOggi(m); }) : []; }
+  function ctrlStato(m) {
+    if (m.fermo) return { lv: 'late', t: 'Fermo: ' + (m.fermoPerche || 'controllo non passato'), s: (m.fermoNome ? 'segnato da ' + m.fermoNome : '') + (m.fermoIl ? ' · ' + fmtDayLong(String(m.fermoIl).slice(0, 10)) : '') };
+    var c = ctrlOggi(m); if (c) return { lv: 'ok', t: 'Controllato oggi', s: (c.nome || '') + ' alle ' + (c.ora || '') };
+    return { lv: 'soon', t: 'Da controllare prima di usarlo', s: ctrlVoci(m).length + ' voci' };
+  }
+  function viewControllo() {
+    if (!ctrlOn()) return '<div class="notice" style="margin-top:12px">Il controllo dei mezzi è spento. Lo accende l’amministratore in Altro › Aspetto dell’app › Sezioni.</div>';
+    var list = ctrlList(), h = '<p class="context" style="margin-top:12px">Prima di usare un mezzo, il primo della giornata risponde alle voci. Se una non va il mezzo resta fermo finché l’amministratore non lo rimette in uso.</p>';
+    if (!list.length) return h + '<div class="notice">Nessun mezzo da controllare. Apri un mezzo (Mappa › Mezzi) e spunta «Controllo prima dell’uso».</div>';
+    h += '<div class="group">' + list.map(function (m) {
+      var st = ctrlStato(m);
+      return '<div class="row"><span class="main"><span class="title">' + esc(m.nome || 'Mezzo') + '</span><span class="sub t-' + st.lv + '">' + esc(st.t) + '</span>' + (st.s ? '<span class="sub">' + esc(st.s) + '</span>' : '') + '</span><span class="side">' +
+        (m.fermo ? (S.isOwner ? '<button type="button" class="btn sec" data-act="ctrl-riattiva" data-id="' + esc(m.id) + '">Rimetti in uso</button>' : '') : S.canWrite ? '<button type="button" class="btn' + (st.lv === 'ok' ? ' sec' : '') + '" data-act="ctrl-do" data-id="' + esc(m.id) + '">' + (st.lv === 'ok' ? 'Ricontrolla' : 'Controlla') + '</button>' : '') + '</span></div>';
+    }).join('') + '</div>';
+    var ult = (S.ctrlMz || []).filter(function (c) { return !c._del; }).sort(function (a, b) { return String(b.data + b.ora).localeCompare(String(a.data + a.ora)); }).slice(0, 15);
+    if (ult.length) h += secH('Ultimi controlli') + '<div class="group">' + ult.map(function (c) {
+      var no = (c.voci || []).filter(function (v) { return !v.ok; }).map(function (v) { return v.t; });
+      return '<div class="row"><span class="main"><span class="title">' + esc(c.mezzoNome || 'Mezzo') + ' · ' + esc(cap(fmtDayLong(c.data))) + ' ' + esc(c.ora || '') + '</span><span class="sub ' + (no.length ? 't-late' : 't-ok') + '">' + esc(no.length ? 'Non va: ' + no.join(', ') : 'Tutto a posto') + '</span>' +
+        '<span class="sub">' + esc((c.nome || '') + (c.note ? ' · ' + c.note : '')) + '</span></span></div>';
+    }).join('') + '</div>';
+    return h;
+  }
+  function ctrlSheet(m) {
+    var voci = ctrlVoci(m);
+    openSheet({
+      title: 'Controllo ' + (m.nome || 'mezzo'), submitLabel: 'Fatto',
+      body: '<p class="context">Rispondi a ogni voce prima di usare il mezzo.</p><div class="cv-list">' + voci.map(function (v, i) {
+        return '<div class="cv-row"><b>' + esc(v) + '</b><div class="cv-opt"><label><input type="radio" name="cv' + i + '" value="si"><span>Va bene</span></label><label class="no"><input type="radio" name="cv' + i + '" value="no"><span>Non va</span></label></div></div>';
+      }).join('') + '</div>' + field(lab('f-cvn', 'Note'), '<textarea id="f-cvn" placeholder="es. gomma posteriore sinistra sgonfia"></textarea>'),
+      onSubmit: async function (f) {
+        var r = [], manca = false;
+        voci.forEach(function (v, i) { var x = f.querySelector('input[name="cv' + i + '"]:checked'); if (!x) manca = true; else r.push({ t: v, ok: x.value === 'si' }); });
+        if (manca) { formErr('Rispondi a tutte le voci.'); return false; }
+        var no = r.filter(function (x) { return !x.ok; }).map(function (x) { return x.t; }), now = new Date(), note = val(f, 'f-cvn');
+        var d = { mezzoId: m.id, mezzoNome: m.nome || '', data: todayISO(), ora: ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2), utente: S.myId || '', nome: nameOf(S.myId), voci: r, note: note, esito: no.length ? 'fermo' : 'ok', creato: now.toISOString() };
+        var ref = S.db.collection('controlliMezzi').doc();
+        if (!(await w(function () { return ref.set(d); }))) return false;
+        if (no.length) { var mr = S.db.collection('mezzi').doc(m.id); await w(function () { return mr.update({ fermo: true, fermoPerche: no.join(', ') + (note ? ' (' + note + ')' : ''), fermoDa: S.myId || '', fermoNome: nameOf(S.myId), fermoIl: now.toISOString(), modificato: now.toISOString() }); }); }
+        toast(no.length ? m.nome + ' è fermo: l’amministratore lo vede in Home' : 'Controllo fatto: ' + (m.nome || 'il mezzo') + ' si può usare');
+        return true;
+      }
+    });
+  }
+  async function ctrlRiattiva(m) {
+    if (!S.isOwner || !confirm('Rimettere in uso ' + (m.nome || 'il mezzo') + '? Fallo solo se il problema è stato sistemato.')) return;
+    var mr = S.db.collection('mezzi').doc(m.id), now = new Date().toISOString();
+    if (await w(function () { return mr.update({ fermo: false, fermoPerche: '', rimessoDa: S.myId || '', rimessoIl: now, modificato: now }); })) toast((m.nome || 'Il mezzo') + ' è di nuovo in uso');
+  }
+  function ctrlHome() {
+    if (!ctrlOn()) return '';
+    var f = ctrlList().filter(function (m) { return m.fermo; }), n = ctrlDaFare().length;
+    if (f.length) return featCard('late', I.truck, f.length === 1 ? (f[0].nome || 'Un mezzo') + ' è fermo' : f.length + ' mezzi fermi', f.map(function (m) { return (m.nome || 'Mezzo') + ': ' + (m.fermoPerche || 'controllo non passato'); }).join(' · '), '',
+      '<button type="button" class="btn" data-act="tab" data-tab="controllo">Vedi i mezzi</button>');
+    if (n && S.canWrite) return featCard('soon', I.truck, n === 1 ? '1 mezzo da controllare oggi' : n + ' mezzi da controllare oggi', 'Prima di usarlo, rispondi alle voci del controllo', '', '<button type="button" class="btn" data-act="tab" data-tab="controllo">Controlla</button>');
+    return '';
+  }
+
+  /* ---------- Tablet condiviso (sezione «tablet», spenta di base) ----------
+     L'account segnato «tablet» in Utenti e permessi apre «Chi lavora adesso?»: ognuno tocca il suo nome e scrive il suo PIN.
+     Poi l'app lavora a nome suo (scheda, cronometro, lavori) con i permessi da dipendente; «Ho finito» o 5 minuti senza tocchi la richiudono. */
+  var TAB_MIN = 5, TAB = { as: null, sel: null, pin: '', err: '', sbagli: 0, ferma: 0, t: null, base: null };
+  function tabOn() { return S.status === 'ready' && sezOn('tablet') && !!(window.__NM_FB && __NM_FB.tablet && __NM_FB.tablet.si()); }
+  function tabBar() {
+    return '<div class="tb-bar"><span class="av av-i">' + esc((nameOf(TAB.as) || '?').charAt(0).toUpperCase()) + '</span><span class="t"><b>Stai lavorando come ' + esc(nameOf(TAB.as)) + '</b><small>Tablet condiviso · si richiude da solo dopo ' + TAB_MIN + ' minuti senza tocchi</small></span>' +
+      '<button type="button" class="btn" data-act="tb-fine">Ho finito</button></div>';
+  }
+  function tabHtml() {
+    var h = '<div class="tb-sub" style="margin:0;text-align:left;font-weight:600">' + esc(((S.aspetto && !S.aspetto._del && S.aspetto.nome) || 'Tablet officina') + ' · Tablet officina') + '</div>';
+    if (!TAB.sel) {
+      var ps = __NM_FB.tablet.persone().sort(function (a, b) { return a.nome.localeCompare(b.nome, 'it'); });
+      h += '<h1>Chi lavora adesso?</h1><p class="tb-sub">Tocca il tuo nome e scrivi il tuo PIN</p>';
+      h += ps.length ? '<div class="tb-grid">' + ps.map(function (p) { return '<button type="button" class="tb-p" data-tb="chi" data-id="' + esc(p.id) + '"><span class="tb-av">' + esc((p.nome || '?').charAt(0).toUpperCase()) + '</span>' + esc(p.nome || 'Dipendente') + '</button>'; }).join('') + '</div>'
+        : '<div class="notice" style="max-width:520px;margin:0 auto">Nessuno ha ancora un PIN. Ognuno lo mette dal suo telefono in Altro › Il mio account › PIN per il tablet, oppure lo mette l’amministratore in Utenti e permessi.</div>';
+      return h;
+    }
+    var nome = nameOf(TAB.sel), wait = Math.max(0, Math.ceil((TAB.ferma - Date.now()) / 1000));
+    h += '<h1>Ciao ' + esc(nome) + '</h1><p class="tb-sub">Scrivi il tuo PIN</p><div class="tb-dots">' + [0, 1, 2, 3].map(function (i) { return '<span' + (i < TAB.pin.length ? ' class="on"' : '') + '></span>'; }).join('') + '</div>' +
+      '<p class="tb-err">' + esc(wait ? 'Troppi tentativi: riprova tra ' + wait + ' secondi' : TAB.err) + '</p><div class="tb-pad">' +
+      ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(function (n) { return '<button type="button" data-tb="n" data-n="' + n + '">' + n + '</button>'; }).join('') +
+      '<button type="button" class="x" data-tb="indietro">Non sono io</button><button type="button" data-tb="n" data-n="0">0</button><button type="button" class="x" data-tb="canc">Cancella</button></div>';
+    return h;
+  }
+  function tabCheck() {
+    var on = tabOn() && !TAB.as, o = document.getElementById('tablet');
+    if (!on) { if (o) o.remove(); if (TAB.as && !tabOn()) tabFine(); return; }
+    if (!o) { o = document.createElement('div'); o.id = 'tablet'; document.body.appendChild(o); }
+    o.innerHTML = tabHtml();
+  }
+  function tabTocco() { if (!TAB.as) return; clearTimeout(TAB.t); TAB.t = setTimeout(function () { tabFine(); toast('Tablet richiuso dopo ' + TAB_MIN + ' minuti senza tocchi'); }, TAB_MIN * 60000); }
+  function tabEntra(uid) {
+    TAB.base = { myId: S.myId, me: S.me }; TAB.as = uid; TAB.sel = null; TAB.pin = ''; TAB.err = ''; TAB.sbagli = 0;
+    __NM_FB.tablet.come(uid); S.myId = uid; S.me = { id: uid, name: nameOf(uid) };
+    V.tab = 'scheda'; V.boatId = null; V.boatView = null; V.schedaDay = todayISO(); window.scrollTo(0, 0); tabTocco(); render();
+  }
+  function tabFine() {
+    if (!TAB.as) return;
+    clearTimeout(TAB.t); __NM_FB.tablet.come(null);
+    if (TAB.base) { S.myId = TAB.base.myId; S.me = TAB.base.me; }
+    TAB.as = null; TAB.base = null; V.tab = 'home'; V.boatId = null; V.boatView = null; window.scrollTo(0, 0); render();
+  }
+  async function tabCifra(n) {
+    if (Date.now() < TAB.ferma) { tabCheck(); return; }
+    if (TAB.pin.length >= 4) return;
+    TAB.pin += n; TAB.err = ''; tabCheck();
+    if (TAB.pin.length < 4) return;
+    var ok = await __NM_FB.tablet.prova(TAB.sel, TAB.pin);
+    if (ok) { tabEntra(TAB.sel); return; }
+    TAB.pin = ''; TAB.sbagli++; TAB.err = 'PIN sbagliato';
+    if (TAB.sbagli >= 3) { TAB.sbagli = 0; TAB.ferma = Date.now() + 30000; setTimeout(tabCheck, 30500); }
+    tabCheck();
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest && e.target.closest('#tablet [data-tb]'); if (!t) return;
+    var k = t.getAttribute('data-tb');
+    if (k === 'chi') { TAB.sel = t.getAttribute('data-id'); TAB.pin = ''; TAB.err = ''; tabCheck(); }
+    else if (k === 'indietro') { TAB.sel = null; TAB.pin = ''; TAB.err = ''; tabCheck(); }
+    else if (k === 'canc') { TAB.pin = TAB.pin.slice(0, -1); tabCheck(); }
+    else if (k === 'n') tabCifra(t.getAttribute('data-n'));
+  });
+  ['pointerdown', 'keydown'].forEach(function (ev) { document.addEventListener(ev, tabTocco, true); });
 
   /* ---------- Ricerca unica: la lente in alto cerca in tutto ---------- */
   function gqNorm(s) { return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim(); }
@@ -8242,7 +8492,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'Magazzino e consumi: articoli sotto scorta con quanto ordinare, i ricambi più usati del mese e gli articoli fermi da più di un anno.',
       'Porto e posti: posti vostri occupati per zona, barche in acqua e a terra, vari e alaggi in arrivo, contratti in scadenza nei prossimi 60 giorni.',
       'Rifiuti e ritiri: kg in deposito (e quanti pericolosi), costo stimato, rifiuti segnati per mese e ritiri della ditta.',
-      'A|Ognuno dei quattro riepiloghi ha i suoi riquadri da sistemare come in Home: tieni premuto (o «⋯» sul computer) per grandezza, posizione o per toglierli.'] },
+      'A|Clienti da sentire (si spegne in Aspetto › Sezioni): barche senza lavori né vari da 12 mesi, contratti del posto scaduti, scadenze passate da più di 30 giorni, con il telefono del cliente.',
+      'A|Ognuno dei riepiloghi ha i suoi riquadri da sistemare come in Home: tieni premuto (o «⋯» sul computer) per grandezza, posizione o per toglierli.'] },
     barca: { t: 'Scheda della barca', p: 'Qui c’è tutta la storia della barca.', li: [
       'La matita in alto modifica i dati: modello, misure, motori, stato, ore motore, proprietario con telefono ed email.',
       'Nella matita ogni motore è una riga con marca e modello, matricola, cv e ore: «Aggiungi riga» per un altro motore (copia marca e cv del primo), × per toglierlo. Il numero dei motori si conta da solo.',
@@ -8338,8 +8589,9 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'Le assenze compaiono anche in programma, calendario e ore del mese.',
       'D|L’amministratore approva o rifiuta e lo vedi in Home. Puoi cancellare una tua richiesta finché non è decisa.',
       'A|Le richieste da approvare compaiono qui e in Home: approva o rifiuta con un tocco.'] },
-    misure: { t: 'Misure: mm e pollici', p: 'Strumenti di misura per l’officina.', li: [
+    misure: { t: 'Misure e unità', p: 'Strumenti di misura per l’officina.', li: [
       'Convertitore tra millimetri e pollici.',
+      '«Altre unità» converte lunghezza (mm, cm, dm, m, km, piedi, pollici, miglia nautiche), volume (ml, cl, dl, litri, m³, galloni USA e inglesi), potenza (W, kW, CV, HP), pressione (bar, mbar, psi, kPa, atm), velocità (nodi, km/h), peso, coppia di serraggio (Nm, lb·ft) e temperatura (°C, °F): scrivi in un campo e gli altri si aggiornano.',
       'Chiavi metriche e in pollici: ti dice se una chiave va bene o è troppo larga.',
       'Riconoscimento dei filetti metrici, UNC, UNF, BSP e NPT dal diametro e dal passo.'] },
     ore: { t: 'Ore del mese', p: 'Le ore di ogni dipendente, prese dalla Scheda lavoro.', li: [
@@ -8362,6 +8614,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     notifiche: { t: 'Notifiche', p: 'Gli avvisi sul telefono per le scadenze e per il cronometro.', li: [
       'Attiva le notifiche su questo telefono: ogni mattina dei giorni lavorativi arriva un solo avviso con le scadenze.',
       'Se lasci il cronometro acceso più di 9 ore, o dal giorno prima, ti arriva un avviso (dalle 7 alle 22:30, una volta sola). Si spegne da «Cosa ricevo».',
+      'Amministratori: quando le foto arrivano all’80% e poi al 95% dello spazio dell’azienda (lo decide il gestore del servizio, di solito 100 MB) arriva un avviso al mattino, e in Home compare «Spazio quasi pieno». Si spegne da «Cosa ricevo».',
       'Su iPhone funzionano solo con l’app aggiunta alla schermata Home.',
       'A|Decidi tu l’ora, chi le riceve, quanto prima avvisare, la soglia per le ore motore e se includere le scadenze del cantiere.'] },
     aspetto: { t: 'Aspetto dell’app', p: 'Il nome dell’azienda, i colori, i loghi, il luogo del meteo e le sezioni che usate. Solo per l’amministratore.', li: [
@@ -8371,8 +8624,14 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'A|Con «Scegli un’immagine» carichi il logo d’apertura (avvio, caricamento, resoconti) e quello in alto nella Home. Senza, c’è una barca stilizzata con il nome dell’azienda.',
       'A|In «Dove si trova il cantiere» cerchi il paese o il porto: da lì prende il meteo in Home e il vento per il giro di controllo.',
       'A|In «Sezioni dell’app» spegni quelle che non usate (porto, rifiuti, batterie…): spariscono da menù, Home e guida, ma i dati restano e tornano se le riaccendi.',
+      'A|«Tablet condiviso con PIN» è spento finché non lo accendi qui. Acceso, in Utenti e permessi tocchi «Usa come tablet condiviso» sull’account del tablet: lì si apre «Chi lavora adesso?», ognuno tocca il suo nome e scrive il suo PIN, e lavora a nome suo con i permessi da dipendente. Il PIN (4 cifre) si mette da Il mio account, o lo mette l’amministratore; «Ho finito» o 5 minuti senza tocchi richiudono il tablet.',
       'A|Finché non premi «Salva per tutti» le modifiche le vedi solo tu; se esci senza salvare torna com’era.',
       'A|«Torna all’aspetto di base» rimette tutto com’era all’inizio (poi va salvato).'] },
+    controllo: { t: 'Controllo dei mezzi', p: 'Prima di usare un mezzo (BoatLift, muletto, trattore…) il primo della giornata risponde a poche voci.', li: [
+      'Tocca «Controlla» accanto al mezzo e rispondi «Va bene» o «Non va» a ogni voce: gomme, freni, perdite d’olio, luci…',
+      'Se una voce non va, il mezzo diventa «fermo»: lo vedono tutti in Home e nell’elenco dei mezzi. Non usarlo.',
+      'A|Solo l’amministratore lo rimette in uso con «Rimetti in uso», quando il problema è sistemato.',
+      'A|Quali mezzi controllare lo scegli aprendo il mezzo (Mappa › Mezzi): spunta «Controllo prima dell’uso» e, se vuoi, scrivi le tue voci.'] },
     categorie: { t: 'Categorie dei lavori', p: 'L’elenco delle categorie: motore, carena, coperta…', li: [
       'La categoria di un lavoro si sceglie da sola leggendo il testo, o ricordando com’era l’ultima volta.',
       'D|Solo l’amministratore può aggiungere, rinominare o togliere le categorie.',
@@ -8388,7 +8647,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'A|«Tutte le foto in un file» prepara un file .zip con le foto divise per barca (oltre 150 MB in più parti): tocca «Salva» su ogni parte.',
       'A|Una volta a settimana l’app toglie da sola le voci cancellate da più di 60 giorni, che non si possono più recuperare dal cestino: non cambia niente di quello che vedete.'] },
     inventario: { rif: 'magazzino' },
-    account: { t: 'Account e permessi', p: 'Ognuno entra con la sua email e password; nessuno usa account condivisi.', li: [
+    account: { t: 'Account e permessi', p: 'Ognuno entra con la sua email e password; l’unico account condiviso può essere quello del tablet dell’officina, se acceso.', li: [
       '«Il mio account» (in fondo ad Altro) serve per cambiare la password o uscire.',
       'Ogni azienda ha un suo codice di 8 lettere e numeri (per esempio K7P4-M2QX). Per far entrare un collega o un cliente mandagli il link dell’app e il codice: alla registrazione sceglie «Entro nella mia azienda», scrive il codice, poi aspetta di essere approvato.',
       'A|Il codice lo trovi in Altro › Utenti e permessi, con i tasti «Copia» e «Cambia codice». Se finisce in mani sbagliate cambialo: il vecchio non vale più per le nuove registrazioni, chi è già dentro resta dentro.',
@@ -8411,7 +8670,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'Si rompe il telefono? I dati non si perdono: basta entrare con la stessa email e password da un altro dispositivo.',
       'Il cliente vede ore e prezzi? No: vede solo dove è la barca, il suo stato e i lavori fatti.'] }
   };
-  var GUIDA_ORD = ['inizio', 'home', 'scheda', 'lavori', 'calendario', 'barche', 'barca', 'mappa', 'porto', 'altro', 'programma', 'pannello', 'riepiloghi', 'vari', 'giro', 'ditte', 'scadenze', 'scadcantiere', 'batterie', 'magazzino', 'preventivi', 'operazioni', 'rifiuti', 'assenze', 'ore', 'misure', 'notifiche', 'categorie', 'aspetto', 'backup', 'account', 'ai', 'faq'];
+  var GUIDA_ORD = ['inizio', 'home', 'scheda', 'lavori', 'calendario', 'barche', 'barca', 'mappa', 'porto', 'altro', 'programma', 'pannello', 'riepiloghi', 'vari', 'giro', 'ditte', 'scadenze', 'scadcantiere', 'batterie', 'magazzino', 'preventivi', 'operazioni', 'controllo', 'rifiuti', 'assenze', 'ore', 'misure', 'notifiche', 'categorie', 'aspetto', 'backup', 'account', 'ai', 'faq'];
   function guidaQui() {
     if (V.tab === 'barche' && V.boatId && boatById(V.boatId)) return 'barca';
     if (V.tab === 'mappa') return M.area === 'porto' ? 'porto' : 'mappa';
@@ -10251,6 +10510,9 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'm-overlap':
         if (M.an) { var ob = M.an.items.find(function (it) { return M.an.bad[it.id] === true && !it.ghost; }); if (ob) { M.sel = ob.id; M.move = false; x = $('#map-root'); if (x) { M.tx = x.clientWidth / 2 - ob.p.x * M.s; M.ty = x.clientHeight * 0.4 - ob.p.y * M.s; applyView(); } mapDraw(); } }
         break;
+      case 'tb-fine': tabFine(); break;
+      case 'ctrl-do': x = mezzoById(id); if (x) ctrlSheet(x); break;
+      case 'ctrl-riattiva': x = mezzoById(id); if (x) ctrlRiattiva(x); break;
       case 'go-scheda': V.tab = 'scheda'; V.boatId = null; V.boatView = null; V.schedaDay = t.getAttribute('data-d') || todayISO(); window.scrollTo(0, 0); render(); break;
       case 'sd-prev': case 'sd-next': V.schedaDay = utcToISO(isoToUTC(V.schedaDay) + (act === 'sd-next' ? 1 : -1) * 86400000); render(); break;
       case 'sd-today': V.schedaDay = todayISO(); render(); break;
@@ -10305,6 +10567,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'ass-edit': x = (S.assenze || []).find(function (q) { return q.id === id; }); if (x) assSheet(x); break;
       case 'ass-ok': assDecide(id, true); break;
       case 'mis-tab': V.misTab = t.getAttribute('data-v'); render(); break;
+      case 'mis-ug': V.misUg = t.getAttribute('data-v'); render(); break;
       case 'mis-u': (function () { var f = t.getAttribute('data-f'), u = t.getAttribute('data-u'); if (f === 'k') V.misKu = u; else if (f === 'fd') V.misFdu = u; else if (f === 'fp') V.misFpu = u; })(); render(); break;
       case 'ass-no': if (confirm('Rifiutare la richiesta?')) assDecide(id, false); break;
       case 'new-attr': if (S.canWrite) attrSheet(null, t.getAttribute('data-boat') || V.boatId); break;
@@ -10356,6 +10619,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     }
     if (t.id === 'bk-file') { var bf = t.files && t.files[0]; t.value = ''; bkPick(bf); return; }
     if (t.getAttribute && t.getAttribute('data-nt') === 'scadenze') { if (await ntSave({ scadenze: !!t.checked })) toast(t.checked ? 'Riceverai le scadenze' : 'Non riceverai più le scadenze'); return; }
+    if (t.getAttribute && t.getAttribute('data-nt') === 'spazio') { if (await ntSave({ spazio: !!t.checked })) toast(t.checked ? 'Ti avviso quando lo spazio è quasi pieno' : 'Niente più avvisi sullo spazio'); return; }
     if (t.getAttribute && t.getAttribute('data-nt') === 'cronometro') { if (await ntSave({ cronometro: !!t.checked })) toast(t.checked ? 'Ti avviso se dimentichi il cronometro acceso' : 'Niente più avvisi del cronometro'); return; }
     if (t.hasAttribute && t.hasAttribute('data-opck')) {
       if (SHEET.op) { var pk = t.getAttribute('data-opck').split(':'), lst = SHEET.op[pk[0]]; if (lst && lst[+pk[1]]) { lst[+pk[1]].ok = !!t.checked; var fo = {}; fo[pk[0]] = lst; saveOp(fo); renderOp(); } }
@@ -10443,6 +10707,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     sub('opModelli', function (x) { S.opModelli = x; });
     sub('operazioni', function (x) { S.ops = x; });
     sub('mezzi', function (x) { S.mezzi = x; });
+    sub('controlliMezzi', function (x) { S.ctrlMz = x; });
     sub('attrezzatura', function (x) { S.attr = x; });
     sub('programma', function (x) { S.prog = x; S.got.programma = true; progPulizia(); });
     sub('cariche', function (x) { S.cariche = x; });
@@ -10459,6 +10724,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     sub('ditte', function (x) { S.ditte = x; });
     sub('assenze', function (x) { S.assenze = x; });
     sub('notifiche', function (x) { S.notif = toMap(x); });
+    sub('pin', function () { });
     CLD().use('assets').then(function (a) { S.assets = a || null; if (a) render(); }, function () { });
     CLD().use('downloads').then(function (d) { S.dl = d || null; if (V.tab === 'backup') render(); }, function () { S.dl = null; if (V.tab === 'backup') render(); });
     try {

@@ -3,6 +3,7 @@
    chi è iscritto (notifiche/{utente}) e le scadenze, poi manda un solo avviso a testa con Firebase Cloud Messaging.
    Le regole si cambiano dall'app: Altro › Notifiche. */
 'use strict';
+var gestore = require('./gestore');
 
 var DEF = { ora: '07:30', chi: 'tutti', avvisi: 'settimana', preavviso: 30, ripetiScadute: true, sogliaOre: 20, cantiere: true, weekend: false };
 var STAFF = ['base', 'editor', 'admin'];
@@ -63,27 +64,61 @@ function messaggio0(voci) {
   return { title: title, body: righe.join('\n') };
 }
 
+// Spazio: le foto di ogni azienda (fotoInfo.kb) rispetto alla sua quota (aziende/{az}.quotaMb, la decide il gestore; 100 MB se non scritta),
+// e di tutte insieme rispetto al GB del piano gratuito. Si avvisa salendo all'80% e al 95%, una volta per livello, una misura al giorno.
+var QUOTA0 = 100, SERVIZIO_MB = 1024;
+function livello(pct) { return pct >= 95 ? 95 : pct >= 80 ? 80 : 0; }
+
 async function main() {
   var admin = require('firebase-admin');
   if (!process.env.FIREBASE_SERVICE_ACCOUNT) { console.log('Manca il segreto FIREBASE_SERVICE_ACCOUNT: notifiche non attive.'); return; }
   admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
   // più aziende: ognuna ha i suoi dati in aziende/{id}/… e le sue regole per le notifiche
   var root = admin.firestore(), az = await root.collection('aziende').where('stato', '==', 'attiva').get();
+  var spazi = [];
   for (var a = 0; a < az.docs.length; a++) {
     console.log('— ' + (az.docs[a].data().nome || az.docs[a].id));
-    try { await unaAzienda(admin, root, az.docs[a]); } catch (e) { console.error(e); process.exitCode = 1; }
+    try { await unaAzienda(admin, root, az.docs[a], spazi); } catch (e) { console.error(e); process.exitCode = 1; }
   }
+  if (process.env.PROVA !== '1') { try { await gestore.consumi(admin, root, oraRoma(new Date()).oggi); } catch (e) { console.error('Consumi non contati:', e); } }
+  if (!spazi.length) return; // misurato oggi già prima, o prova
+  var tot = 0; az.docs.forEach(function (d) { tot += d.data().spazioMb || 0; });
+  spazi.forEach(function (x) { tot += x.mb - x.mbPrima; });
+  var pct = tot / SERVIZIO_MB * 100, liv = livello(pct), sRef = root.collection('servizio').doc('spazio'), sDoc = await sRef.get(), prima = sDoc.exists ? sDoc.data().liv || 0 : 0;
+  await sRef.set({ mb: Math.round(tot), pct: Math.round(pct), liv: liv, il: new Date().toISOString() }, { merge: true });
+  var salite = spazi.filter(function (x) { return x.liv > x.prima; });
+  // al gestore sempre (pannello, telefono o GitHub): ogni azienda che sale di livello e il totale del servizio
+  for (var q = 0; q < salite.length; q++) { var x = salite[q]; await gestore.avvisa(admin, root, { tipo: 'spazio', azienda: x.az, nome: x.nome, titolo: x.nome + ': spazio ' + (x.liv >= 95 ? 'quasi finito' : 'quasi pieno') + ' (' + Math.round(x.pct) + '%)', testo: Math.round(x.mb) + ' MB su ' + x.quota + ' MB. La quota si cambia nel Pannello del gestore.' }); }
+  if (liv > prima) await gestore.avvisa(admin, root, { tipo: 'spazio', titolo: 'Spazio del servizio al ' + Math.round(pct) + '%', testo: 'Foto di tutte le aziende: ' + Math.round(tot) + ' MB su ' + SERVIZIO_MB + ' MB del piano gratuito.' });
+
 }
 
-async function unaAzienda(admin, root, azDoc) {
+async function unaAzienda(admin, root, azDoc, spazi) {
   var db = azDoc.ref, prova = process.env.PROVA === '1', NOME = String(azDoc.data().nome || NOME0).slice(0, 60);
   function messaggio(voci) { var m = messaggio0(voci); m.title = m.title.replace(NOME0, NOME); return m; }
   async function tutti(c) { if (c === 'utenti') { var su = await root.collection('utenti').where('azienda', '==', azDoc.id).get(), ou = []; su.forEach(function (d) { ou.push(Object.assign({ id: d.id }, d.data())); }); return ou; } var s = await db.collection(c).get(), out = []; s.forEach(function (d) { var x = d.data(); if (!x._del) out.push(Object.assign({ id: d.id }, x)); }); return out; }
+
+  async function manda(dest, msg, tag) {
+    var inviati = 0;
+    for (var i = 0; i < dest.length; i++) {
+      var n = dest[i], tokens = n.tokens.slice();
+      var res = await admin.messaging().sendEachForMulticast({ tokens: tokens, data: { title: msg.title, body: msg.body, url: './', tag: tag }, webpush: { headers: { Urgency: 'high', TTL: '43200' } } });
+      var morti = [];
+      res.responses.forEach(function (x, k) {
+        if (x.success) inviati++;
+        else if (/registration-token-not-registered|invalid-registration-token|invalid-argument/.test((x.error && x.error.code) || '')) morti.push(tokens[k]);
+        else console.log('Errore su un telefono:', x.error && x.error.code);
+      });
+      if (morti.length) await db.collection('notifiche').doc(n.id).update({ tokens: tokens.filter(function (t) { return morti.indexOf(t) < 0; }) });
+    }
+    console.log('Mandate ' + inviati + ' notifiche (' + tag + ') a ' + dest.length + ' persone.');
+  }
 
   var asp = await db.collection('impostazioni').doc('aspetto').get();
   if (asp.exists && !asp.data()._del && asp.data().nome) NOME = String(asp.data().nome).slice(0, 60);
   var cfgRef = db.collection('impostazioni').doc('notifiche'), cfgDoc = await cfgRef.get(), cfgRaw = cfgDoc.exists && !cfgDoc.data()._del ? cfgDoc.data() : {};
   var cfg = Object.assign({}, DEF, cfgRaw), now = oraRoma(new Date());
+  if (!prova && cfgRaw.spazioIl !== now.oggi) await spazio();
   if (!prova) {
     if (cfgRaw.ultimoInvio === now.oggi) { console.log('Già mandato oggi.'); return; }
     if (now.ora < cfg.ora) { console.log('Non è ancora l’ora (' + now.ora + ' < ' + cfg.ora + ').'); return; }
@@ -100,6 +135,17 @@ async function unaAzienda(admin, root, azDoc) {
   if (!iscritti.length) { console.log(solo ? 'Nessun telefono iscritto per ' + solo + '.' : 'Nessun telefono iscritto.'); }
 
   var msg, dest;
+  async function spazio() { // una volta al giorno, anche nei festivi e prima dell'ora degli avvisi
+    var kb = 0; (await db.collection('fotoInfo').get()).forEach(function (d) { kb += d.data().kb || 0; });
+    var A = azDoc.data(), quota = A.quotaMb > 0 ? A.quotaMb : QUOTA0, mb = kb / 1024, pct = mb / quota * 100, liv = livello(pct), prima = cfgRaw.spazioLiv || 0;
+    await cfgRef.set({ spazioIl: now.oggi, spazioMb: Math.round(mb), spazioPct: Math.round(pct), spazioLiv: liv, spazioQuota: quota }, { merge: true });
+    await db.update({ spazioMb: Math.round(mb * 10) / 10, spazioLiv: liv, spazioIl: now.oggi });
+    spazi.push({ az: azDoc.id, nome: NOME, mb: mb, mbPrima: A.spazioMb || 0, quota: quota, pct: pct, liv: liv, prima: prima });
+    if (liv <= prima) return;
+    var ut = {}; (await tutti('utenti')).forEach(function (u) { ut[u.id] = u; });
+    var dest = (await tutti('notifiche')).filter(function (n) { var u = ut[n.utente || n.id]; return u && u.stato === 'attivo' && u.ruolo === 'admin' && n.spazio !== false && (n.tokens || []).length; });
+    await manda(dest, { title: NOME + ' · spazio ' + (liv >= 95 ? 'quasi finito' : 'quasi pieno') + ' (' + Math.round(pct) + '%)', body: 'Le foto occupano ' + Math.round(mb) + ' MB su ' + quota + ' MB dell’azienda. In Altro › Copia dei dati puoi togliere le foto non più usate.' }, 'nm-spazio');
+  }
   if (prova) {
     msg = { title: NOME + ' · prova', body: 'Le notifiche funzionano su questo telefono.' };
     dest = iscritti;
@@ -112,19 +158,7 @@ async function unaAzienda(admin, root, azDoc) {
     dest = iscritti.filter(function (n) { var u = utenti[n.utente || n.id]; return n.scadenze !== false && (cfg.chi !== 'admin' || u.ruolo === 'admin'); });
   }
 
-  var inviati = 0;
-  for (var i = 0; i < dest.length; i++) {
-    var n = dest[i], tokens = n.tokens.slice();
-    var res = await admin.messaging().sendEachForMulticast({ tokens: tokens, data: { title: msg.title, body: msg.body, url: './', tag: 'nm-riepilogo' }, webpush: { headers: { Urgency: 'high', TTL: '43200' } } });
-    var morti = [];
-    res.responses.forEach(function (x, k) {
-      if (x.success) inviati++;
-      else if (/registration-token-not-registered|invalid-registration-token|invalid-argument/.test((x.error && x.error.code) || '')) morti.push(tokens[k]);
-      else console.log('Errore su un telefono:', x.error && x.error.code);
-    });
-    if (morti.length) await db.collection('notifiche').doc(n.id).update({ tokens: tokens.filter(function (t) { return morti.indexOf(t) < 0; }) });
-  }
-  console.log('Mandate ' + inviati + ' notifiche a ' + dest.length + ' persone.');
+  await manda(dest, msg, 'nm-riepilogo');
 }
 
 module.exports = { scegli: scegli, messaggio: messaggio0, oraRoma: oraRoma };

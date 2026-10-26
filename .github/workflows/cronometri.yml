@@ -1,6 +1,7 @@
 # Cronometro dimenticato: ogni ora controlla i cronometri accesi da più di 9 ore (o dal giorno prima)
 # e avvisa sul telefono chi lo usa, una volta per ogni avvio. Orario: dalle 7 alle 22:30 (ora italiana).
 # Usa il segreto FIREBASE_SERVICE_ACCOUNT, come le notifiche del mattino.
+# Nello stesso giro avvisa il gestore del servizio di aziende nuove da approvare ed errori ripetuti (gestore.js).
 name: Cronometri dimenticati
 
 on:
@@ -10,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  issues: write # avvisi al gestore senza telefono iscritto: segnalazione nel repository
 
 concurrency:
   group: cronometri
@@ -32,3 +34,10 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: node cronometri.js
+      - name: Avvisi al gestore (aziende nuove, errori ripetuti)
+        if: always()
+        working-directory: .github/notifiche
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node gestore.js

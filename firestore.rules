@@ -16,6 +16,8 @@ service cloud.firestore {
     function staff(a) { return attivo(a) && me().ruolo in ['base', 'editor', 'admin']; }
     function cliente(a) { return attivo(a) && me().ruolo == 'cliente'; }
     function admin(a) { return attivo(a) && me().ruolo == 'admin'; }
+    // Tablet condiviso: un account dell'azienda che l'amministratore ha segnato «tablet» (utenti/{uid}.tablet)
+    function tablet(a) { return staff(a) && me().get('tablet', false) == true; }
     // il gestore, solo nelle aziende attive che gli hanno dato il permesso: vale come un amministratore
     function assist(a) { return creatore() && azienda(a).stato == 'attiva' && azienda(a).get('assistenza', false) == true; }
     function staffA(a) { return staff(a) || assist(a); }
@@ -23,6 +25,20 @@ service cloud.firestore {
 
     match /creatori/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
+      // il gestore iscrive i suoi telefoni alle notifiche (solo questo)
+      allow update: if signedIn() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tokens', 'modificato']);
+    }
+
+    // Servizio: avvisi e consumi (li scrive GitHub ogni ora e ogni mattina), note private del gestore sulle aziende
+    match /servizio/{doc=**} {
+      allow read: if creatore();
+      allow write: if creatore();
+    }
+
+    // Messaggio del gestore a tutte le aziende: lo leggono tutti quelli che entrano, lo scrive solo il gestore
+    match /messaggioServizio/{id} {
+      allow read: if signedIn();
+      allow write: if creatore();
     }
 
     // Aziende: nascono in attesa insieme al profilo del loro primo amministratore; le approva il gestore.
@@ -31,7 +47,7 @@ service cloud.firestore {
     function raccolteCantiere() {
       return ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
         'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'programma', 'cariche', 'posti', 'richieste',
-        'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte'];
+        'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi'];
     }
 
     match /aziende/{a} {
@@ -77,27 +93,30 @@ service cloud.firestore {
       // ciò che hanno aggiunto loro (creatoDa), le proprie mansioni della scheda, le proprie giornate
       // confermate, le proprie richieste di ferie non ancora decise, e i posti al porto (spostare le barche).
       // Chi ha aggiunto una cosa non si può cambiare.
-      // Le mansioni della scheda, le giornate confermate, le ferie, le iscrizioni alle notifiche e i cronometri si modificano solo se sono propri.
+      // Le mansioni della scheda, le giornate confermate, le ferie, le iscrizioni alle notifiche, i cronometri e i PIN si modificano solo se sono propri.
+      // Il tablet condiviso lavora a nome di chi ha scritto il suo PIN (il PIN si controlla nell'app): scrive le loro cose personali,
+      // tranne PIN e notifiche, e cancella solo ciò che è stato aggiunto dal tablet («via»).
       match /{coll}/{id} {
         function nuovo() { return request.resource.data; }
         function cancellato(d) { return d.get('_del', false) == true; }
-        function mio(d) { return d.get('utente', '') == request.auth.uid; }
+        function mio(d) { return d.get('utente', '') == request.auth.uid || (tablet(a) && !(coll in ['pin', 'notifiche']) && d.get('utente', '') != ''); }
         // di chi è: vale per le cose personali, tutto il resto è di tutta l'azienda
         function proprio(d) {
           return cancellato(d)
             || ((coll != 'lavori' || d.get('fonte', '') != 'scheda' || mio(d))
-              && (!(coll in ['conferme', 'assenze', 'notifiche', 'cronometri']) || mio(d)));
+              && (!(coll in ['conferme', 'assenze', 'notifiche', 'cronometri', 'pin']) || mio(d)));
         }
         // le ferie le approva solo l'amministratore; la malattia si comunica e basta
         function ferieOk(d) { return coll != 'assenze' || cancellato(d) || d.get('stato', '') == 'richiesta' || (d.get('stato', '') == 'approvata' && d.get('tipo', '') == 'malattia'); }
         function puoCancellare(d) {
           return coll == 'posti'
             || (coll != 'assenze' && d.get('creatoDa', '') == request.auth.uid)
+            || (coll != 'assenze' && tablet(a) && d.get('via', '') == request.auth.uid)
             || (coll == 'lavori' && d.get('fonte', '') == 'scheda' && mio(d))
             || (coll == 'conferme' && mio(d))
             || (coll == 'assenze' && mio(d) && d.get('stato', '') == 'richiesta');
         }
-        function autoreOk(d) { return d.get('creatoDa', request.auth.uid) == request.auth.uid; }
+        function autoreOk(d) { return d.get('creatoDa', request.auth.uid) == request.auth.uid || (tablet(a) && d.get('via', '') == request.auth.uid); }
         function autoreUguale() { return cancellato(resource.data) || nuovo().get('creatoDa', '') == resource.data.get('creatoDa', ''); }
         function datiCantiere() { return !(coll in ['portale', 'cestino', 'attivita']); }
         // l'aspetto dell'app (nome dell'azienda, colori, loghi, luogo) e le sezioni accese li cambia solo l'amministratore

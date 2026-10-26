@@ -17,7 +17,7 @@ const admin = require('firebase-admin');
     console.log('Tolto il ruolo di gestore a ' + email + '.');
     return;
   }
-  await db.collection('creatori').doc(u.uid).set({ email: email, il: now });
+  await db.collection('creatori').doc(u.uid).set({ email: email, il: now }, { merge: true }); // tiene i telefoni iscritti alle notifiche
   await db.collection('utenti').doc(u.uid).set({ nome: u.displayName || email.split('@')[0], email: email, ruolo: 'creatore', stato: 'attivo', tipo: 'staff', azienda: FV.delete(), codice: FV.delete(), modificato: now }, { merge: true });
   console.log(email + ' ora è il gestore del servizio.');
 })().catch((e) => { console.error('Non riuscito:', e.code || '', e.message); process.exit(1); });

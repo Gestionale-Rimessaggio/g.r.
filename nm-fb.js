@@ -6,7 +6,7 @@
   'use strict';
   var CFG = window.NM_FIREBASE_CONFIG || null;
   var COLLS = ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
-    'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'programma', 'cariche', 'posti', 'richieste', 'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte'];
+    'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'programma', 'cariche', 'posti', 'richieste', 'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi'];
   var RUOLI = { base: 'Dipendente', editor: 'Dipendente', admin: 'Amministratore', cliente: 'Cliente' }; // «editor» era «Può cancellare»: ora vale come Dipendente
   var FULL_EVERY = 7 * 864e5;            // una rilettura completa a settimana per sicurezza
   var GIF0 = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
@@ -116,6 +116,7 @@
     '#nmcr .pill{display:inline-block;font-size:.78rem;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.1);color:#c9ccd6;margin-left:6px;font-weight:500}#nmcr .note{color:#9a9daa;font-size:.9rem;margin:12px 4px}' +
     /* computer e tablet: il pannello lascia libero il menù a sinistra dell'app (largo 236px) */
     '@media (min-width:768px) and (min-height:500px){#nmpan{left:236px}}' +
+    '#nmmsg{position:fixed;top:calc(env(safe-area-inset-top) + 64px);left:10px;right:10px;z-index:100000;display:flex;justify-content:center}#nmmsg .it{max-width:520px;width:100%;box-sizing:border-box;background:#1e3a5f;color:#fff;border:1px solid #2f8ff0;border-radius:14px;padding:12px 14px;font:15px/1.45 -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.3)}#nmmsg .ok{margin-top:8px;border:0;border-radius:10px;background:#2f8ff0;color:#fff;padding:8px 14px;font:inherit;cursor:pointer}#nmcr select.b{appearance:auto}' +
     '#nmatt{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 76px);right:10px;left:10px;z-index:100001;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}' +
     '#nmatt .it{pointer-events:auto;position:relative;max-width:420px;width:100%;box-sizing:border-box;background:#2b2c33;color:#fff;border-radius:14px;padding:10px 40px 10px 14px;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.3)}#nmatt .x{position:absolute;top:4px;right:4px;width:32px;height:32px;border:0;background:none;color:#c9cbe0;font-size:20px;line-height:1;cursor:pointer}' +
     '#nmatt .it b{display:block}#nmatt .it span{color:#c9cbe0}#nmattv{width:100%;text-align:left}#nmattv .ar{display:block;padding:10px 0;border-top:1px solid #2a2d55}#nmattv .ar:first-child{border-top:0}#nmattv .ar b{display:block}#nmattv .ar div{color:#b7bad8;font-size:.9rem}' +
@@ -246,7 +247,7 @@
       // chi l'ha aggiunto: serve per sapere chi può cancellarlo. Si conserva quando si riscrive.
       var prev = L.map[id];
       if (prev && prev.creatoDa) data.creatoDa = prev.creatoDa;
-      else if (!prev && L.ready && !data.creatoDa && ME && name !== 'portale') data.creatoDa = ME.uid;
+      else if (!prev && L.ready && !data.creatoDa && ME && name !== 'portale') { data.creatoDa = chi(); if (AS) data.via = ME.uid; }
       var x = enc(clone(data)); x._ts = ts; p = r.set(x); L.map[id] = clone(data); L.pend[id] = 'set';
     } else if (kind === 'update') {
       if (L.ready && !L.map[id]) return Promise.reject({ code: 'not_found', message: 'Elemento non trovato' });
@@ -262,7 +263,7 @@
       if (old) { // una copia va nel cestino, nella stessa scrittura
         var b = fs.batch();
         if (Date.now() - DELG.t > 3000) DELG.id = rid('g'); DELG.t = Date.now(); // cancellate di seguito (una barca con i suoi lavori): stesso gruppo
-        b.set(AC('cestino').doc(rid('c')), { coll: name, docId: id, dati: enc(clone(old)), gruppo: DELG.id, da: ME.uid, daNome: ME.nome || '', il: nowISO(), _ts: ts });
+        b.set(AC('cestino').doc(rid('c')), { coll: name, docId: id, dati: enc(clone(old)), gruppo: DELG.id, da: ME.uid, daNome: (ME.nome || '') + (AS ? ' (tablet, ' + ((UT[AS] && UT[AS].nome) || '') + ')' : ''), il: nowISO(), _ts: ts });
         b.set(r, { _del: true, _ts: ts }); p = b.commit();
       } else p = r.set({ _del: true, _ts: ts });
       delete L.map[id]; L.pend[id] = 'del';
@@ -276,15 +277,18 @@
   // chi può cancellare: l'amministratore tutto; gli altri ciò che hanno aggiunto loro, le proprie mansioni della
   // scheda, le proprie giornate confermate, le proprie richieste di ferie non ancora decise, e i posti al porto.
   // Le stesse regole stanno in firestore.rules.
+  // Tablet condiviso: l'account segnato «tablet» lavora a nome di chi ha scritto il suo PIN (AS); quello che aggiunge resta suo, con «via» = il tablet
+  var AS = null;
+  function chi() { return AS || (ME && ME.uid); }
   function canDel(name, d) {
     if (!ME) return false;
     if (ME.ruolo === 'admin') return true;
     if (!d) return false;
     if (name === 'posti') return true;
-    if (name !== 'assenze' && d.creatoDa === ME.uid) return true; // l'ha aggiunto chi cancella
-    if (name === 'lavori') return d.fonte === 'scheda' && d.utente === ME.uid;
-    if (name === 'conferme') return d.utente === ME.uid;
-    if (name === 'assenze') return d.utente === ME.uid && d.stato === 'richiesta';
+    if (name !== 'assenze' && (AS ? d.via === ME.uid : d.creatoDa === ME.uid)) return true; // l'ha aggiunto chi cancella (dal tablet: ciò che è stato aggiunto dal tablet)
+    if (name === 'lavori') return d.fonte === 'scheda' && d.utente === chi();
+    if (name === 'conferme') return d.utente === chi();
+    if (name === 'assenze') return d.utente === chi() && d.stato === 'richiesta';
     return false;
   }
   function ref(name, id) {
@@ -372,7 +376,7 @@
         if (b.size > 700 * 1024) throw { code: 'too_large', message: 'Foto troppo grande' };
         var url = await blobToDataUrl(b), id = rid('f');
         // con la foto, una scheda leggera in «fotoInfo» (quanto pesa): così lo spazio si conta senza scaricare le foto
-        var fb = fs.batch(), cr = nowISO(), da = ME ? ME.uid : '';
+        var fb = fs.batch(), cr = nowISO(), da = ME ? chi() : '';
         fb.set(AC('foto').doc(id), { data: url, creato: cr, da: da, _ts: FV.serverTimestamp() });
         fb.set(AC('fotoInfo').doc(id), { kb: Math.ceil(url.length / 1024), creato: cr, da: da, _ts: FV.serverTimestamp() });
         var fp = fb.commit(); pendAdd(fp);
@@ -594,6 +598,7 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 
   function afterStart() {
+    msgServizio();
     UT_UNSUB = fs.collection('utenti').where('azienda', '==', AZ).onSnapshot(function (s) {
       var m = {}; s.docs.forEach(function (d) { m[d.id] = d.data(); }); UT = m; if ($('#nmpan')) renderPanel(); schedulePortale();
     }, function () { });
@@ -607,6 +612,20 @@
     attEntra(); attAscolta();
     // aperto dal link per portare i dati dall'app di Claude
     if (IMP_KEY) setTimeout(offerImport, 800);
+  }
+
+  /* ---------- tablet condiviso: sezione accesa in Altro › Aspetto › Sezioni, PIN di 4 cifre (si salva solo l'impronta) ---------- */
+  function tabStr() { var L = LIVE.impostazioni, c = L && L.map && L.map.sezioni; return !!(c && !c._del && (c.conosce || []).indexOf('tablet') >= 0 && (c.spente || []).indexOf('tablet') < 0); }
+  function pinDi(uid) { var L = LIVE.pin, x = L && L.map && L.map[uid]; return x && !x._del && x.hash ? x : null; }
+  async function pinHash(uid, pin) {
+    var b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('nm-pin|' + uid + '|' + pin));
+    return Array.prototype.map.call(new Uint8Array(b), function (x) { return (x < 16 ? '0' : '') + x.toString(16); }).join('');
+  }
+  async function pinSalva(uid, pin) {
+    pin = String(pin || '').trim();
+    if (!/^\d{4}$/.test(pin)) { toast('Il PIN è di 4 cifre.'); return; }
+    if (/^(\d)\1{3}$/.test(pin) || pin === '1234') { toast('Scegli un PIN meno facile da indovinare.'); return; }
+    try { await write('pin', uid, 'set', { utente: uid, hash: await pinHash(uid, pin), modificato: nowISO() }); toast('PIN salvato.'); renderPanel(); } catch (e) { toast('Non riuscito: ' + errOf(e).code); }
   }
 
   /* ---------- pannelli: utenti e permessi, il mio account ---------- */
@@ -744,7 +763,10 @@
       h = '<div class="top"><button class="back" data-nm="close">‹ Indietro</button><h3>Il mio account</h3><span style="min-width:64px"></span></div>' +
         '<div class="grp"><div class="u"><div class="nm">' + esc(ME.nome || '') + '</div><div class="em">' + esc(ME.email || '') + '</div><div class="note" style="margin:6px 0 0">Ruolo: ' + esc(RUOLI[ME.ruolo] || ME.ruolo) + '</div>' +
         '<div class="acts"><button class="b" data-nm="pw">Cambia password</button><button class="b red" data-nm="out">Esci</button></div></div></div>' +
-        '<p class="note">«Cambia password» ti manda un’email con il link. Uscendo, da questo telefono vengono tolti i dati salvati per lavorare senza campo.</p>';
+        '<p class="note">«Cambia password» ti manda un’email con il link. Uscendo, da questo telefono vengono tolti i dati salvati per lavorare senza campo.</p>' +
+        (tabStr() && ME.ruolo !== 'cliente' && !ME.tablet && !ME.assist ? '<h4>PIN per il tablet</h4><div class="grp"><div class="u"><div class="em">' + (pinDi(ME.uid) ? 'Hai già un PIN: scrivine uno nuovo per cambiarlo.' : 'Sul tablet dell’officina tocchi il tuo nome e scrivi questo PIN.') + '</div>' +
+          '<div class="acts"><input id="nm-pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="4 cifre" style="width:110px"><button class="b pri" data-nm="pin" data-id="' + ME.uid + '">Salva PIN</button>' +
+          (pinDi(ME.uid) ? '<button class="b red" data-nm="pin-no" data-id="' + ME.uid + '">Togli</button>' : '') + '</div></div></div>' : '');
     } else if (PAN === 'utenti' && ME.ruolo === 'admin') {
       var ids = Object.keys(UT), by = function (st) { return ids.filter(function (id) { return (UT[id].stato || '') === st; }).sort(function (a, b) { return String(UT[a].nome || '').localeCompare(String(UT[b].nome || ''), 'it'); }); };
       var olds = oldPeople();
@@ -755,7 +777,9 @@
         if (u.stato === 'in_attesa') a = '<button class="b pri" data-nm="ok" data-id="' + id + '">' + (u.tipo === 'cliente' ? 'Approva come cliente' : 'Approva') + '</button><button class="b red" data-nm="no" data-id="' + id + '">Rifiuta</button>';
         else if (u.stato === 'attivo') a = self ? '<span class="note" style="margin:0">Sei tu</span>' :
           '<select data-nm="ruolo" data-id="' + id + '">' + ['base', 'admin', 'cliente'].map(function (r) { return '<option value="' + r + '"' + ((u.ruolo === 'editor' ? 'base' : u.ruolo) === r ? ' selected' : '') + '>' + RUOLI[r] + '</option>'; }).join('') + '</select>' +
-          '<button class="b red" data-nm="block" data-id="' + id + '">Sospendi</button>';
+          '<button class="b red" data-nm="block" data-id="' + id + '">Sospendi</button>' +
+          (tabStr() && !isCl ? '<button class="b' + (u.tablet ? ' pri' : '') + '" data-nm="tab" data-id="' + id + '">' + (u.tablet ? 'È il tablet condiviso' : 'Usa come tablet condiviso') + '</button>' +
+            (u.tablet ? '' : '<button class="b" data-nm="pin-a" data-id="' + id + '">' + (pinDi(id) ? 'Cambia PIN tablet' : 'Metti PIN tablet') + '</button>') : '');
         else a = '<button class="b" data-nm="ok" data-id="' + id + '">Riattiva</button>';
         if (isCl && u.stato === 'attivo') {
           var mine = u.barche || [], others = Object.keys(B).filter(function (b) { return mine.indexOf(b) < 0; }).sort(function (x, y) { return bname(x).localeCompare(bname(y), 'it'); });
@@ -796,6 +820,10 @@
     }
     else if (k === 'unb') { var ub = (UT[id].barche || []).filter(function (b) { return b !== t.getAttribute('data-b'); }); setUser(id, { barche: ub }); }
     else if (k === 'no') { if (confirm('Rifiutare la richiesta di ' + (UT[id] && UT[id].nome || '') + '?')) setUser(id, { stato: 'bloccato' }); }
+    else if (k === 'tab') { var ut = !UT[id].tablet; if (!ut || confirm('Questo account diventa il tablet condiviso: chi lo apre trova «Chi lavora adesso?» e lavora a nome di chi scrive il suo PIN. Continuo?')) setUser(id, { tablet: ut }).then(function () { toast(ut ? 'Fatto: è il tablet condiviso.' : 'Non è più il tablet condiviso.'); renderPanel(); }); }
+    else if (k === 'pin-a') { var pa = prompt('PIN di 4 cifre per il tablet di ' + ((UT[id] && UT[id].nome) || '') + ':'); if (pa != null) pinSalva(id, pa); }
+    else if (k === 'pin') pinSalva(id, ($('#nm-pin') || {}).value || '');
+    else if (k === 'pin-no') { if (confirm('Togliere il tuo PIN? Sul tablet non comparirai più.')) write('pin', id, 'update', { hash: '', modificato: nowISO() }).then(function () { toast('PIN tolto.'); renderPanel(); }, function () { toast('Non riuscito.'); }); }
     else if (k === 'block') { if (confirm('Sospendere ' + (UT[id] && UT[id].nome || '') + '? Non potrà più entrare finché non lo riattivi.')) setUser(id, { stato: 'bloccato' }); }
   });
   document.addEventListener('change', function (e) {
@@ -845,7 +873,7 @@
      Chi gestisce il servizio (utenti/{uid} con ruolo «creatore», messo da GitHub: vedi .github/workflows/creatore.yml)
      approva le aziende nuove, le sospende, vede di ognuna accessi, azioni ed errori. Nei dati di un'azienda
      (barche, clienti, lavori…) entra solo se l'azienda ha acceso «Permetti assistenza». */
-  var CR = { on: false, az: {}, ut: {}, att: {}, vista: null, filtro: 'tutto' };
+  var CR = { on: false, az: {}, ut: {}, att: {}, vista: null, filtro: 'tutto', q: '', ord: 'nome', avv: [], cons: null, giorni: 7, metr: 'fotoMb', chi: '', msg: null, note: {}, scarico: '' };
   function avviaCreatore(x) {
     var as = ''; try { as = sessionStorage.getItem('nm-assist') || ''; } catch (e) { }
     if (started) return;
@@ -867,6 +895,11 @@
     CR.on = true; ensureCss();
     fs.collection('aziende').onSnapshot(function (s) { var m = {}; s.docs.forEach(function (d) { m[d.id] = d.data(); }); CR.az = m; crRender(); crReport(); }, function (e) { CR.err = errOf(e).code; crRender(); });
     fs.collection('utenti').onSnapshot(function (s) { var m = {}; s.docs.forEach(function (d) { m[d.id] = d.data(); }); CR.ut = m; crRender(); }, function () { });
+    // avvisi per il gestore (li scrive GitHub: aziende nuove, spazio, errori ripetuti, aziende ferme)
+    fs.collection('servizio').doc('avvisi').collection('lista').orderBy('il', 'desc').limit(40).onSnapshot(function (s) { CR.avv = s.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); crRender(); }, function () { });
+    fs.collection('creatori').doc(ME.uid).onSnapshot(function (d) { CR.me = d.exists ? d.data() : {}; crRender(); }, function () { });
+    fs.collection('messaggioServizio').doc('attuale').onSnapshot(function (d) { CR.msg = d.exists ? d.data() : null; crRender(); }, function () { });
+    crConsumi();
     crRender();
   }
   // gli ultimi accessi, azioni ed errori di ogni azienda attiva (le ultime 300 righe)
@@ -881,50 +914,182 @@
   }
   function crTipo(x) { var c = String(x.cosa || ''); return c.indexOf('⚠') === 0 ? 'errori' : /^è entrato/.test(c) ? 'accessi' : /^apre /.test(c) ? 'pagine' : 'azioni'; }
   function crQuando(iso) { var d = new Date(iso); return isNaN(d) ? '—' : d.toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+  function crUltimo(k) { var R = CR.att[k]; return R && R.list ? R.list.filter(function (x) { return crTipo(x) === 'accessi'; })[0] || null : null; }
+  function crErr7(k) { var R = CR.att[k]; return R && R.list ? R.list.filter(function (x) { return crTipo(x) === 'errori' && Date.now() - Date.parse(x.il) < 7 * 864e5; }).length : 0; }
+  function crPersone(k, st) { return Object.keys(CR.ut).filter(function (u) { return CR.ut[u].azienda === k && CR.ut[u].stato === (st || 'attivo'); }); }
+
+  /* ---------- notifiche sul telefono del gestore (creatori/{uid}.tokens) ---------- */
+  function crDevTok() { try { return localStorage.getItem('gr-gestore-token') || ''; } catch (e) { return ''; } }
+  function crPushPerche() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return 'Questo browser non riceve notifiche. Su iPhone: aggiungi il sito alla schermata Home e aprilo da lì.';
+    if (!window.NM_VAPID_KEY) return 'Manca la chiave per le notifiche web (NM_VAPID_KEY in config.js): appena la metti, qui compare «Attiva».';
+    return '';
+  }
+  function crScript(src) { return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
+  async function crPush(on) {
+    var ref = fs.collection('creatori').doc(ME.uid), cur = (CR.me && CR.me.tokens) || [], tok = crDevTok();
+    try {
+      if (!on) {
+        await ref.update({ tokens: cur.filter(function (t) { return t !== tok; }), modificato: nowISO() });
+        try { localStorage.removeItem('gr-gestore-token'); if (firebase.messaging && tok) await firebase.messaging().deleteToken(); } catch (e) { }
+        toast('Notifiche spente su questo telefono'); return;
+      }
+      if (!firebase.messaging) await crScript('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
+      if (await Notification.requestPermission() !== 'granted') { toast('Hai negato le notifiche: si riattivano dalle impostazioni del telefono.'); return; }
+      var t = await firebase.messaging().getToken({ vapidKey: window.NM_VAPID_KEY, serviceWorkerRegistration: await navigator.serviceWorker.ready });
+      if (!t) throw new Error('token');
+      await ref.update({ tokens: cur.indexOf(t) >= 0 ? cur : cur.concat([t]).slice(-5), modificato: nowISO() });
+      try { localStorage.setItem('gr-gestore-token', t); } catch (e) { }
+      toast('Notifiche attive: gli avvisi del pannello arrivano su questo telefono');
+    } catch (e) { toast('Non sono riuscito: riprova, e controlla di avere internet.'); }
+  }
+
+  /* ---------- consumi: solo numeri contati (servizio/consumi/giorni/{giorno}, li scrive GitHub ogni mattina) ---------- */
+  function crConsumi() {
+    fs.collection('servizio').doc('consumi').collection('giorni').orderBy('giorno', 'desc').limit(30).get()
+      .then(function (s) { CR.cons = s.docs.map(function (d) { return d.data(); }).reverse(); crRender(); }, function (e) { CR.cons = { err: errOf(e).code }; crRender(); });
+  }
+  var CR_METR = [['fotoMb', 'Spazio foto', 'MB'], ['docs', 'Documenti', ''], ['accessi', 'Accessi', ''], ['persone', 'Persone attive', ''], ['errori', 'Errori', ''], ['letture', 'Letture Firestore', ''], ['scritture', 'Scritture Firestore', '']];
+  function crValore(g, m, k) {
+    if (m === 'letture' || m === 'scritture') return k ? null : g.firestore && typeof g.firestore[m] === 'number' ? g.firestore[m] : null;
+    var x = k ? (g.aziende || {})[k] : g.tot; return x && typeof x[m] === 'number' ? x[m] : null;
+  }
+  function crNum(n, m) { return n == null ? '—' : m === 'fotoMb' ? (Math.round(n * 10) / 10).toLocaleString('it-IT') + ' MB' : Math.round(n).toLocaleString('it-IT'); }
+  function crGrafico() {
+    if (!CR.cons) return '<p class="note">Carico i consumi…</p>';
+    if (CR.cons.err) return '<p class="note">Non riesco a leggere i consumi (' + esc(CR.cons.err) + ').</p>';
+    var all = CR.cons, gg = all.slice(-CR.giorni), m = CR.metr, k = CR.chi;
+    var h = '<div class="chips">' + [7, 30].map(function (n) { return '<button class="b' + (CR.giorni === n ? ' pri' : '') + '" data-cr="giorni" data-id="' + n + '">' + n + ' giorni</button>'; }).join('') + '</div>' +
+      '<div class="chips">' + CR_METR.map(function (x) { return '<button class="b' + (m === x[0] ? ' pri' : '') + '" data-cr="metr" data-id="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div>' +
+      '<div class="chips"><select data-cr="chi" class="b" style="font:inherit;padding:10px 14px;border-radius:12px;background:var(--card,#1c1f24);color:inherit;border:1px solid rgba(255,255,255,.15)">' + '<option value="">Tutte le aziende</option>' + Object.keys(CR.az).filter(function (x) { return CR.az[x].stato === 'attiva'; }).map(function (x) { return '<option value="' + esc(x) + '"' + (k === x ? ' selected' : '') + '>' + esc(CR.az[x].nome || x) + '</option>'; }).join('') + '</select></div>';
+    if (!gg.length) return h + '<p class="note">Ancora nessun giorno contato. Il primo conteggio arriva domattina con il giro delle notifiche.</p>';
+    if ((m === 'letture' || m === 'scritture') && k) return h + '<p class="note">Letture e scritture Google le conta per tutto il database, non per azienda: scegli «Tutte le aziende».</p>';
+    var v = gg.map(function (g) { return crValore(g, m, k); }), max = Math.max.apply(null, v.map(function (x) { return x || 0; }).concat([1])), W = 300, H = 110, bw = W / gg.length;
+    var bars = v.map(function (x, i) { var bh = x == null ? 0 : Math.max(1, x / max * (H - 18)); return '<rect x="' + (i * bw + bw * 0.15).toFixed(1) + '" y="' + (H - 14 - bh).toFixed(1) + '" width="' + (bw * 0.7).toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="1.5" fill="' + (x == null ? 'none' : '#2f8ff0') + '"><title>' + esc(gg[i].giorno + ': ' + crNum(x, m)) + '</title></rect>'; }).join('');
+    var lab = function (i) { return '<text x="' + (i * bw + bw / 2).toFixed(1) + '" y="' + (H - 2) + '" font-size="8" fill="#9a9daa" text-anchor="middle">' + esc(gg[i].giorno.slice(8) + '/' + gg[i].giorno.slice(5, 7)) + '</text>'; };
+    var labs = gg.length <= 7 ? gg.map(function (g, i) { return lab(i); }).join('') : [0, Math.floor(gg.length / 2), gg.length - 1].map(lab).join('');
+    var ult = v[v.length - 1], miss = (m === 'letture' || m === 'scritture') && gg.every(function (g) { return !g.firestore || g.firestore[m] == null; });
+    h += '<div class="grp" style="padding:12px"><div class="nm">' + esc(CR_METR.filter(function (x) { return x[0] === m; })[0][1]) + ' · ultimo giorno: ' + esc(crNum(ult, m)) + '</div>' +
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;margin-top:8px" role="img" aria-label="Grafico degli ultimi ' + gg.length + ' giorni">' + bars + labs + '</svg>' +
+      '<div class="em">Massimo ' + esc(crNum(max === 1 && !v.some(function (x) { return x; }) ? 0 : max, m)) + ' · ' + gg.length + (gg.length === 1 ? ' giorno contato' : ' giorni contati') + '</div></div>';
+    if (miss) h += '<p class="note">Letture e scritture vengono da Google Cloud Monitoring: per leggerle il service account di GitHub deve avere il ruolo «Monitoring Viewer» (Google Cloud › IAM). Senza, qui resta vuoto: nessun numero inventato.</p>';
+    h += '<p class="note">Numeri contati davvero ogni mattina: foto (peso salvato di ogni foto), documenti (conteggio di Firestore), accessi, persone ed errori dal registro di ogni azienda; letture e scritture da Google. I limiti gratuiti di Firebase: 1 GB di dati, 50.000 letture e 20.000 scritture al giorno.</p>';
+    return h;
+  }
+
+  /* ---------- messaggio a tutte le aziende (messaggioServizio/attuale) ---------- */
+  function crMsgHtml() {
+    var m = CR.msg && CR.msg.attivo ? CR.msg : null;
+    return '<div class="grp"><div class="u">' + (m ? '<div class="nm">In Home di tutte le aziende dal ' + esc(crQuando(m.il)) + '</div><div class="em">' + esc(m.testo) + '</div>' : '<div class="em">Nessun messaggio attivo.</div>') +
+      '<textarea id="cr-msg" maxlength="300" rows="3" style="width:100%;box-sizing:border-box;margin-top:10px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#f4f5f7;padding:10px;font:inherit" placeholder="es. Sabato dalle 8 alle 10 il gestionale resta fermo per manutenzione"></textarea>' +
+      '<div class="acts"><button class="b pri" data-cr="msg-pub">Pubblica a tutte</button>' + (m ? '<button class="b red" data-cr="msg-tog">Togli il messaggio</button>' : '') + '</div></div></div>';
+  }
+
+  /* ---------- scarica tutti i dati di un'azienda (solo con «Permetti assistenza» acceso) ---------- */
+  async function crScarica(k) {
+    var a = CR.az[k]; if (!a) return;
+    if (!a.assistenza) { toast('Serve «Permetti assistenza» acceso dall’azienda. In alternativa il loro amministratore scarica tutto da Altro › Copia dei dati.'); return; }
+    var foto = confirm('Includo anche le foto? Il file diventa molto più pesante.\nOK = con le foto · Annulla = solo i dati'), ref = fs.collection('aziende').doc(k), out = { azienda: Object.assign({ id: k }, a), scaricato: nowISO(), da: ME.email || '', persone: {}, dati: {} };
+    crPersone(k).concat(crPersone(k, 'in_attesa'), crPersone(k, 'bloccato')).forEach(function (u) { out.persone[u] = CR.ut[u]; });
+    var cs = COLLS.concat(foto ? ['foto', 'fotoInfo'] : ['fotoInfo']);
+    try {
+      for (var i = 0; i < cs.length; i++) {
+        CR.scarico = 'Scarico ' + (i + 1) + ' di ' + cs.length + ' (' + cs[i] + ')…'; crRender();
+        var s = await ref.collection(cs[i]).get(), m = {}; s.docs.forEach(function (d) { m[d.id] = d.data(); }); out.dati[cs[i]] = m;
+      }
+      var blob = new Blob([JSON.stringify(out, function (key, v) { return v && typeof v.toDate === 'function' ? v.toDate().toISOString() : v; }, 1)], { type: 'application/json' }), u = URL.createObjectURL(blob), l = document.createElement('a');
+      l.href = u; l.download = 'dati-' + String(a.nome || k).replace(/[^\w-]+/g, '_') + '-' + nowISO().slice(0, 10) + '.json'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 5000);
+      toast('Scaricato: ' + Math.round(blob.size / 1024) + ' KB');
+    } catch (e) { toast('Non riuscito: ' + errOf(e).code); }
+    CR.scarico = ''; crRender();
+  }
+
   function crRender() {
     if (!CR.on || started) return;
     var o = $('#nmcr'); if (!o) { hideOverlay(); o = document.createElement('div'); o.id = 'nmcr'; document.body.appendChild(o); }
+    var ae = document.activeElement, fid = ae && o.contains(ae) && ae.id ? ae.id : '', sel = fid && ae.selectionStart != null ? [ae.selectionStart, ae.selectionEnd] : null, keep = {};
+    ['cr-msg', 'cr-nota'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
     var ids = Object.keys(CR.az).sort(function (a, b) { return String(CR.az[b].creato || '').localeCompare(String(CR.az[a].creato || '')); });
     var h = '<div class="in">';
-    if (CR.vista && CR.az[CR.vista]) {
-      var a = CR.az[CR.vista], R = CR.att[CR.vista] || { loading: true, list: [] }, F = CR.filtro;
+    if (CR.vista && CR.vista.indexOf('rep:') === 0 && CR.az[CR.vista.slice(4)]) {
+      var rk = CR.vista.slice(4), a = CR.az[rk], R = CR.att[rk] || { loading: true, list: [] }, F = CR.filtro;
       var list = R.list.filter(function (x) { return F === 'tutto' || crTipo(x) === F; });
       var n = function (t) { return R.list.filter(function (x) { return crTipo(x) === t; }).length; };
-      h += '<div class="top"><button class="back" data-cr="home">‹ Aziende</button><h3>' + esc(a.nome || 'Azienda') + '</h3><span style="min-width:64px"></span></div>' +
+      h += '<div class="top"><button class="back" data-cr="scheda" data-id="' + rk + '">‹ ' + esc(a.nome || 'Azienda') + '</button><h3>Report</h3><span style="min-width:64px"></span></div>' +
         '<div class="chips">' + [['tutto', 'Tutto', R.list.length], ['accessi', 'Accessi', n('accessi')], ['azioni', 'Azioni', n('azioni')], ['errori', 'Errori', n('errori')], ['pagine', 'Pagine aperte', n('pagine')]].map(function (c) {
           return '<button class="b' + (F === c[0] ? ' pri' : '') + '" data-cr="filtro" data-id="' + c[0] + '">' + c[1] + ' ' + c[2] + '</button>'; }).join('') + '</div>' +
         (R.loading ? '<p class="note">Carico…</p>' : R.err ? '<p class="note">Non riesco a leggere il report (' + esc(R.err) + ').</p>' : !list.length ? '<p class="note">Niente da mostrare.</p>' :
           '<div class="grp">' + list.map(function (x) { return '<div class="u"><div class="nm"' + (crTipo(x) === 'errori' ? ' style="color:#ff8a80"' : '') + '>' + esc(x.cosa || '') + '</div><div class="em">' + esc((x.nome || '') + ' · ' + (x.disp || '') + ' · ' + crQuando(x.il)) + '</div></div>'; }).join('') + '</div>') +
         '<p class="note">Le ultime 300 righe degli ultimi 60 giorni. L’azienda non vede questo report.</p>';
+    } else if (CR.vista && CR.vista.indexOf('az:') === 0 && CR.az[CR.vista.slice(3)]) {
+      // scheda dell'azienda: l'essenziale
+      var k = CR.vista.slice(3), A = CR.az[k], last = crUltimo(k), e7 = crErr7(k), nota = CR.note[k];
+      var ult = {}; ((CR.att[k] || {}).list || []).forEach(function (x) { if (crTipo(x) === 'accessi' && !ult[x.uid]) ult[x.uid] = x.il; });
+      h += '<div class="top"><button class="back" data-cr="home">‹ Aziende</button><h3>' + esc(A.nome || 'Azienda') + '</h3><span style="min-width:64px"></span></div>' +
+        '<div class="grp"><div class="u"><div class="nm">' + esc(A.adminNome || 'Amministratore') + '</div><div class="em">' + esc((A.stato || '') + ' · codice ' + (codBello(A.codice) || '—') + ' · ' + (A.assistenza ? 'assistenza permessa' : 'assistenza non permessa')) + '<br>' + crSpazio(A) +
+        '<br>Ultimo accesso: ' + esc(last ? (last.nome || '') + ', ' + crQuando(last.il) : 'nessuno') + (e7 ? ' · <span style="color:#ff8a80">' + e7 + (e7 === 1 ? ' errore' : ' errori') + ' in 7 giorni</span>' : '') + '</div>' +
+        '<div class="acts">' + (A.telefono ? '<a class="b" style="text-decoration:none;color:inherit;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:9px 12px" href="tel:' + esc(String(A.telefono).replace(/[^\d+]/g, '')) + '">Chiama</a>' : '') +
+        (A.email ? '<a class="b" style="text-decoration:none;color:inherit;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:9px 12px" href="mailto:' + esc(A.email) + '">Email</a>' : '') +
+        '<button class="b pri" data-cr="rep" data-id="' + k + '">Report</button><button class="b" data-cr="quota" data-id="' + k + '">Quota spazio</button>' +
+        (A.assistenza ? '<button class="b" data-cr="entra" data-id="' + k + '">Entra per assistenza</button>' : '') +
+        '<button class="b" data-cr="scarica" data-id="' + k + '"' + (CR.scarico ? ' disabled' : '') + '>Scarica i dati</button><button class="b red" data-cr="sosp" data-id="' + k + '">Sospendi</button></div>' +
+        (CR.scarico ? '<div class="em" style="margin-top:8px">' + esc(CR.scarico) + '</div>' : '') + '</div></div>' +
+        '<h4>Persone (' + crPersone(k).length + ')</h4><div class="grp">' + (crPersone(k).length ? crPersone(k).sort(function (x, y) { return String(CR.ut[x].nome || '').localeCompare(String(CR.ut[y].nome || ''), 'it'); }).map(function (u) {
+          var p = CR.ut[u]; return '<div class="u"><div class="nm">' + esc(p.nome || '(senza nome)') + '<span class="pill">' + esc(RUOLI[p.ruolo] || p.ruolo || '') + '</span>' + (p.tablet ? '<span class="pill">tablet</span>' : '') + '</div><div class="em">Ultimo accesso: ' + esc(ult[u] ? crQuando(ult[u]) : 'non nelle ultime 300 righe') + '</div></div>';
+        }).join('') : '<div class="u"><div class="em">Nessuno.</div></div>') + '</div>' +
+        '<h4>Nota privata</h4><div class="grp"><div class="u"><textarea id="cr-nota" rows="3" maxlength="1000" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#f4f5f7;padding:10px;font:inherit" placeholder="Solo per te: accordi, prezzo, cose da ricordare">' + esc(nota == null ? '' : nota) + '</textarea>' +
+        '<div class="acts"><button class="b pri" data-cr="nota" data-id="' + k + '">Salva nota</button></div></div></div>' +
+        '<p class="note">«Scarica i dati» funziona solo se l’azienda ha acceso «Permetti assistenza». Il file contiene persone e tutte le raccolte; le foto solo se le scegli.</p>';
+      if (nota === undefined) { CR.note[k] = null; fs.collection('servizio').doc('note').collection('aziende').doc(k).get().then(function (d) { CR.note[k] = d.exists ? d.data().testo || '' : ''; crRender(); }, function () { CR.note[k] = ''; }); }
     } else {
-      var by = function (st) { return ids.filter(function (k) { return (CR.az[k].stato || '') === st; }); };
-      var persone = function (k) { return Object.keys(CR.ut).filter(function (u) { return CR.ut[u].azienda === k && CR.ut[u].stato === 'attivo'; }).length; };
-      var attesa = function (k) { return Object.keys(CR.ut).filter(function (u) { return CR.ut[u].azienda === k && CR.ut[u].stato === 'in_attesa'; }).length; };
-      var row = function (k) {
-        var a = CR.az[k], st = a.stato, R = CR.att[k], acts = '', info = '';
+      CR.vista = null;
+      var by = function (st) { return ids.filter(function (kk) { return (CR.az[kk].stato || '') === st; }); };
+      var row = function (kk) {
+        var a = CR.az[kk], st = a.stato, acts = '', info = '';
         if (st === 'in_attesa') {
           info = esc((a.adminNome || '') + ' · ' + (a.email || '') + ' · tel. ' + (a.telefono || '—')) + '<br>Richiesta del ' + esc(crQuando(a.creato));
-          acts = '<button class="b pri" data-cr="ok" data-id="' + k + '">Approva</button><button class="b red" data-cr="no" data-id="' + k + '">Rifiuta</button>';
+          acts = '<button class="b pri" data-cr="ok" data-id="' + kk + '">Approva</button><button class="b red" data-cr="no" data-id="' + kk + '">Rifiuta</button>';
         } else if (st === 'attiva') {
-          var last = R && R.list ? R.list.filter(function (x) { return crTipo(x) === 'accessi'; })[0] : null, err7 = R && R.list ? R.list.filter(function (x) { return crTipo(x) === 'errori' && Date.now() - Date.parse(x.il) < 7 * 864e5; }).length : 0;
-          info = esc(persone(k) + (persone(k) === 1 ? ' persona' : ' persone') + (attesa(k) ? ' (+' + attesa(k) + ' in attesa)' : '') + ' · codice ' + (codBello(a.codice) || '—')) + '<br>' +
-            esc('Ultimo accesso: ' + (R && R.loading ? '…' : last ? (last.nome || '') + ', ' + crQuando(last.il) : 'nessuno')) + (err7 ? ' · <span style="color:#ff8a80">' + err7 + (err7 === 1 ? ' errore' : ' errori') + ' in 7 giorni</span>' : '') + '<br>' +
-            esc(a.adminNome || '') + ' · ' + esc(a.email || '') + ' · tel. ' + esc(a.telefono || '—');
-          acts = '<button class="b pri" data-cr="rep" data-id="' + k + '">Report</button>' + (a.assistenza ? '<button class="b" data-cr="entra" data-id="' + k + '">Entra per assistenza</button>' : '') + '<button class="b red" data-cr="sosp" data-id="' + k + '">Sospendi</button>';
+          var last = crUltimo(kk), e7 = crErr7(kk), R = CR.att[kk], np = crPersone(kk).length, na = crPersone(kk, 'in_attesa').length;
+          info = esc(np + (np === 1 ? ' persona' : ' persone') + (na ? ' (+' + na + ' in attesa)' : '')) + ' · ' + crSpazio(a) + '<br>' +
+            esc('Ultimo accesso: ' + (R && R.loading ? '…' : last ? crQuando(last.il) : 'nessuno')) + (e7 ? ' · <span style="color:#ff8a80">' + e7 + (e7 === 1 ? ' errore' : ' errori') + ' in 7 giorni</span>' : '');
+          acts = '<button class="b pri" data-cr="scheda" data-id="' + kk + '">Apri</button><button class="b" data-cr="rep" data-id="' + kk + '">Report</button>';
         } else {
           info = esc((a.adminNome || '') + ' · ' + (a.email || ''));
-          acts = '<button class="b" data-cr="riatt" data-id="' + k + '">' + (st === 'rifiutata' ? 'Approva' : 'Riattiva') + '</button>';
+          acts = '<button class="b" data-cr="riatt" data-id="' + kk + '">' + (st === 'rifiutata' ? 'Approva' : 'Riattiva') + '</button>';
         }
-        return '<div class="u"><div class="nm">' + esc(a.nome || 'Azienda') + (st === 'attiva' ? '<span class="pill">' + (a.assistenza ? 'assistenza permessa' : 'assistenza non permessa') + '</span>' : '') + '</div><div class="em">' + info + '</div><div class="acts">' + acts + '</div></div>';
+        return '<div class="u"><div class="nm">' + esc(a.nome || 'Azienda') + (st === 'attiva' && a.assistenza ? '<span class="pill">assistenza</span>' : '') + '</div><div class="em">' + info + '</div><div class="acts">' + acts + '</div></div>';
       };
       var sec = function (t, l) { return l.length ? '<h4>' + t + ' (' + l.length + ')</h4><div class="grp">' + l.map(row).join('') + '</div>' : ''; };
+      // aziende attive: ricerca e ordine
+      var q = CR.q.trim().toLowerCase(), att = by('attiva').filter(function (kk) { var a = CR.az[kk]; return !q || [a.nome, a.adminNome, a.email].join(' ').toLowerCase().indexOf(q) >= 0; });
+      var key = { nome: function (kk) { return String(CR.az[kk].nome || '').toLowerCase(); }, spazio: function (kk) { var a = CR.az[kk]; return -((a.spazioMb || 0) / crQuota(a)); }, accesso: function (kk) { var l = crUltimo(kk); return l ? -Date.parse(l.il) : 0; }, errori: function (kk) { return -crErr7(kk); } }[CR.ord];
+      att.sort(function (x, y) { var a = key(x), b = key(y); return a < b ? -1 : a > b ? 1 : String(CR.az[x].nome || '').localeCompare(String(CR.az[y].nome || ''), 'it'); });
+      var nuovi = CR.avv.filter(function (x) { return !x.letto; });
+      var pt = crDevTok(), pOn = !!(pt && CR.me && (CR.me.tokens || []).indexOf(pt) >= 0), pW = crPushPerche();
       h += '<div class="top"><span style="min-width:64px"></span><h3>Pannello del gestore</h3><button class="back" data-cr="out" style="text-align:right">Esci</button></div>' +
         (CR.err ? '<p class="note">Non riesco a leggere le aziende (' + esc(CR.err) + ').</p>' : '') +
-        sec('Richieste da approvare', by('in_attesa')) + sec('Aziende attive', by('attiva')) + sec('Sospese', by('sospesa')) + sec('Rifiutate', by('rifiutata')) +
+        '<h4>Avvisi' + (nuovi.length ? ' (' + nuovi.length + ' nuovi)' : '') + '</h4><div class="grp">' +
+        (CR.avv.length ? CR.avv.slice(0, CR.tuttiAvv ? 40 : 6).map(function (x) {
+          return '<div class="u"' + (x.letto ? ' style="opacity:.6"' : '') + '><div class="nm"' + (x.tipo === 'errori' || (x.tipo === 'spazio' && /finito/.test(x.titolo || '')) ? ' style="color:#ff8a80"' : '') + '>' + esc(x.titolo || '') + '</div><div class="em">' + esc((x.testo ? x.testo + ' · ' : '') + crQuando(x.il)) + '</div>' +
+            '<div class="acts">' + (x.azienda && CR.az[x.azienda] ? '<button class="b" data-cr="scheda" data-id="' + esc(x.azienda) + '">Apri l’azienda</button>' : '') + (!x.letto ? '<button class="b" data-cr="letto" data-id="' + esc(x.id) + '">Letto</button>' : '') + '</div></div>';
+        }).join('') + (CR.avv.length > 6 && !CR.tuttiAvv ? '<div class="u"><button class="b" data-cr="tuttiavv">Vedi tutti</button></div>' : '') : '<div class="u"><div class="em">Nessun avviso. Qui arrivano le aziende nuove, lo spazio quasi pieno, gli errori ripetuti e le aziende ferme da 30 giorni.</div></div>') +
+        '<div class="u"><div class="nm">Notifiche su questo telefono: ' + (pOn ? 'attive' : 'spente') + '</div>' + (pW && !pOn ? '<div class="em">' + esc(pW) + '</div>' : '<div class="acts"><button class="b' + (pOn ? '' : ' pri') + '" data-cr="push" data-id="' + (pOn ? 'off' : 'on') + '">' + (pOn ? 'Spegni' : 'Attiva') + '</button>' + (nuovi.length ? '<button class="b" data-cr="tuttiletti">Segna tutti letti</button>' : '') + '</div>') +
+        '<div class="em">Senza telefono iscritto gli avvisi arrivano come segnalazione su GitHub (email).</div></div></div>' +
+        sec('Richieste da approvare', by('in_attesa')) +
+        '<h4>Consumi</h4>' + crSpazioTot() + crGrafico() +
+        '<h4>Aziende attive (' + by('attiva').length + ')</h4>' +
+        (by('attiva').length > 1 ? '<input id="cr-q" type="search" placeholder="Cerca per nome, amministratore o email" value="' + esc(CR.q) + '" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#f4f5f7;padding:10px;font:inherit">' +
+          '<div class="chips">' + [['nome', 'Nome'], ['spazio', 'Spazio'], ['accesso', 'Ultimo accesso'], ['errori', 'Errori']].map(function (c) { return '<button class="b' + (CR.ord === c[0] ? ' pri' : '') + '" data-cr="ord" data-id="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>' : '') +
+        (att.length ? '<div class="grp" style="margin-top:10px">' + att.map(row).join('') + '</div>' : by('attiva').length ? '<p class="note">Nessuna azienda trovata.</p>' : '') +
+        sec('Sospese', by('sospesa')) + sec('Rifiutate', by('rifiutata')) +
+        '<h4>Messaggio a tutte le aziende</h4>' + crMsgHtml() +
         (!ids.length && !CR.err ? '<p class="note">Ancora nessuna azienda. Quando un’azienda si registra dal sito, la sua richiesta compare qui.</p>' : '') +
         '<p class="note">Approvando un’azienda, chi l’ha registrata diventa il suo amministratore e l’azienda riceve il suo codice per far entrare colleghi e clienti. Nei dati di un’azienda entri solo se ha acceso «Permetti assistenza» in Altro › Utenti e permessi.</p>';
     }
     o.innerHTML = h + '</div>';
+    Object.keys(keep).forEach(function (id) { var el = document.getElementById(id); if (el && keep[id]) el.value = keep[id]; });
+    if (fid) { var f = document.getElementById(fid); if (f) { f.focus(); try { if (sel) f.setSelectionRange(sel[0], sel[1]); } catch (e) { } } }
   }
   async function crApprova(k) {
     var a = CR.az[k]; if (!a) return;
@@ -936,20 +1101,69 @@
       try { await b.commit(); toast((a.nome || 'Azienda') + ' approvata. Codice: ' + codBello(c)); return; } catch (e) { if (a.codice || i === 3) { toast('Non riuscito: ' + errOf(e).code); return; } }
     }
   }
+  // Spazio di ogni azienda: lo misura ogni mattina l'invio delle notifiche (aziende/{az}.spazioMb); la quota la decide il gestore (100 MB se non scritta)
+  var QUOTA0 = 100;
+  function crQuota(a) { return a.quotaMb > 0 ? a.quotaMb : QUOTA0; }
+  function crSpazio(a) {
+    if (a.spazioMb == null) return 'Spazio: non ancora misurato';
+    var q = crQuota(a), p = Math.round(a.spazioMb / q * 100), col = p >= 95 ? '#ff8a80' : p >= 80 ? '#ffb020' : '';
+    return '<span' + (col ? ' style="color:' + col + '"' : '') + '>Spazio: ' + Math.round(a.spazioMb) + ' MB su ' + q + ' MB (' + p + '%)</span>';
+  }
+  function crSpazioTot() {
+    var mb = 0, n = 0; Object.keys(CR.az).forEach(function (k) { if (CR.az[k].spazioMb != null) { mb += CR.az[k].spazioMb; n++; } });
+    if (!n) return '';
+    var p = Math.round(mb / 1024 * 100), col = p >= 95 ? '#ff8a80' : p >= 80 ? '#ffb020' : '';
+    return '<p class="note"' + (col ? ' style="color:' + col + '"' : '') + '>Spazio del servizio (foto di tutte le aziende): ' + Math.round(mb) + ' MB su 1024 MB del piano gratuito (' + p + '%). Si misura ogni mattina; all’80% e al 95% ti arriva un avviso.</p>';
+  }
   function crStato(k, st, msg) { fs.collection('aziende').doc(k).update({ stato: st, modificato: nowISO() }).then(function () { toast(msg); }, function (e) { toast('Non riuscito: ' + errOf(e).code); }); }
+  document.addEventListener('input', function (e) { if (e.target && e.target.id === 'cr-q') { CR.q = e.target.value; crRender(); } });
+  document.addEventListener('change', function (e) { var t = e.target; if (t && t.closest && t.closest('#nmcr') && t.getAttribute('data-cr') === 'chi') { CR.chi = t.value; crRender(); } });
   document.addEventListener('click', function (e) {
-    var t = e.target.closest && e.target.closest('#nmcr [data-cr]'); if (!t) return;
+    var t = e.target.closest && e.target.closest('#nmcr [data-cr]'); if (!t || t.tagName === 'SELECT') return;
     var k = t.getAttribute('data-cr'), id = t.getAttribute('data-id'), a = CR.az[id] || {};
     if (k === 'out') logout();
-    else if (k === 'home') { CR.vista = null; crRender(); }
-    else if (k === 'rep') { CR.vista = id; CR.filtro = 'tutto'; CR.att[id] = null; crReport(id); crRender(); window.scrollTo(0, 0); }
+    else if (k === 'home') { CR.vista = null; crRender(); window.scrollTo(0, 0); }
+    else if (k === 'scheda') { CR.vista = 'az:' + id; crReport(id); crRender(); window.scrollTo(0, 0); }
+    else if (k === 'rep') { CR.vista = 'rep:' + id; CR.filtro = 'tutto'; CR.att[id] = null; crReport(id); crRender(); window.scrollTo(0, 0); }
     else if (k === 'filtro') { CR.filtro = id; crRender(); }
+    else if (k === 'ord') { CR.ord = id; crRender(); }
+    else if (k === 'giorni') { CR.giorni = +id; crRender(); }
+    else if (k === 'metr') { CR.metr = id; crRender(); }
+    else if (k === 'tuttiavv') { CR.tuttiAvv = true; crRender(); }
+    else if (k === 'letto') fs.collection('servizio').doc('avvisi').collection('lista').doc(id).update({ letto: true }).catch(function () { });
+    else if (k === 'tuttiletti') { var b = fs.batch(); CR.avv.filter(function (x) { return !x.letto; }).forEach(function (x) { b.update(fs.collection('servizio').doc('avvisi').collection('lista').doc(x.id), { letto: true }); }); b.commit().catch(function () { }); }
+    else if (k === 'push') crPush(id === 'on');
+    else if (k === 'nota') { var tx = (($('#cr-nota') || {}).value || '').trim(); fs.collection('servizio').doc('note').collection('aziende').doc(id).set({ testo: tx, modificato: nowISO() }).then(function () { CR.note[id] = tx; toast('Nota salvata'); crRender(); }, function (er) { toast('Non riuscito: ' + errOf(er).code); }); }
+    else if (k === 'scarica') crScarica(id);
+    else if (k === 'msg-pub') {
+      var mt = (($('#cr-msg') || {}).value || '').trim(); if (!mt) { toast('Scrivi il messaggio'); return; }
+      if (!confirm('Pubblicare questo messaggio in Home a tutte le aziende?\n\n' + mt)) return;
+      fs.collection('messaggioServizio').doc('attuale').set({ testo: mt, il: nowISO(), attivo: true }).then(function () { var el = $('#cr-msg'); if (el) el.value = ''; toast('Messaggio pubblicato'); }, function (er) { toast('Non riuscito: ' + errOf(er).code); });
+    }
+    else if (k === 'msg-tog') fs.collection('messaggioServizio').doc('attuale').update({ attivo: false, tolto: nowISO() }).then(function () { toast('Messaggio tolto'); }, function (er) { toast('Non riuscito: ' + errOf(er).code); });
     else if (k === 'ok' || (k === 'riatt' && a.stato === 'rifiutata')) { t.disabled = true; crApprova(id); }
     else if (k === 'riatt') crStato(id, 'attiva', 'Azienda riattivata');
     else if (k === 'no') { if (confirm('Rifiutare la richiesta di ' + (a.nome || 'questa azienda') + '?')) crStato(id, 'rifiutata', 'Richiesta rifiutata'); }
     else if (k === 'sosp') { if (confirm('Sospendere ' + (a.nome || 'questa azienda') + '? Nessuno dell’azienda potrà entrare finché non la riattivi. I dati restano.')) crStato(id, 'sospesa', 'Azienda sospesa'); }
+    else if (k === 'quota') {
+      var v = prompt('Spazio per le foto di ' + (a.nome || 'questa azienda') + ', in MB (oggi ' + crQuota(a) + '). Tutte le aziende insieme stanno in 1024 MB.', String(crQuota(a)));
+      if (v == null) return; var q = Math.round(parseFloat(String(v).replace(',', '.')));
+      if (!(q >= 10 && q <= 1024)) { toast('Scrivi un numero tra 10 e 1024'); return; }
+      fs.collection('aziende').doc(id).update({ quotaMb: q, modificato: nowISO() }).then(function () { toast('Quota: ' + q + ' MB'); }, function (er) { toast('Non riuscito: ' + errOf(er).code); });
+    }
     else if (k === 'entra') { try { sessionStorage.setItem('nm-assist', id); } catch (x) { } location.reload(); }
   });
+
+  /* ---------- messaggio del gestore in Home di ogni azienda: si chiude con «Ho letto» (ricordato su questo telefono) ---------- */
+  function msgServizio() {
+    fs.collection('messaggioServizio').doc('attuale').onSnapshot(function (d) {
+      var m = d.exists ? d.data() : null, el = $('#nmmsg'), visto = ''; try { visto = localStorage.getItem('gr-msg-visto') || ''; } catch (e) { }
+      if (!m || !m.attivo || !m.testo || visto === m.il) { if (el) el.remove(); return; }
+      ensureCss(); if (!el) { el = document.createElement('div'); el.id = 'nmmsg'; document.body.appendChild(el); }
+      el.innerHTML = '<div class="it"><b>Dal gestore del servizio</b><br>' + esc(m.testo) + '<br><button class="ok" data-il="' + esc(m.il) + '">Ho letto</button></div>';
+    }, function () { });
+  }
+  document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('#nmmsg .ok'); if (!b) return; try { localStorage.setItem('gr-msg-visto', b.getAttribute('data-il')); } catch (x) { } var el = $('#nmmsg'); if (el) el.remove(); });
 
   /* ---------- area cliente ---------- */
   var CL = { unsubs: [], docs: {}, all: {} };
@@ -1175,7 +1389,7 @@
     var k = cosa, t = Date.now();
     if (ATT.last[k] && t - ATT.last[k] < 60000) return; // la stessa cosa ripetuta subito (salvataggi di fila) conta una volta
     ATT.last[k] = t;
-    AC('attivita').add({ uid: ME.uid, nome: ME.nome || ME.email || '', cosa: String(cosa).slice(0, 200), il: nowISO(), disp: attDisp(), _ts: FV.serverTimestamp() }).catch(function () { });
+    AC('attivita').add({ uid: ME.uid, nome: (ME.nome || ME.email || '') + (AS ? ' come ' + ((UT[AS] && UT[AS].nome) || '?') : ''), cosa: String(cosa).slice(0, 200), il: nowISO(), disp: attDisp(), _ts: FV.serverTimestamp() }).catch(function () { });
   }
   function attEntra() { if (ATT.entrato || !ME) return; ATT.entrato = true; attScrittura.ok = true; attScrivi(CLIENTE ? 'è entrato nell’area clienti' : 'è entrato nell’app'); }
   function attVista(n) { if (!started || !n || n === ATT.vista) return; ATT.vista = n; attScrivi('apre ' + n); }
@@ -1463,6 +1677,13 @@
     clientiBarca: clientiBarca,
     spostaClienti: spostaClienti,
     foto: FOTO,
+    tablet: {
+      si: function () { return !!(ME && ME.tablet && ME.stato === 'attivo' && ME.ruolo !== 'cliente' && !ME.assist) && tabStr(); },
+      come: function (uid) { AS = uid || null; attScrivi(uid ? 'sul tablet lavora ' + ((UT[uid] && UT[uid].nome) || '') : 'sul tablet: ha finito'); },
+      chi: chi,
+      prova: function (uid, pin) { var x = pinDi(uid); return x ? pinHash(uid, pin).then(function (h) { return h === x.hash; }) : Promise.resolve(false); },
+      persone: function () { var L = LIVE.pin, m = (L && L.map) || {}; return Object.keys(m).filter(function (id) { return pinDi(id) && UT[id] && UT[id].stato === 'attivo' && UT[id].ruolo !== 'cliente' && !UT[id].tablet; }).map(function (id) { return { id: id, nome: UT[id].nome || '' }; }); }
+    },
     azienda: function () { return { nome: (AZD && AZD.nome) || '', assist: !!(ME && ME.assist) }; } // l'azienda in uso (per la procedura guidata)
   };
 })();
