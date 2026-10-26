@@ -33,8 +33,16 @@ async function main() {
   var now = Date.now(), r = oraRoma(new Date(now));
   if (r.ora < DALLE || r.ora > ALLE) { console.log('Fuori orario (' + r.ora + '): niente avvisi.'); return; }
   admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
-  var db = admin.firestore();
-  async function tutti(c) { var s = await db.collection(c).get(), out = []; s.forEach(function (d) { var x = d.data(); if (!x._del) out.push(Object.assign({ id: d.id }, x)); }); return out; }
+  // più aziende: ognuna ha i suoi dati in aziende/{id}/…
+  var root = admin.firestore(), az = await root.collection('aziende').where('stato', '==', 'attiva').get();
+  for (var a = 0; a < az.docs.length; a++) {
+    try { await unaAzienda(admin, root, az.docs[a], now, r); } catch (e) { console.error(e); process.exitCode = 1; }
+  }
+}
+
+async function unaAzienda(admin, root, azDoc, now, r) {
+  var db = azDoc.ref;
+  async function tutti(c) { if (c === 'utenti') { var su = await root.collection('utenti').where('azienda', '==', azDoc.id).get(), ou = []; su.forEach(function (d) { ou.push(Object.assign({ id: d.id }, d.data())); }); return ou; } var s = await db.collection(c).get(), out = []; s.forEach(function (d) { var x = d.data(); if (!x._del) out.push(Object.assign({ id: d.id }, x)); }); return out; }
 
   var cfgDoc = await db.collection('impostazioni').doc('notifiche').get(), cfg = cfgDoc.exists ? cfgDoc.data() : {};
   if (r.festivo && !cfg.weekend) { console.log('Sabato o domenica: niente avvisi.'); return; }

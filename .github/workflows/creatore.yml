@@ -1,0 +1,38 @@
+# Gestore del servizio: dà (o toglie) a un account già registrato il ruolo di chi approva le aziende
+# e vede i loro report. Si lancia a mano da Actions › «Gestore del servizio» › Run workflow.
+name: Gestore del servizio
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: 'Email dell’account (deve essere già registrato sul sito)'
+        type: string
+        required: true
+      togli:
+        description: 'Togli il ruolo invece di darlo'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  nomina:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Installa
+        working-directory: .github/notifiche
+        run: npm ci --no-audit --no-fund
+      - name: Nomina
+        working-directory: .github/notifiche
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          EMAIL: ${{ inputs.email }}
+          TOGLI: ${{ inputs.togli && '1' || '' }}
+        run: node creatore.js

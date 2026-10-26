@@ -107,6 +107,13 @@
     '#nmfb .upd{color:#8a8db0;font-size:.82rem;margin-top:10px}#nmfb .more{background:none;border:0;color:#8cc2ff;font:inherit;padding:8px 0;cursor:pointer}' +
     '#nmpan .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;width:100%}#nmpan .chip{display:inline-flex;align-items:center;gap:4px;background:#1e3a5f;color:#d6e8ff;border-radius:99px;padding:4px 4px 4px 10px;font-size:.9rem}' +
     '#nmpan .chip button{background:none;border:0;color:#d6e8ff;font-size:1.1rem;line-height:1;padding:2px 6px;cursor:pointer}' +
+    /* pannello del gestore: a tutto schermo, come i pannelli */
+    '#nmcr{position:fixed;inset:0;z-index:99999;background:var(--bg,#0e0e10);color:#f4f5f7;overflow-y:auto;font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;padding:env(safe-area-inset-top) 16px 40px}#nmcr .in{max-width:760px;margin:0 auto}' +
+    '#nmcr .top{display:flex;align-items:center;gap:8px;height:56px}#nmcr .top h3{flex:1;text-align:center;margin:0;font-size:1.1rem}#nmcr .back{background:none;border:0;color:#8cc2ff;font:inherit;padding:8px 4px;cursor:pointer;min-width:64px;text-align:left}' +
+    '#nmcr h4{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:#9a9daa;margin:22px 4px 8px}#nmcr .grp{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:14px;overflow:hidden}' +
+    '#nmcr .u{padding:14px;border-top:1px solid rgba(255,255,255,.1)}#nmcr .u:first-child{border-top:0}#nmcr .nm{font-weight:600}#nmcr .em{color:#b0b3c0;font-size:.9rem;word-break:break-word;margin-top:2px}#nmcr .acts,#nmcr .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}' +
+    '#nmcr button.b{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);color:#f4f5f7;border-radius:10px;padding:9px 12px;font:inherit;font-size:.92rem;cursor:pointer}#nmcr button.b.pri{background:#2f8ff0;border-color:#2f8ff0;color:#fff}#nmcr button.b.red{color:#ff8a80}' +
+    '#nmcr .pill{display:inline-block;font-size:.78rem;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.1);color:#c9ccd6;margin-left:6px;font-weight:500}#nmcr .note{color:#9a9daa;font-size:.9rem;margin:12px 4px}' +
     /* computer e tablet: il pannello lascia libero il menù a sinistra dell'app (largo 236px) */
     '@media (min-width:768px) and (min-height:500px){#nmpan{left:236px}}' +
     '#nmatt{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 76px);right:10px;left:10px;z-index:100001;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}' +
@@ -156,13 +163,17 @@
 
   var READY_RES, READY = new Promise(function (r) { READY_RES = r; });
   var ME = null, UT = {}, UT_UNSUB = null, ME_UNSUB = null, registering = false, started = false, CLIENTE = false;
+  // Più aziende sullo stesso sito: i dati di ognuna stanno in aziende/{AZ}/…; profili (utenti), aziende e codici sono comuni.
+  // Le regole (firestore.rules) fanno vedere a ognuno solo la sua azienda.
+  var AZ = '', AZD = undefined, MEX = null, AZ_UNSUB = null;
+  function AC(name) { return fs.collection('aziende').doc(AZ || '_').collection(name); }
 
   /* ---------- collezioni vive: archivio locale + solo ciò che è cambiato ---------- */
   var LIVE = {};
   function live(name) {
     if (LIVE[name]) return LIVE[name];
     var L = LIVE[name] = { name: name, map: {}, ts: 0, full: 0, ready: false, subs: [], waiters: [] };
-    L.start = READY.then(function () { return IDB.get('colls', name); }).then(function (saved) {
+    L.start = READY.then(function () { return IDB.get('colls', AZ + '/' + name); }).then(function (saved) {
       if (saved && saved.docs) { L.map = saved.docs; L.ts = saved.ts || 0; L.full = saved.full || 0; markReady(L); emit(L); }
       listen(L);
     });
@@ -173,7 +184,7 @@
   function listen(L) {
     if (L.unsub) { L.unsub(); L.unsub = null; }
     var fullDue = !L.full || !L.ts || Date.now() - L.full > FULL_EVERY;
-    var q = fs.collection(L.name);
+    var q = AC(L.name);
     if (!fullDue) q = q.where('_ts', '>=', TS.fromMillis(L.ts - 5000));
     var first = true;
     L.unsub = q.onSnapshot(function (snap) {
@@ -201,7 +212,7 @@
   function track(L, x, d) { if (x && x._ts && x._ts.toMillis && !(d.metadata && d.metadata.hasPendingWrites)) L.ts = Math.max(L.ts, x._ts.toMillis()); }
   function save(L) {
     clearTimeout(L.st);
-    L.st = setTimeout(function () { IDB.put('colls', L.name, { docs: L.map, ts: L.ts, full: L.full }); }, 500);
+    L.st = setTimeout(function () { IDB.put('colls', AZ + '/' + L.name, { docs: L.map, ts: L.ts, full: L.full }); }, 500);
   }
   function snapOf(L) {
     var docs = Object.keys(L.map).map(function (id) { var d = L.map[id]; return { id: id, exists: true, data: function () { return clone(d); }, metadata: { fromCache: false } }; });
@@ -228,7 +239,7 @@
   }
   var DELG = { id: '', t: 0 };
   function write(name, id, kind, data) {
-    var L = live(name), r = fs.collection(name).doc(id), ts = FV.serverTimestamp(), p, prev0 = L.map[id] ? clone(L.map[id]) : null;
+    var L = live(name), r = AC(name).doc(id), ts = FV.serverTimestamp(), p, prev0 = L.map[id] ? clone(L.map[id]) : null;
     L.pend = L.pend || {};
     if (kind === 'set') {
       data = Object.assign({}, data || {});
@@ -251,7 +262,7 @@
       if (old) { // una copia va nel cestino, nella stessa scrittura
         var b = fs.batch();
         if (Date.now() - DELG.t > 3000) DELG.id = rid('g'); DELG.t = Date.now(); // cancellate di seguito (una barca con i suoi lavori): stesso gruppo
-        b.set(fs.collection('cestino').doc(rid('c')), { coll: name, docId: id, dati: enc(clone(old)), gruppo: DELG.id, da: ME.uid, daNome: ME.nome || '', il: nowISO(), _ts: ts });
+        b.set(AC('cestino').doc(rid('c')), { coll: name, docId: id, dati: enc(clone(old)), gruppo: DELG.id, da: ME.uid, daNome: ME.nome || '', il: nowISO(), _ts: ts });
         b.set(r, { _del: true, _ts: ts }); p = b.commit();
       } else p = r.set({ _del: true, _ts: ts });
       delete L.map[id]; L.pend[id] = 'del';
@@ -283,7 +294,7 @@
         var L = live(name);
         return whenReady(L, 8000).then(function () {
           if (L.ready) return docSnap(id, L.map[id] || null);
-          return fs.collection(name).doc(id).get().then(function (d) { var x = d.exists ? d.data() : null; return docSnap(id, x && !x._del ? strip(x) : null); }, function (e) { throw errOf(e); });
+          return AC(name).doc(id).get().then(function (d) { var x = d.exists ? d.data() : null; return docSnap(id, x && !x._del ? strip(x) : null); }, function (e) { throw errOf(e); });
         });
       },
       set: function (data) { return write(name, id, 'set', data); },
@@ -300,7 +311,7 @@
         return function () { L.subs = L.subs.filter(function (x) { return x !== s; }); };
       },
       get: function () { var L = live(name); return L.start.then(function () { return whenReady(L, 15000); }).then(function () { return snapOf(L); }); },
-      doc: function (id) { return ref(name, id || fs.collection(name).doc().id); }
+      doc: function (id) { return ref(name, id || AC(name).doc().id); }
     };
   }
   var DB = {
@@ -349,7 +360,7 @@
     if (PH[id] || PH_LOADING[id] || PH_MISS[id]) return; PH_LOADING[id] = true;
     IDB.get('foto', id).then(function (u) {
       if (u) return u;
-      return fs.collection('foto').doc(id).get().then(function (d) { var x = d.exists ? d.data() : null; if (x && x.data && !x._del) { IDB.put('foto', id, x.data); return x.data; } return null; });
+      return AC('foto').doc(id).get().then(function (d) { var x = d.exists ? d.data() : null; if (x && x.data && !x._del) { IDB.put('foto', id, x.data); return x.data; } return null; });
     }).then(function (u) { delete PH_LOADING[id]; if (u) { PH[id] = u; patchImgs(id, u); } else PH_MISS[id] = true; }, function () { delete PH_LOADING[id]; PH_MISS[id] = true; });
   }
   var ASSETS = {
@@ -362,15 +373,15 @@
         var url = await blobToDataUrl(b), id = rid('f');
         // con la foto, una scheda leggera in «fotoInfo» (quanto pesa): così lo spazio si conta senza scaricare le foto
         var fb = fs.batch(), cr = nowISO(), da = ME ? ME.uid : '';
-        fb.set(fs.collection('foto').doc(id), { data: url, creato: cr, da: da, _ts: FV.serverTimestamp() });
-        fb.set(fs.collection('fotoInfo').doc(id), { kb: Math.ceil(url.length / 1024), creato: cr, da: da, _ts: FV.serverTimestamp() });
+        fb.set(AC('foto').doc(id), { data: url, creato: cr, da: da, _ts: FV.serverTimestamp() });
+        fb.set(AC('fotoInfo').doc(id), { kb: Math.ceil(url.length / 1024), creato: cr, da: da, _ts: FV.serverTimestamp() });
         var fp = fb.commit(); pendAdd(fp);
         await settle(fp);
         PH[id] = url; IDB.put('foto', id, url);
         return { id: id, url: url, sizeBytes: b.size, contentType: 'image/jpeg' };
       })();
     },
-    delete: function (id) { delete PH[id]; IDB.del('foto', id); return settle(fs.collection('foto').doc(id).set({ _del: true, _ts: FV.serverTimestamp() })); },
+    delete: function (id) { delete PH[id]; IDB.del('foto', id); return settle(AC('foto').doc(id).set({ _del: true, _ts: FV.serverTimestamp() })); },
     list: function () { return Promise.resolve({ assets: [], usage: {} }); }
   };
 
@@ -435,36 +446,68 @@
     });
     $('#nm-goreg', o).onclick = showRegister; $('#nm-goreset', o).onclick = showReset;
   }
-  function showRegister() {
-    var o = overlay('<h2>Crea il tuo account</h2><p>Dopo la registrazione il cantiere deve approvarti: appena lo fa, puoi entrare.</p>' +
-      '<form id="nm-reg"><label>Chi sei?</label><label class="opt"><input type="radio" name="nm-tipo" value="staff" checked> Lavoro al cantiere</label>' +
-      '<label class="opt"><input type="radio" name="nm-tipo" value="cliente"> Sono un cliente</label>' +
-      '<label for="nm-nm">Nome e cognome</label><input id="nm-nm" type="text" autocomplete="name" required maxlength="60">' +
-      '<label for="nm-em">Email</label><input id="nm-em" type="email" autocomplete="username" inputmode="email" required>' +
-      '<label for="nm-pw">Password (almeno 6 caratteri)</label>' + pwField('nm-pw', 'new-password', ' minlength="6"') +
-      '<button class="btn" type="submit">Crea account</button><div class="err" id="nm-err"></div></form><button class="lnk" id="nm-gologin">Ho già un account: accedi</button>');
+  // Codice dell'azienda: 8 tra lettere e numeri, senza quelli che si confondono (0 O 1 I L); si mostra come K7P4-M2QX
+  var COD_ABC = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+  function codNuovo() { var a = new Uint32Array(8), c = ''; crypto.getRandomValues(a); for (var i = 0; i < 8; i++) c += COD_ABC[a[i] % COD_ABC.length]; return c; }
+  function codPulito(v) { return String(v || '').toUpperCase().replace(/[^0-9A-Z]/g, ''); }
+  function codBello(c) { c = codPulito(c); return c.length === 8 ? c.slice(0, 4) + '-' + c.slice(4) : c; }
+  var PRIV = 'Per l’assistenza, il gestore del servizio vede gli accessi, le azioni e gli errori dell’app, non i vostri dati.';
+  var COME = '<details class="gd"><summary>Come funziona?</summary><ul>' +
+    '<li><b>Un’azienda nuova</b> sceglie «Registro la mia azienda». La richiesta arriva al gestore del servizio: quando la approva, chi l’ha fatta entra come amministratore.</li>' +
+    '<li>Ogni azienda ha un suo <b>codice</b> (per esempio K7P4-M2QX). L’amministratore lo trova in Altro › Utenti e permessi e lo manda a colleghi e clienti.</li>' +
+    '<li><b>Colleghi e clienti</b> scelgono «Entro nella mia azienda», scrivono il codice e i loro dati, poi aspettano che l’amministratore li approvi.</li>' +
+    '<li>Ogni azienda vede solo i suoi dati.</li></ul></details>';
+  // u: chi ha già l'account ma non ancora il profilo (registrazione interrotta, codice sbagliato): sceglie solo l'azienda
+  function showRegister(modo, u, d, msg) {
+    var az = modo === 'azienda'; d = d || {};
+    function v(k) { return esc(d[k] || ''); }
+    var o = overlay('<h2>' + (u ? 'Scegli la tua azienda' : 'Crea il tuo account') + '</h2>' +
+      '<form id="nm-reg"><label class="opt"><input type="radio" name="nm-modo" value="codice"' + (az ? '' : ' checked') + '> Entro nella mia azienda con il suo codice</label>' +
+      '<label class="opt"><input type="radio" name="nm-modo" value="azienda"' + (az ? ' checked' : '') + '> Registro la mia azienda</label>' +
+      (az ? '<p style="margin-top:14px">Il gestore del servizio controlla la richiesta: appena la approva entri come amministratore e puoi far entrare colleghi e clienti con il codice dell’azienda.</p>' +
+        '<label for="nm-az">Nome dell’azienda</label><input id="nm-az" type="text" autocomplete="organization" required maxlength="60" value="' + v('azNome') + '">' +
+        '<label for="nm-tel">Telefono</label><input id="nm-tel" type="tel" autocomplete="tel" inputmode="tel" required maxlength="30" value="' + v('tel') + '">'
+        : '<p style="margin-top:14px">Il codice te lo dà l’amministratore della tua azienda. Dopo la registrazione ti deve approvare.</p>' +
+        '<label for="nm-cod">Codice dell’azienda</label><input id="nm-cod" type="text" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" required maxlength="12" placeholder="es. K7P4-M2QX" value="' + v('codice') + '">' +
+        '<label>Chi sei?</label><label class="opt"><input type="radio" name="nm-tipo" value="staff"' + (d.tipo === 'cliente' ? '' : ' checked') + '> Lavoro in azienda</label>' +
+        '<label class="opt"><input type="radio" name="nm-tipo" value="cliente"' + (d.tipo === 'cliente' ? ' checked' : '') + '> Sono un cliente</label>') +
+      '<label for="nm-nm">Nome e cognome</label><input id="nm-nm" type="text" autocomplete="name" required maxlength="60" value="' + v('nome') + '">' +
+      (u ? '' : '<label for="nm-em">Email</label><input id="nm-em" type="email" autocomplete="username" inputmode="email" required value="' + v('email') + '">' +
+        '<label for="nm-pw">Password (almeno 6 caratteri)</label>' + pwField('nm-pw', 'new-password', ' minlength="6"')) +
+      (az ? '<p style="font-size:.85rem;margin:12px 0 0">' + esc(PRIV) + '</p>' : '') +
+      '<button class="btn" type="submit">' + (az ? 'Invia la richiesta' : u ? 'Entra nell’azienda' : 'Crea account') + '</button><div class="err" id="nm-err">' + esc(msg || '') + '</div></form>' +
+      (u ? '<button class="lnk" id="nm-out">Esci</button>' : '<button class="lnk" id="nm-gologin">Ho già un account: accedi</button>') + COME);
     var f = $('#nm-reg', o);
+    function dati() {
+      var g = function (id) { var e = $('#' + id, f); return e ? e.value.trim() : ''; };
+      return { modo: az ? 'azienda' : 'codice', azNome: g('nm-az'), tel: g('nm-tel'), codice: g('nm-cod'), tipo: (f.querySelector('input[name="nm-tipo"]:checked') || {}).value === 'cliente' ? 'cliente' : 'staff', nome: g('nm-nm'), email: u ? (u.email || '') : g('nm-em') };
+    }
+    f.addEventListener('change', function (e) { if (e.target.name === 'nm-modo' && (e.target.value === 'azienda') !== az) { var x = dati(); showRegister(e.target.value, u, x); } });
     f.addEventListener('submit', function (e) {
       e.preventDefault(); busy(f, true); $('#nm-err').textContent = '';
-      var nome = $('#nm-nm').value.trim(), email = $('#nm-em').value.trim(), pw = $('#nm-pw').value;
-      var tipo = (f.querySelector('input[name="nm-tipo"]:checked') || {}).value === 'cliente' ? 'cliente' : 'staff';
+      var x = dati();
+      if (!az && codPulito(x.codice).length !== 8) { busy(f, false); $('#nm-err').textContent = 'Il codice ha 8 tra lettere e numeri, per esempio K7P4-M2QX.'; return; }
       registering = true;
-      auth.createUserWithEmailAndPassword(email, pw).then(function (cr) {
-        return createProfile(cr.user, nome, email, tipo);
-      }).then(function () { registering = false; watchMe(auth.currentUser); }, function (er) { registering = false; busy(f, false); $('#nm-err').textContent = authErr(er); });
+      var acc = u ? Promise.resolve({ user: u }) : auth.createUserWithEmailAndPassword(x.email, $('#nm-pw').value);
+      acc.then(function (cr) {
+        return creaProfilo(cr.user, x).then(function () { registering = false; watchMe(cr.user); }, function (er) {
+          registering = false; showRegister(x.modo, cr.user, x, er && er.code === 'codice' ? 'Codice non trovato: controlla di averlo scritto giusto, o chiedine uno nuovo al tuo amministratore.' : 'Non è andata (' + errOf(er).code + '). Riprova.');
+        });
+      }, function (er) { registering = false; busy(f, false); $('#nm-err').textContent = authErr(er); });
     });
-    $('#nm-gologin', o).onclick = function () { showLogin(); };
+    if (u) $('#nm-out', o).onclick = logout; else $('#nm-gologin', o).onclick = function () { showLogin(); };
   }
-  function createProfile(u, nome, email, tipo) {
-    var cfg = fs.collection('config').doc('inizializzato'), me = fs.collection('utenti').doc(u.uid);
-    return cfg.get({ source: 'server' }).then(function (c) {
-      var base = { nome: nome, email: email, tipo: tipo === 'cliente' ? 'cliente' : 'staff', creato: nowISO(), modificato: nowISO() };
-      if (c.exists || tipo === 'cliente') return me.set(Object.assign(base, { stato: 'in_attesa', ruolo: 'base' }));
-      var b = fs.batch();
-      b.set(me, Object.assign(base, { stato: 'attivo', ruolo: 'admin' }));
-      b.set(cfg, { da: u.uid, il: nowISO() });
-      return b.commit().catch(function () { return me.set(Object.assign(base, { stato: 'in_attesa', ruolo: 'base' })); });
-    });
+  async function creaProfilo(u, d) {
+    var now = nowISO(), base = { nome: d.nome || (u.email || '').split('@')[0], email: d.email || u.email || '', creato: now, modificato: now, stato: 'in_attesa' };
+    if (d.modo === 'azienda') { // l'azienda e il suo amministratore nascono insieme, tutti e due in attesa del gestore
+      var ar = fs.collection('aziende').doc(), b = fs.batch();
+      b.set(ar, { nome: d.azNome, telefono: d.tel, admin: u.uid, adminNome: base.nome, email: base.email, stato: 'in_attesa', creato: now });
+      b.set(fs.collection('utenti').doc(u.uid), Object.assign(base, { tipo: 'staff', ruolo: 'admin', azienda: ar.id }));
+      return b.commit();
+    }
+    var c = codPulito(d.codice), cd = await fs.collection('codici').doc(c).get({ source: 'server' }).catch(function () { return null; });
+    if (!cd || !cd.exists || !cd.data().azienda) throw { code: 'codice' };
+    return fs.collection('utenti').doc(u.uid).set(Object.assign(base, { tipo: d.tipo === 'cliente' ? 'cliente' : 'staff', ruolo: 'base', azienda: cd.data().azienda, codice: c }));
   }
   function showReset() {
     var o = overlay('<h2>Password dimenticata</h2><p>Ti mandiamo un’email con il link per sceglierne una nuova.</p>' +
@@ -478,18 +521,22 @@
     });
     $('#nm-gologin', o).onclick = function () { showLogin(); };
   }
-  function showWait(u) {
-    var o = overlay('<h2>Richiesta inviata</h2><div class="card"><p style="margin:0">Ciao <b>' + esc(u.nome || '') + '</b>, il tuo account è in attesa. Un amministratore del cantiere deve approvarlo: appena lo fa, l’app si apre da sola.</p></div>' +
+  function showWait(u, nuova) {
+    var o = overlay('<h2>Richiesta inviata</h2><div class="card"><p style="margin:0">Ciao <b>' + esc(u.nome || '') + '</b>, ' +
+      (nuova ? 'la richiesta per <b>' + esc((AZD && AZD.nome) || 'la tua azienda') + '</b> è arrivata al gestore del servizio. Appena la approva, l’app si apre da sola e da Altro › Utenti e permessi potrai far entrare colleghi e clienti.'
+        : 'il tuo account è in attesa. L’amministratore di <b>' + esc((AZD && AZD.nome) || 'della tua azienda') + '</b> deve approvarlo: appena lo fa, l’app si apre da sola.') + '</p></div>' +
       '<button class="lnk" id="nm-out">Esci</button>');
     $('#nm-out', o).onclick = logout;
   }
-  function showBlocked() {
-    var o = overlay('<h2>Accesso sospeso</h2><p>Il tuo account non è attivo. Parla con un amministratore del cantiere.</p><button class="lnk" id="nm-out">Esci</button>');
+  function showBlocked(perche) {
+    var o = overlay('<h2>Accesso sospeso</h2><p>' + (perche === 'azienda' ? 'La tua azienda non è attiva in questo momento. Per informazioni contatta il gestore del servizio.' :
+      perche === 'nessuna' ? 'Il tuo account non è collegato a nessuna azienda attiva.' : 'Il tuo account non è attivo. Parla con un amministratore della tua azienda.') + '</p><button class="lnk" id="nm-out">Esci</button>');
     $('#nm-out', o).onclick = logout;
   }
   function logout() {
     var ask = $('#nmfb') ? true : confirm('Vuoi uscire? Su questo telefono verranno tolti i dati salvati per lavorare senza campo.');
     if (!ask) return;
+    try { sessionStorage.removeItem('nm-assist'); } catch (e) { }
     Promise.resolve(IDB.clear()).then(function () { return auth.signOut(); }).then(function () {
       try { fs.terminate().then(function () { return fs.clearPersistence(); }).finally(function () { location.reload(); }); } catch (e) { location.reload(); }
     });
@@ -498,24 +545,43 @@
     if (ME_UNSUB) { ME_UNSUB(); ME_UNSUB = null; }
     overlay('<div class="spin"></div>');
     ME_UNSUB = fs.collection('utenti').doc(u.uid).onSnapshot(function (d) {
-      if (!d.exists) {
-        if (registering) return;
-        createProfile(u, (u.email || '').split('@')[0], u.email || '').catch(function () { });
-        return;
-      }
+      if (!d.exists) { if (!registering && !started) showRegister('codice', u); return; }
       var x = d.data(); x.uid = u.uid; x.email = x.email || u.email;
-      if (x.stato === 'attivo' && x.ruolo === 'cliente') { if (started) { location.reload(); return; } ME = x; showCliente(x); return; }
-      if (CLIENTE) { location.reload(); return; }
-      if (x.stato === 'attivo') {
-        var was = ME; ME = x;
-        if (!started) { started = true; hideOverlay(); READY_RES(); afterStart(); }
-        else if (was && was.ruolo !== x.ruolo) location.reload();
-      } else if (started) location.reload();
-      else if (x.stato === 'bloccato') showBlocked();
-      else showWait(x);
+      if (x.ruolo === 'creatore') { if (x.stato === 'attivo') avviaCreatore(x); else showBlocked(); return; }
+      if (!x.azienda) { if (started) location.reload(); else showRegister('codice', u, { nome: x.nome }); return; }
+      seguiAzienda(x);
     }, function (e) {
       if (!started) showLogin('Non riesco a leggere il tuo account (' + errOf(e).code + '). Riprova.');
     });
+  }
+  // la scheda dell'azienda dice se è attiva (approvata dal gestore) e ha il codice e il permesso di assistenza
+  function seguiAzienda(x) {
+    MEX = x;
+    if (!AZ_UNSUB || AZ_UNSUB.az !== x.azienda) {
+      if (AZ_UNSUB) AZ_UNSUB();
+      AZD = undefined;
+      var un = fs.collection('aziende').doc(x.azienda).onSnapshot(function (d) { AZD = d.exists ? d.data() : null; decidi(); if ($('#nmpan')) renderPanel(); }, function () { AZD = null; decidi(); });
+      un.az = x.azienda; AZ_UNSUB = un;
+    }
+    decidi();
+  }
+  function decidi() {
+    var x = MEX; if (!x || AZD === undefined) return;
+    if (!AZD || AZD.stato !== 'attiva') {
+      if (started) { location.reload(); return; }
+      if (AZD && AZD.stato === 'in_attesa') showWait(x, true); else showBlocked(AZD ? 'azienda' : 'nessuna');
+      return;
+    }
+    AZ = x.azienda;
+    if (x.stato === 'attivo' && x.ruolo === 'cliente') { if (started) { location.reload(); return; } if (!CLIENTE) { ME = x; showCliente(x); } return; }
+    if (CLIENTE) { location.reload(); return; }
+    if (x.stato === 'attivo') {
+      var was = ME; ME = x;
+      if (!started) { started = true; hideOverlay(); READY_RES(); afterStart(); }
+      else if (was && was.ruolo !== x.ruolo) location.reload();
+    } else if (started) location.reload();
+    else if (x.stato === 'bloccato') showBlocked();
+    else showWait(x);
   }
   var DOM = new Promise(function (r) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', r, { once: true }); else r(); });
   auth.onAuthStateChanged(function (u) {
@@ -528,15 +594,15 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 
   function afterStart() {
-    UT_UNSUB = fs.collection('utenti').onSnapshot(function (s) {
+    UT_UNSUB = fs.collection('utenti').where('azienda', '==', AZ).onSnapshot(function (s) {
       var m = {}; s.docs.forEach(function (d) { m[d.id] = d.data(); }); UT = m; if ($('#nmpan')) renderPanel(); schedulePortale();
     }, function () { });
     // il nome nella scheda lavoro
     var D = live('dipendenti');
     D.start.then(function () { return whenReady(D, 15000); }).then(function () {
-      if (ME && !D.map[ME.uid]) write('dipendenti', ME.uid, 'set', { nome: ME.nome || '', modificato: nowISO() }).catch(function () { });
+      if (ME && !ME.assist && !D.map[ME.uid]) write('dipendenti', ME.uid, 'set', { nome: ME.nome || '', modificato: nowISO() }).catch(function () { });
     });
-    if (ME && ME.ruolo === 'admin') { setTimeout(purgeCestino, 5000); setTimeout(pulisciSegnaposto, 20000); }
+    if (ME && ME.ruolo === 'admin' && !ME.assist) { setTimeout(purgeCestino, 5000); setTimeout(pulisciSegnaposto, 20000); }
     pendVecchie();
     attEntra(); attAscolta();
     // aperto dal link per portare i dati dall'app di Claude
@@ -548,6 +614,7 @@
   function altroRows() {
     if (!ME) return [];
     var rows = [];
+    if (ME.assist) rows.push(['assistout', 'out', 'soon', 'Esci dall’assistenza', 'Sei nei dati di ' + ME.assist + ' per assistenza', '']);
     if (ME.ruolo === 'admin') {
       var n = Object.keys(UT).filter(function (id) { return UT[id].stato === 'in_attesa'; }).length;
       rows.push(['utenti', 'users', n ? 'soon' : '', 'Utenti e permessi', 'Approva i colleghi e decidi i permessi', n ? '<span class="pill soon">' + n + (n === 1 ? ' in attesa' : ' in attesa') + '</span>' : '']);
@@ -556,7 +623,9 @@
     rows.push(['account', 'out', '', 'Il mio account', (ME.email || '') + ' · ' + (RUOLI[ME.ruolo] || ''), '']);
     return rows;
   }
-  function open(k) { PAN = k; if (k === 'cestino') CEST = null; renderPanel(); }
+  function open(k) {
+    if (k === 'assistout') { try { sessionStorage.removeItem('nm-assist'); } catch (e) { } Promise.resolve(IDB.clear()).then(function () { location.reload(); }); return; }
+    PAN = k; if (k === 'cestino') CEST = null; renderPanel(); }
 
   /* ---------- cestino (solo amministratori) ---------- */
   var CEST = null, CEST_DAYS = 60;
@@ -566,13 +635,13 @@
     checklist: 'Checklist', modelli: 'Modello di checklist', checkBarca: 'Lista della barca', dipendenti: 'Dipendente', impostazioni: 'Impostazione' };
   function cestCutoff() { return new Date(Date.now() - CEST_DAYS * 864e5).toISOString(); }
   function purgeCestino() { // toglie per sempre ciò che è nel cestino da più di 60 giorni
-    return fs.collection('cestino').where('il', '<', cestCutoff()).limit(200).get().then(function (s) {
+    return AC('cestino').where('il', '<', cestCutoff()).limit(200).get().then(function (s) {
       if (!s.size) return; var b = fs.batch(); s.docs.forEach(function (d) { b.delete(d.ref); }); return b.commit();
     }).catch(function () { });
   }
   function loadCestino() {
     CEST = { loading: true, items: [] };
-    purgeCestino().then(function () { return fs.collection('cestino').orderBy('il', 'desc').limit(400).get(); }).then(function (s) {
+    purgeCestino().then(function () { return AC('cestino').orderBy('il', 'desc').limit(400).get(); }).then(function (s) {
       var cut = cestCutoff(), items = s.docs.map(function (d) { var x = d.data(); x.id = d.id; x.dati = dec(x.dati || {}); return x; }).filter(function (x) { return x.il >= cut; });
       // raggruppo ciò che è stato cancellato insieme
       var groups = [];
@@ -605,7 +674,7 @@
     for (var k = 0; k < g.items.length; k++) {
       var x = g.items[k];
       if (COLLS.indexOf(x.coll) < 0) { fail++; continue; } // si recuperano solo i dati del cantiere, mai profili o impostazioni di sistema
-      try { await write(x.coll, x.docId, 'set', x.dati); await settle(fs.collection('cestino').doc(x.id).delete()); ok++; } catch (e) { fail++; }
+      try { await write(x.coll, x.docId, 'set', x.dati); await settle(AC('cestino').doc(x.id).delete()); ok++; } catch (e) { fail++; }
     }
     toast(fail ? 'Recuperate ' + ok + ', ' + fail + ' non riuscite: riprova.' : ok === 1 ? 'Recuperato' : 'Recuperate ' + ok + ' cose');
     for (var j = 0; j < g.items.length; j++) { var y = g.items[j]; if (y.coll === 'barche' && y.dati && y.dati.unione && live('barche').map[y.docId]) await annullaUnione(y.docId, y.dati); }
@@ -637,6 +706,27 @@
       var bb = []; (UT[id].barche || []).forEach(function (b) { b = b === da ? a : b; if (bb.indexOf(b) < 0) bb.push(b); });
       return setUser(id, { barche: bb });
     }));
+  }
+  // codice dell'azienda (per far entrare colleghi e clienti) e permesso di assistenza per il gestore del servizio
+  function azBox() {
+    var a = AZD || {};
+    return '<h4>Codice dell’azienda</h4><div class="grp"><div class="u"><div class="nm" style="font-size:1.5rem;letter-spacing:.1em">' + esc(codBello(a.codice) || '—') + '</div>' +
+      '<div class="em" style="word-break:normal">Mandalo a colleghi e clienti insieme al link dell’app. Alla registrazione scelgono «Entro nella mia azienda» e scrivono il codice; poi li approvi qui sotto. Se il codice finisce in mani sbagliate cambialo: chi è già dentro resta dentro.</div>' +
+      '<div class="acts">' + (a.codice ? '<button class="b pri" data-nm="codcopia">Copia</button>' : '') + '<button class="b" data-nm="codnuovo">' + (a.codice ? 'Cambia codice' : 'Crea il codice') + '</button></div></div></div>' +
+      '<h4>Assistenza</h4><div class="grp"><div class="u"><label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" data-nm="assist"' + (a.assistenza ? ' checked' : '') + ' style="width:20px;height:20px;flex:none;margin-top:2px">' +
+      '<span>Permetti al gestore del servizio di entrare nei dati dell’azienda per aiutarvi</span></label>' +
+      '<div class="em" style="margin-top:6px;word-break:normal">' + (a.assistenza ? 'Acceso: il gestore può aprire e correggere i vostri dati. Spegnilo quando l’aiuto è finito.' : 'Spento: il gestore non vede barche, clienti, lavori né altri dati. Vede solo accessi, azioni ed errori dell’app, per l’assistenza.') + '</div></div></div>';
+  }
+  async function codCambia() {
+    var a = AZD || {}, old = a.codice;
+    if (old && !confirm('Cambio il codice? Quello vecchio non funzionerà più per le nuove registrazioni; chi è già dentro resta dentro.')) return;
+    for (var i = 0; i < 4; i++) {
+      var c = codNuovo(), b = fs.batch();
+      b.set(fs.collection('codici').doc(c), { azienda: AZ, creato: nowISO() });
+      if (old) b.delete(fs.collection('codici').doc(old));
+      b.update(fs.collection('aziende').doc(AZ), { codice: c, modificato: nowISO() });
+      try { await b.commit(); toast('Nuovo codice: ' + codBello(c)); return; } catch (e) { if (i === 3) toast('Non riuscito: ' + errOf(e).code); }
+    }
   }
   function closePanel() { PAN = null; var p = $('#nmpan'); if (p) p.remove(); }
   // sul computer il menù a sinistra resta visibile: toccando una sua voce il pannello si chiude
@@ -676,13 +766,13 @@
         return '<div class="u"><div class="nm">' + esc(u.nome || '(senza nome)') + (u.stato === 'attivo' ? '<span class="pill">' + esc(RUOLI[u.ruolo] || u.ruolo) + '</span>' : u.stato === 'in_attesa' ? '<span class="pill">' + (u.tipo === 'cliente' ? 'Cliente' : 'Lavora al cantiere') + '</span>' : '') + '</div><div class="em">' + esc(u.email || '') + '</div><div class="acts">' + a + '</div></div>';
       };
       var sec = function (t, list) { return list.length ? '<h4>' + t + ' (' + list.length + ')</h4><div class="grp">' + list.map(row).join('') + '</div>' : ''; };
-      h = '<div class="top"><button class="back" data-nm="close">‹ Indietro</button><h3>Utenti e permessi</h3><span style="min-width:64px"></span></div>' +
+      h = '<div class="top"><button class="back" data-nm="close">‹ Indietro</button><h3>Utenti e permessi</h3><span style="min-width:64px"></span></div>' + azBox() +
         sec('In attesa di approvazione', by('in_attesa')) + sec('Cantiere', by('attivo').filter(function (id) { return UT[id].ruolo !== 'cliente'; })) +
         sec('Clienti', by('attivo').filter(function (id) { return UT[id].ruolo === 'cliente'; })) + sec('Sospesi', by('bloccato')) +
         '<p class="note"><b>Dipendente</b>: usa tutta l’app; cancella solo ciò che ha aggiunto, modifica solo le proprie mansioni e richieste di ferie. <b>Amministratore</b>: in più cancella tutto, vede il cestino, approva le ferie e i colleghi e cambia i permessi. ' +
         '<b>Cliente</b>: vede solo le barche che gli colleghi, con stato, posto e lavori eseguiti, senza ore né nomi dei dipendenti.</p>' +
         (olds.length ? '<p class="note"><b>Collega ai dati vecchi</b>: dopo aver ripristinato la copia presa da Claude, scegli chi era quella persona. Mansioni, ore e giornate confermate passano al nuovo account.</p>' : '') +
-        '<p class="note">Per far entrare un collega mandagli il link dell’app: si registra da solo e compare qui sopra, in attesa.</p>';
+        '<p class="note">Per far entrare un collega o un cliente mandagli il link dell’app e il codice dell’azienda: sceglie «Entro nella mia azienda», scrive il codice e compare qui sopra, in attesa.</p>';
     } else if (PAN === 'cestino' && ME.ruolo === 'admin') {
       h = '<div class="top"><button class="back" data-nm="close">‹ Indietro</button><h3>Cestino</h3><span style="min-width:64px"></span></div>' + cestinoHtml() +
         '<p class="note">Qui finisce tutto ciò che viene cancellato, con chi l’ha cancellato e quando. Dopo 60 giorni sparisce per sempre. Le cose cancellate insieme (per esempio una barca con i suoi lavori) si recuperano insieme.</p>';
@@ -695,6 +785,8 @@
     var k = t.getAttribute('data-nm'), id = t.getAttribute('data-id');
     if (k === 'close') closePanel();
     else if (k === 'rec') { t.disabled = true; recuperaGruppo(+id); }
+    else if (k === 'codnuovo') codCambia();
+    else if (k === 'codcopia') { var cc = codBello(AZD && AZD.codice); (navigator.clipboard ? navigator.clipboard.writeText(cc) : Promise.reject()).then(function () { toast('Codice copiato: ' + cc); }, function () { prompt('Copia il codice:', cc); }); }
     else if (k === 'out') logout();
     else if (k === 'pw') auth.sendPasswordResetEmail(ME.email).then(function () { toast('Ti ho mandato l’email per cambiare la password.'); }, function (er) { toast(authErr(er)); });
     else if (k === 'ok') {
@@ -709,6 +801,11 @@
   document.addEventListener('change', function (e) {
     var t = e.target; if (!t.closest || !t.closest('#nmpan') || !t.getAttribute('data-nm')) return;
     var k = t.getAttribute('data-nm'), id = t.getAttribute('data-id');
+    if (k === 'assist') {
+      var on = !!t.checked;
+      fs.collection('aziende').doc(AZ).update({ assistenza: on, modificato: nowISO() }).then(function () { toast(on ? 'Assistenza permessa' : 'Assistenza tolta'); }, function (er) { t.checked = !on; toast('Non riuscito: ' + errOf(er).code); });
+      return;
+    }
     if (k === 'ruolo') {
       if ((t.value === 'cliente') !== (UT[id].ruolo === 'cliente') && !confirm(t.value === 'cliente' ? 'Diventa cliente: non vedrà più l’app del cantiere, solo le sue barche. Continuo?' : 'Non sarà più cliente: vedrà tutta l’app del cantiere. Continuo?')) { t.value = UT[id].ruolo; return; }
       setUser(id, { ruolo: t.value }).then(function () { toast('Permessi aggiornati.'); });
@@ -744,6 +841,116 @@
     return n;
   }
 
+  /* ---------- pannello del creatore ----------
+     Chi gestisce il servizio (utenti/{uid} con ruolo «creatore», messo da GitHub: vedi .github/workflows/creatore.yml)
+     approva le aziende nuove, le sospende, vede di ognuna accessi, azioni ed errori. Nei dati di un'azienda
+     (barche, clienti, lavori…) entra solo se l'azienda ha acceso «Permetti assistenza». */
+  var CR = { on: false, az: {}, ut: {}, att: {}, vista: null, filtro: 'tutto' };
+  function avviaCreatore(x) {
+    var as = ''; try { as = sessionStorage.getItem('nm-assist') || ''; } catch (e) { }
+    if (started) return;
+    ME = x;
+    if (as) {
+      fs.collection('aziende').doc(as).get().then(function (d) {
+        var a = d.exists ? d.data() : null;
+        if (!a || !a.assistenza || a.stato !== 'attiva') { try { sessionStorage.removeItem('nm-assist'); } catch (e) { } toast('Questa azienda non permette più l’assistenza.'); crApri(); return; }
+        if (started) return;
+        AZ = as; AZD = a; ME = Object.assign({}, x, { ruolo: 'admin', assist: a.nome || 'un’azienda', nome: (x.nome || 'Gestore') + ' (assistenza)' });
+        started = true; hideOverlay(); READY_RES(); afterStart(); setTimeout(function () { toast('Assistenza: sei nei dati di ' + ME.assist); }, 800);
+      }, function () { crApri(); });
+      return;
+    }
+    crApri();
+  }
+  function crApri() {
+    if (CR.on) { crRender(); return; }
+    CR.on = true; ensureCss();
+    fs.collection('aziende').onSnapshot(function (s) { var m = {}; s.docs.forEach(function (d) { m[d.id] = d.data(); }); CR.az = m; crRender(); crReport(); }, function (e) { CR.err = errOf(e).code; crRender(); });
+    fs.collection('utenti').onSnapshot(function (s) { var m = {}; s.docs.forEach(function (d) { m[d.id] = d.data(); }); CR.ut = m; crRender(); }, function () { });
+    crRender();
+  }
+  // gli ultimi accessi, azioni ed errori di ogni azienda attiva (le ultime 300 righe)
+  function crReport(id) {
+    Object.keys(CR.az).forEach(function (k) {
+      if ((id && k !== id) || (!id && CR.att[k]) || CR.az[k].stato !== 'attiva') return;
+      CR.att[k] = CR.att[k] || { loading: true, list: [] };
+      fs.collection('aziende').doc(k).collection('attivita').orderBy('il', 'desc').limit(300).get().then(function (s) {
+        CR.att[k] = { list: s.docs.map(function (d) { return d.data(); }) }; crRender();
+      }, function (e) { CR.att[k] = { err: errOf(e).code, list: [] }; crRender(); });
+    });
+  }
+  function crTipo(x) { var c = String(x.cosa || ''); return c.indexOf('⚠') === 0 ? 'errori' : /^è entrato/.test(c) ? 'accessi' : /^apre /.test(c) ? 'pagine' : 'azioni'; }
+  function crQuando(iso) { var d = new Date(iso); return isNaN(d) ? '—' : d.toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+  function crRender() {
+    if (!CR.on || started) return;
+    var o = $('#nmcr'); if (!o) { hideOverlay(); o = document.createElement('div'); o.id = 'nmcr'; document.body.appendChild(o); }
+    var ids = Object.keys(CR.az).sort(function (a, b) { return String(CR.az[b].creato || '').localeCompare(String(CR.az[a].creato || '')); });
+    var h = '<div class="in">';
+    if (CR.vista && CR.az[CR.vista]) {
+      var a = CR.az[CR.vista], R = CR.att[CR.vista] || { loading: true, list: [] }, F = CR.filtro;
+      var list = R.list.filter(function (x) { return F === 'tutto' || crTipo(x) === F; });
+      var n = function (t) { return R.list.filter(function (x) { return crTipo(x) === t; }).length; };
+      h += '<div class="top"><button class="back" data-cr="home">‹ Aziende</button><h3>' + esc(a.nome || 'Azienda') + '</h3><span style="min-width:64px"></span></div>' +
+        '<div class="chips">' + [['tutto', 'Tutto', R.list.length], ['accessi', 'Accessi', n('accessi')], ['azioni', 'Azioni', n('azioni')], ['errori', 'Errori', n('errori')], ['pagine', 'Pagine aperte', n('pagine')]].map(function (c) {
+          return '<button class="b' + (F === c[0] ? ' pri' : '') + '" data-cr="filtro" data-id="' + c[0] + '">' + c[1] + ' ' + c[2] + '</button>'; }).join('') + '</div>' +
+        (R.loading ? '<p class="note">Carico…</p>' : R.err ? '<p class="note">Non riesco a leggere il report (' + esc(R.err) + ').</p>' : !list.length ? '<p class="note">Niente da mostrare.</p>' :
+          '<div class="grp">' + list.map(function (x) { return '<div class="u"><div class="nm"' + (crTipo(x) === 'errori' ? ' style="color:#ff8a80"' : '') + '>' + esc(x.cosa || '') + '</div><div class="em">' + esc((x.nome || '') + ' · ' + (x.disp || '') + ' · ' + crQuando(x.il)) + '</div></div>'; }).join('') + '</div>') +
+        '<p class="note">Le ultime 300 righe degli ultimi 60 giorni. L’azienda non vede questo report.</p>';
+    } else {
+      var by = function (st) { return ids.filter(function (k) { return (CR.az[k].stato || '') === st; }); };
+      var persone = function (k) { return Object.keys(CR.ut).filter(function (u) { return CR.ut[u].azienda === k && CR.ut[u].stato === 'attivo'; }).length; };
+      var attesa = function (k) { return Object.keys(CR.ut).filter(function (u) { return CR.ut[u].azienda === k && CR.ut[u].stato === 'in_attesa'; }).length; };
+      var row = function (k) {
+        var a = CR.az[k], st = a.stato, R = CR.att[k], acts = '', info = '';
+        if (st === 'in_attesa') {
+          info = esc((a.adminNome || '') + ' · ' + (a.email || '') + ' · tel. ' + (a.telefono || '—')) + '<br>Richiesta del ' + esc(crQuando(a.creato));
+          acts = '<button class="b pri" data-cr="ok" data-id="' + k + '">Approva</button><button class="b red" data-cr="no" data-id="' + k + '">Rifiuta</button>';
+        } else if (st === 'attiva') {
+          var last = R && R.list ? R.list.filter(function (x) { return crTipo(x) === 'accessi'; })[0] : null, err7 = R && R.list ? R.list.filter(function (x) { return crTipo(x) === 'errori' && Date.now() - Date.parse(x.il) < 7 * 864e5; }).length : 0;
+          info = esc(persone(k) + (persone(k) === 1 ? ' persona' : ' persone') + (attesa(k) ? ' (+' + attesa(k) + ' in attesa)' : '') + ' · codice ' + (codBello(a.codice) || '—')) + '<br>' +
+            esc('Ultimo accesso: ' + (R && R.loading ? '…' : last ? (last.nome || '') + ', ' + crQuando(last.il) : 'nessuno')) + (err7 ? ' · <span style="color:#ff8a80">' + err7 + (err7 === 1 ? ' errore' : ' errori') + ' in 7 giorni</span>' : '') + '<br>' +
+            esc(a.adminNome || '') + ' · ' + esc(a.email || '') + ' · tel. ' + esc(a.telefono || '—');
+          acts = '<button class="b pri" data-cr="rep" data-id="' + k + '">Report</button>' + (a.assistenza ? '<button class="b" data-cr="entra" data-id="' + k + '">Entra per assistenza</button>' : '') + '<button class="b red" data-cr="sosp" data-id="' + k + '">Sospendi</button>';
+        } else {
+          info = esc((a.adminNome || '') + ' · ' + (a.email || ''));
+          acts = '<button class="b" data-cr="riatt" data-id="' + k + '">' + (st === 'rifiutata' ? 'Approva' : 'Riattiva') + '</button>';
+        }
+        return '<div class="u"><div class="nm">' + esc(a.nome || 'Azienda') + (st === 'attiva' ? '<span class="pill">' + (a.assistenza ? 'assistenza permessa' : 'assistenza non permessa') + '</span>' : '') + '</div><div class="em">' + info + '</div><div class="acts">' + acts + '</div></div>';
+      };
+      var sec = function (t, l) { return l.length ? '<h4>' + t + ' (' + l.length + ')</h4><div class="grp">' + l.map(row).join('') + '</div>' : ''; };
+      h += '<div class="top"><span style="min-width:64px"></span><h3>Pannello del gestore</h3><button class="back" data-cr="out" style="text-align:right">Esci</button></div>' +
+        (CR.err ? '<p class="note">Non riesco a leggere le aziende (' + esc(CR.err) + ').</p>' : '') +
+        sec('Richieste da approvare', by('in_attesa')) + sec('Aziende attive', by('attiva')) + sec('Sospese', by('sospesa')) + sec('Rifiutate', by('rifiutata')) +
+        (!ids.length && !CR.err ? '<p class="note">Ancora nessuna azienda. Quando un’azienda si registra dal sito, la sua richiesta compare qui.</p>' : '') +
+        '<p class="note">Approvando un’azienda, chi l’ha registrata diventa il suo amministratore e l’azienda riceve il suo codice per far entrare colleghi e clienti. Nei dati di un’azienda entri solo se ha acceso «Permetti assistenza» in Altro › Utenti e permessi.</p>';
+    }
+    o.innerHTML = h + '</div>';
+  }
+  async function crApprova(k) {
+    var a = CR.az[k]; if (!a) return;
+    for (var i = 0; i < 4; i++) {
+      var c = a.codice || codNuovo(), b = fs.batch(), now = nowISO();
+      if (!a.codice) b.set(fs.collection('codici').doc(c), { azienda: k, creato: now });
+      b.update(fs.collection('aziende').doc(k), { stato: 'attiva', codice: c, approvata: now, modificato: now });
+      if (a.admin && CR.ut[a.admin]) b.update(fs.collection('utenti').doc(a.admin), { stato: 'attivo', modificato: now });
+      try { await b.commit(); toast((a.nome || 'Azienda') + ' approvata. Codice: ' + codBello(c)); return; } catch (e) { if (a.codice || i === 3) { toast('Non riuscito: ' + errOf(e).code); return; } }
+    }
+  }
+  function crStato(k, st, msg) { fs.collection('aziende').doc(k).update({ stato: st, modificato: nowISO() }).then(function () { toast(msg); }, function (e) { toast('Non riuscito: ' + errOf(e).code); }); }
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest && e.target.closest('#nmcr [data-cr]'); if (!t) return;
+    var k = t.getAttribute('data-cr'), id = t.getAttribute('data-id'), a = CR.az[id] || {};
+    if (k === 'out') logout();
+    else if (k === 'home') { CR.vista = null; crRender(); }
+    else if (k === 'rep') { CR.vista = id; CR.filtro = 'tutto'; CR.att[id] = null; crReport(id); crRender(); window.scrollTo(0, 0); }
+    else if (k === 'filtro') { CR.filtro = id; crRender(); }
+    else if (k === 'ok' || (k === 'riatt' && a.stato === 'rifiutata')) { t.disabled = true; crApprova(id); }
+    else if (k === 'riatt') crStato(id, 'attiva', 'Azienda riattivata');
+    else if (k === 'no') { if (confirm('Rifiutare la richiesta di ' + (a.nome || 'questa azienda') + '?')) crStato(id, 'rifiutata', 'Richiesta rifiutata'); }
+    else if (k === 'sosp') { if (confirm('Sospendere ' + (a.nome || 'questa azienda') + '? Nessuno dell’azienda potrà entrare finché non la riattivi. I dati restano.')) crStato(id, 'sospesa', 'Azienda sospesa'); }
+    else if (k === 'entra') { try { sessionStorage.setItem('nm-assist', id); } catch (x) { } location.reload(); }
+  });
+
   /* ---------- area cliente ---------- */
   var CL = { unsubs: [], docs: {}, all: {} };
   var MESI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
@@ -755,7 +962,7 @@
     var ids = (x.barche || []).slice(0, 20);
     CL.unsubs.forEach(function (f) { f(); }); CL.unsubs = []; CL.ids = ids;
     ids.forEach(function (id) {
-      CL.unsubs.push(fs.collection('portale').doc(id).onSnapshot(function (d) { CL.docs[id] = d.exists ? d.data() : null; renderCliente(); },
+      CL.unsubs.push(AC('portale').doc(id).onSnapshot(function (d) { CL.docs[id] = d.exists ? d.data() : null; renderCliente(); },
         function () { CL.docs[id] = null; renderCliente(); }));
     });
     renderCliente();
@@ -884,7 +1091,7 @@
     var out = [];
     for (var i = 0; i < list.length; i += 10) {
       var part = await Promise.all(list.slice(i, i + 10).map(function (x) {
-        return fs.collection(x.c).doc(x.id).get({ source: 'server' }).then(function (d) { return d.exists ? null : x; });
+        return AC(x.c).doc(x.id).get({ source: 'server' }).then(function (d) { return d.exists ? null : x; });
       }));
       part.forEach(function (x) { if (x) out.push(x); });
     }
@@ -912,7 +1119,7 @@
     impScreen('<div class="spin"></div><p style="text-align:center">Apro i dati…</p>');
     try {
       var data = await impLoad();
-      var fatto = await fs.collection('impostazioni').doc('importClaude').get({ source: 'server' });
+      var fatto = await AC('impostazioni').doc('importClaude').get({ source: 'server' });
       var list = await impMissing(data);
       IMP = { data: data, list: list };
       var qd = data.creata ? quando(data.creata) : '';
@@ -957,17 +1164,18 @@
 
   /* ---------- attività: chi entra e cosa fa ----------
      Ognuno scrive le proprie azioni in «attivita»; le leggono solo gli amministratori (firestore.rules).
-     Gli avvisi arrivano solo all'account scritto in config.js (NM_AVVISI_A), mentre ha l'app aperta;
+     Gli avvisi arrivano solo all'amministratore che ha registrato l'azienda, mentre ha l'app aperta;
      quando la riapre vede chi è entrato mentre non c'era. Si tiene 60 giorni. */
   var ATT = { entrato: false, vista: '', last: {}, uns: null, voci: {} }, ATT_DAYS = 60;
-  function attIo() { var a = window.NM_AVVISI_A; return !!(ME && ME.ruolo === 'admin' && a && String(ME.email || '').toLowerCase() === String(a).trim().toLowerCase()); }
+  // gli avvisi vanno all'amministratore che ha registrato l'azienda (o all'email di NM_AVVISI_A in config.js, se c'è)
+  function attIo() { var a = window.NM_AVVISI_A; return !!(ME && ME.ruolo === 'admin' && !ME.assist && (a ? String(ME.email || '').toLowerCase() === String(a).trim().toLowerCase() : AZD && AZD.admin === ME.uid)); }
   function attDisp() { return /iPhone|iPad|Android|Mobi/i.test(navigator.userAgent) ? 'telefono' : 'computer'; }
   function attScrivi(cosa) {
-    if (!ME || !ME.uid || attIo()) return;
+    if (!ME || !ME.uid || (attIo() && window.NM_AVVISI_A)) return; // con più aziende si scrive tutto: serve anche al report del gestore
     var k = cosa, t = Date.now();
     if (ATT.last[k] && t - ATT.last[k] < 60000) return; // la stessa cosa ripetuta subito (salvataggi di fila) conta una volta
     ATT.last[k] = t;
-    fs.collection('attivita').add({ uid: ME.uid, nome: ME.nome || ME.email || '', cosa: String(cosa).slice(0, 200), il: nowISO(), disp: attDisp(), _ts: FV.serverTimestamp() }).catch(function () { });
+    AC('attivita').add({ uid: ME.uid, nome: ME.nome || ME.email || '', cosa: String(cosa).slice(0, 200), il: nowISO(), disp: attDisp(), _ts: FV.serverTimestamp() }).catch(function () { });
   }
   function attEntra() { if (ATT.entrato || !ME) return; ATT.entrato = true; attScrittura.ok = true; attScrivi(CLIENTE ? 'è entrato nell’area clienti' : 'è entrato nell’app'); }
   function attVista(n) { if (!started || !n || n === ATT.vista) return; ATT.vista = n; attScrivi('apre ' + n); }
@@ -985,10 +1193,10 @@
     try { visto = localStorage.getItem(KEY); } catch (e) { }
     var cut = new Date(Date.now() - ATT_DAYS * 864e5).toISOString();
     if (!visto || visto < cut) visto = new Date(Date.now() - 864e5).toISOString(); // la prima volta: le ultime 24 ore
-    setTimeout(function () { fs.collection('attivita').where('il', '<', cut).limit(300).get().then(function (s) { if (!s.size) return; var b = fs.batch(); s.docs.forEach(function (d) { b.delete(d.ref); }); return b.commit(); }).catch(function () { }); }, 8000);
+    setTimeout(function () { AC('attivita').where('il', '<', cut).limit(300).get().then(function (s) { if (!s.size) return; var b = fs.batch(); s.docs.forEach(function (d) { b.delete(d.ref); }); return b.commit(); }).catch(function () { }); }, 8000);
     var primo = true;
     if (window.Notification && Notification.permission === 'default') try { Notification.requestPermission(); } catch (e) { }
-    ATT.uns = fs.collection('attivita').where('il', '>', visto).orderBy('il').onSnapshot(function (s) {
+    ATT.uns = AC('attivita').where('il', '>', visto).orderBy('il').onSnapshot(function (s) {
       var nuove = [];
       s.docChanges().forEach(function (c) { if (c.type === 'added') { var x = c.doc.data(); if (x.uid !== ME.uid) nuove.push(x); } });
       if (nuove.length) { try { localStorage.setItem(KEY, nuove[nuove.length - 1].il); } catch (e) { } }
@@ -1111,7 +1319,7 @@
       var cut = Date.now() - CEST_DAYS * 864e5, tolte = 0;
       for (var i = 0; i < COLLS.length + 1; i++) {
         var c = COLLS[i] || 'foto';
-        var s = await fs.collection(c).where('_del', '==', true).limit(400).get();
+        var s = await AC(c).where('_del', '==', true).limit(400).get();
         var vecchi = s.docs.filter(function (d) { var t = d.get('_ts'); return t && t.toMillis && t.toMillis() < cut; });
         for (var j = 0; j < vecchi.length; j += 400) {
           var b = fs.batch(); vecchi.slice(j, j + 400).forEach(function (d) { b.delete(d.ref); }); await b.commit();
@@ -1119,7 +1327,7 @@
         tolte += vecchi.length;
       }
       try { localStorage.setItem(K, String(Date.now())); } catch (e) { }
-      var prima = await fs.collection('impostazioni').doc('pulizia').get();
+      var prima = await AC('impostazioni').doc('pulizia').get();
       await write('impostazioni', 'pulizia', 'set', { il: nowISO(), tolte: tolte, totale: ((prima.exists && prima.get('totale')) || 0) + tolte });
     } catch (e) { }
   }
@@ -1129,9 +1337,9 @@
      «fotoInfo» tiene quanto pesa ogni foto. Le foto di prima si contano una volta scaricandole (giroFoto).
      Una foto è «non più usata» se nessuna voce, nemmeno nel cestino, la nomina più. */
   var FOTO_GB = 1;
-  async function fotoInfoAll() { var s = await fs.collection('fotoInfo').get(); var m = {}; s.docs.forEach(function (d) { m[d.id] = d.data(); }); return m; }
+  async function fotoInfoAll() { var s = await AC('fotoInfo').get(); var m = {}; s.docs.forEach(function (d) { m[d.id] = d.data(); }); return m; }
   async function fotoSpazio() {
-    var info = await fotoInfoAll(), conta = await fs.collection('impostazioni').doc('fotoConta').get(), n = 0, kb = 0;
+    var info = await fotoInfoAll(), conta = await AC('impostazioni').doc('fotoConta').get(), n = 0, kb = 0;
     Object.keys(info).forEach(function (id) { n++; kb += info[id].kb || 0; });
     var dati = 0; COLLS.forEach(function (c) { var L = LIVE[c]; if (L) dati += JSON.stringify(L.map).length; });
     return { n: n, mb: kb / 1024, datiMb: dati / 1048576, limiteMb: FOTO_GB * 1024, contate: conta.exists ? conta.data() : null };
@@ -1152,7 +1360,7 @@
         giro(d, c === 'barche' ? d.nome || 'Barca senza nome' : d.barcaId ? nomeBarca(d.barcaId) || (CEST_NOMI[c] || c) : (CEST_NOMI[c] || c));
       });
     });
-    var cs = await fs.collection('cestino').get();
+    var cs = await AC('cestino').get();
     cs.docs.forEach(function (d) { giro(dec(d.get('dati') || {}), 'Nel cestino'); });
     return { set: set, dove: dove };
   }
@@ -1166,7 +1374,7 @@
     var fatte = 0;
     for (var i = 0; i < list.length; i += 200) {
       var b = fs.batch();
-      list.slice(i, i + 200).forEach(function (x) { b.delete(fs.collection('foto').doc(x.id)); b.delete(fs.collection('fotoInfo').doc(x.id)); IDB.del('foto', x.id); delete PH[x.id]; });
+      list.slice(i, i + 200).forEach(function (x) { b.delete(AC('foto').doc(x.id)); b.delete(AC('fotoInfo').doc(x.id)); IDB.del('foto', x.id); delete PH[x.id]; });
       await b.commit(); fatte = Math.min(list.length, i + 200); if (prog) prog(fatte, list.length);
     }
     return fatte;
@@ -1175,14 +1383,14 @@
   async function giroFoto(prog, tieni) {
     var info = await fotoInfoAll(), visti = {}, last = null, n = 0, kb = 0, out = [], ID = firebase.firestore.FieldPath.documentId();
     for (;;) {
-      var q = fs.collection('foto').orderBy(ID).limit(8); if (last) q = q.startAfter(last);
+      var q = AC('foto').orderBy(ID).limit(8); if (last) q = q.startAfter(last);
       var s = await q.get(); if (!s.size) break;
       var b = fs.batch(), nb = 0;
       s.docs.forEach(function (d) {
         var x = d.data();
         if (x._del || !x.data) { b.delete(d.ref); nb++; return; } // segnaposto di foto già tolte
         n++; visti[d.id] = true; var k = Math.ceil(String(x.data).length / 1024); kb += k;
-        if (!info[d.id]) { b.set(fs.collection('fotoInfo').doc(d.id), { kb: k, creato: x.creato || '', da: x.da || '', _ts: FV.serverTimestamp() }); nb++; }
+        if (!info[d.id]) { b.set(AC('fotoInfo').doc(d.id), { kb: k, creato: x.creato || '', da: x.da || '', _ts: FV.serverTimestamp() }); nb++; }
         if (tieni) out.push({ id: d.id, data: x.data, creato: x.creato || '' });
       });
       if (nb) await b.commit();
@@ -1191,7 +1399,7 @@
     }
     // schede di foto che non ci sono più: via, così il conto torna preciso
     var orfane = Object.keys(info).filter(function (id) { return !visti[id]; });
-    for (var i = 0; i < orfane.length; i += 400) { var bo = fs.batch(); orfane.slice(i, i + 400).forEach(function (id) { bo.delete(fs.collection('fotoInfo').doc(id)); }); await bo.commit(); }
+    for (var i = 0; i < orfane.length; i += 400) { var bo = fs.batch(); orfane.slice(i, i + 400).forEach(function (id) { bo.delete(AC('fotoInfo').doc(id)); }); await bo.commit(); }
     await write('impostazioni', 'fotoConta', 'set', { il: nowISO(), n: n, mb: Math.round(kb / 102.4) / 10 });
     return out;
   }
@@ -1254,6 +1462,7 @@
     vista: attVista,
     clientiBarca: clientiBarca,
     spostaClienti: spostaClienti,
-    foto: FOTO
+    foto: FOTO,
+    azienda: function () { return { nome: (AZD && AZD.nome) || '', assist: !!(ME && ME.assist) }; } // l'azienda in uso (per la procedura guidata)
   };
 })();

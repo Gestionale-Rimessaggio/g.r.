@@ -1,104 +1,147 @@
 rules_version = '2';
-// Regole di sicurezza del database di Nautica Mare.
-// Da incollare in Firebase › Firestore Database › Regole, poi «Pubblica».
+// Regole di sicurezza del database del gestionale con più aziende.
+// Si pubblicano da sole su Firebase (GitHub › .github/workflows/regole.yml) quando il file cambia su main.
+// Ogni azienda ha i suoi dati in aziende/{az}/…: li vede solo chi lavora in quell'azienda ed è stato approvato.
+// Il gestore del servizio (creatori/{uid}, messo solo da GitHub) approva le aziende, vede il report di ognuna
+// (accessi, azioni, errori) ed entra nei loro dati solo se l'azienda ha acceso «assistenza».
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function profilo() { return /databases/$(database)/documents/utenti/$(request.auth.uid); }
-    function attivo() { return signedIn() && exists(profilo()) && get(profilo()).data.stato == 'attivo'; }
-    function staff() { return attivo() && get(profilo()).data.ruolo in ['base', 'editor', 'admin']; }
-    function cliente() { return attivo() && get(profilo()).data.ruolo == 'cliente'; }
-    function admin() { return attivo() && get(profilo()).data.ruolo == 'admin'; }
-    // La registrazione del primo amministratore è chiusa: gli amministratori li nomina solo un amministratore
-    match /config/inizializzato {
-      allow read: if signedIn();
+    function me() { return get(profilo()).data; }
+    function creatore() { return signedIn() && exists(/databases/$(database)/documents/creatori/$(request.auth.uid)); }
+    function azienda(a) { return get(/databases/$(database)/documents/aziende/$(a)).data; }
+    // chi lavora (o è cliente) in un'azienda attiva ed è stato approvato
+    function attivo(a) { return signedIn() && exists(profilo()) && me().get('azienda', '') == a && me().stato == 'attivo' && azienda(a).stato == 'attiva'; }
+    function staff(a) { return attivo(a) && me().ruolo in ['base', 'editor', 'admin']; }
+    function cliente(a) { return attivo(a) && me().ruolo == 'cliente'; }
+    function admin(a) { return attivo(a) && me().ruolo == 'admin'; }
+    // il gestore, solo nelle aziende attive che gli hanno dato il permesso: vale come un amministratore
+    function assist(a) { return creatore() && azienda(a).stato == 'attiva' && azienda(a).get('assistenza', false) == true; }
+    function staffA(a) { return staff(a) || assist(a); }
+    function adminA(a) { return admin(a) || assist(a); }
+
+    match /creatori/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
     }
 
-    // Persone: ognuno vede il proprio profilo, il cantiere vede tutti,
-    // solo gli amministratori approvano e cambiano i permessi
-    match /utenti/{uid} {
-      allow read: if staff() || (signedIn() && request.auth.uid == uid);
-      // chi si registra scrive solo nome, email e tipo: le barche dei clienti le collega l'amministratore
-      allow create: if signedIn() && request.auth.uid == uid
-        && request.resource.data.stato == 'in_attesa' && request.resource.data.ruolo == 'base'
-        && request.resource.data.keys().hasOnly(['nome', 'email', 'tipo', 'creato', 'modificato', 'stato', 'ruolo']);
-      allow update: if admin() || (signedIn() && request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'modificato']));
-      allow delete: if admin();
-    }
-
-    // Area cliente: ogni cliente legge solo il riepilogo delle barche che il cantiere gli ha collegato
-    match /portale/{barcaId} {
-      allow read: if staff() || (cliente() && barcaId in get(profilo()).data.get('barche', []));
-      allow write: if staff();
-    }
-
-    // Le raccolte con i dati del cantiere (le stesse di COLLS in nm-fb.js)
+    // Aziende: nascono in attesa insieme al profilo del loro primo amministratore; le approva il gestore.
+    // L'amministratore cambia solo il codice e il permesso di assistenza.
+    // Le raccolte con i dati di ogni azienda (le stesse di COLLS in nm-fb.js)
     function raccolteCantiere() {
       return ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
         'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'programma', 'cariche', 'posti', 'richieste',
         'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte'];
     }
 
-    // Cestino: ogni cancellazione ne lascia qui una copia (per 60 giorni).
-    // La scrive chi cancella, la leggono, recuperano e svuotano solo gli amministratori.
-    // La copia vale solo per i dati del cantiere e solo insieme alla cancellazione vera
-    // (nella stessa scrittura l'elemento diventa { _del: true }): così non si possono inventare voci da «recuperare».
-    match /cestino/{id} {
-      allow read, delete: if admin();
-      allow create: if staff() && request.resource.data.da == request.auth.uid
-        && request.resource.data.coll is string && request.resource.data.coll in raccolteCantiere()
-        && request.resource.data.docId is string
-        && getAfter(/databases/$(database)/documents/$(request.resource.data.coll)/$(request.resource.data.docId)).data.get('_del', false) == true;
-    }
+    match /aziende/{a} {
+      allow get: if creatore() || (signedIn() && exists(profilo()) && me().get('azienda', '') == a);
+      allow list: if creatore();
+      allow create: if signedIn() && !exists(profilo())
+        && request.resource.data.admin == request.auth.uid && request.resource.data.stato == 'in_attesa'
+        && request.resource.data.keys().hasOnly(['nome', 'telefono', 'admin', 'adminNome', 'email', 'stato', 'creato'])
+        && request.resource.data.nome is string && request.resource.data.nome.size() > 0 && request.resource.data.nome.size() <= 60
+        && getAfter(profilo()).data.azienda == a;
+      allow update: if creatore()
+        || (admin(a) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['codice', 'assistenza', 'modificato'])
+          && (!('codice' in request.resource.data) || getAfter(/databases/$(database)/documents/codici/$(request.resource.data.codice)).data.azienda == a));
 
-    // Attività: chi entra nell'app e cosa fa. Ognuno scrive solo le proprie,
-    // le leggono (e dopo 60 giorni le cancellano) solo gli amministratori.
-    match /attivita/{id} {
-      allow read, delete: if admin();
-      allow create: if attivo() && request.resource.data.uid == request.auth.uid;
-    }
-
-    // Tutti i dati del cantiere: solo per chi lavora al cantiere ed è stato approvato.
-    // Nell'app «cancellare» vuol dire scrivere { _del: true }. L'amministratore cancella tutto; gli altri
-    // ciò che hanno aggiunto loro (creatoDa), le proprie mansioni della scheda, le proprie giornate
-    // confermate, le proprie richieste di ferie non ancora decise, e i posti al porto (spostare le barche).
-    // Chi ha aggiunto una cosa non si può cambiare.
-    // Le mansioni della scheda, le giornate confermate, le ferie, le iscrizioni alle notifiche e i cronometri si modificano solo se sono propri.
-    match /{coll}/{id} {
-      function nuovo() { return request.resource.data; }
-      function cancellato(d) { return d.get('_del', false) == true; }
-      function mio(d) { return d.get('utente', '') == request.auth.uid; }
-      // di chi è: vale per le cose personali, tutto il resto è di tutto il cantiere
-      function proprio(d) {
-        return cancellato(d)
-          || ((coll != 'lavori' || d.get('fonte', '') != 'scheda' || mio(d))
-            && (!(coll in ['conferme', 'assenze', 'notifiche', 'cronometri']) || mio(d)));
+      // Area cliente: ogni cliente legge solo il riepilogo delle barche che l'azienda gli ha collegato
+      match /portale/{barcaId} {
+        allow read: if staffA(a) || (cliente(a) && barcaId in me().get('barche', []));
+        allow write: if staffA(a);
       }
-      // le ferie le approva solo l'amministratore; la malattia si comunica e basta
-      function ferieOk(d) { return coll != 'assenze' || cancellato(d) || d.get('stato', '') == 'richiesta' || (d.get('stato', '') == 'approvata' && d.get('tipo', '') == 'malattia'); }
-      function puoCancellare(d) {
-        return coll == 'posti'
-          || (coll != 'assenze' && d.get('creatoDa', '') == request.auth.uid)
-          || (coll == 'lavori' && d.get('fonte', '') == 'scheda' && mio(d))
-          || (coll == 'conferme' && mio(d))
-          || (coll == 'assenze' && mio(d) && d.get('stato', '') == 'richiesta');
-      }
-      function autoreOk(d) { return d.get('creatoDa', request.auth.uid) == request.auth.uid; }
-      function autoreUguale() { return cancellato(resource.data) || nuovo().get('creatoDa', '') == resource.data.get('creatoDa', ''); }
-      function datiCantiere() { return !(coll in ['utenti', 'config', 'cestino', 'attivita']); }
-      // l'aspetto dell'app (nome dell'azienda, colori, loghi, luogo) e le sezioni accese li cambia solo l'amministratore
-      function soloAdmin() { return coll == 'impostazioni' && id in ['aspetto', 'sezioni']; }
 
-      allow read: if staff() && datiCantiere();
-      allow create: if datiCantiere() && (admin() || (!soloAdmin() && staff() && !cancellato(nuovo()) && proprio(nuovo()) && ferieOk(nuovo()) && autoreOk(nuovo())));
-      allow update: if datiCantiere() && (admin() || (!soloAdmin() && staff() && (
-        cancellato(nuovo()) ? (cancellato(resource.data) || puoCancellare(resource.data))
-          : (proprio(resource.data) && proprio(nuovo()) && ferieOk(nuovo())
-            && (cancellato(resource.data) ? autoreOk(nuovo()) : autoreUguale())
-            && (coll != 'assenze' || cancellato(resource.data) || resource.data.get('stato', '') == 'richiesta')))));
-      allow delete: if datiCantiere() && admin();
+      // Cestino: ogni cancellazione ne lascia qui una copia (per 60 giorni).
+      // La scrive chi cancella, la leggono, recuperano e svuotano solo gli amministratori.
+      // La copia vale solo per i dati dell'azienda e solo insieme alla cancellazione vera
+      // (nella stessa scrittura l'elemento diventa { _del: true }): così non si possono inventare voci da «recuperare».
+      match /cestino/{id} {
+        allow read, delete: if adminA(a);
+        allow create: if staffA(a) && request.resource.data.da == request.auth.uid
+          && request.resource.data.coll is string && request.resource.data.coll in raccolteCantiere()
+          && request.resource.data.docId is string
+          && getAfter(/databases/$(database)/documents/aziende/$(a)/$(request.resource.data.coll)/$(request.resource.data.docId)).data.get('_del', false) == true;
+      }
+
+      // Attività: chi entra nell'app e cosa fa. Ognuno scrive solo le proprie; le leggono gli amministratori
+      // dell'azienda e il gestore del servizio (il suo report); dopo 60 giorni le cancellano gli amministratori.
+      match /attivita/{id} {
+        allow read: if admin(a) || creatore();
+        allow delete: if admin(a);
+        allow create: if (attivo(a) || assist(a)) && request.resource.data.uid == request.auth.uid;
+      }
+
+      // Tutti i dati dell'azienda: solo per chi ci lavora ed è stato approvato (e per il gestore, se c'è l'assistenza).
+      // Nell'app «cancellare» vuol dire scrivere { _del: true }. L'amministratore cancella tutto; gli altri
+      // ciò che hanno aggiunto loro (creatoDa), le proprie mansioni della scheda, le proprie giornate
+      // confermate, le proprie richieste di ferie non ancora decise, e i posti al porto (spostare le barche).
+      // Chi ha aggiunto una cosa non si può cambiare.
+      // Le mansioni della scheda, le giornate confermate, le ferie, le iscrizioni alle notifiche e i cronometri si modificano solo se sono propri.
+      match /{coll}/{id} {
+        function nuovo() { return request.resource.data; }
+        function cancellato(d) { return d.get('_del', false) == true; }
+        function mio(d) { return d.get('utente', '') == request.auth.uid; }
+        // di chi è: vale per le cose personali, tutto il resto è di tutta l'azienda
+        function proprio(d) {
+          return cancellato(d)
+            || ((coll != 'lavori' || d.get('fonte', '') != 'scheda' || mio(d))
+              && (!(coll in ['conferme', 'assenze', 'notifiche', 'cronometri']) || mio(d)));
+        }
+        // le ferie le approva solo l'amministratore; la malattia si comunica e basta
+        function ferieOk(d) { return coll != 'assenze' || cancellato(d) || d.get('stato', '') == 'richiesta' || (d.get('stato', '') == 'approvata' && d.get('tipo', '') == 'malattia'); }
+        function puoCancellare(d) {
+          return coll == 'posti'
+            || (coll != 'assenze' && d.get('creatoDa', '') == request.auth.uid)
+            || (coll == 'lavori' && d.get('fonte', '') == 'scheda' && mio(d))
+            || (coll == 'conferme' && mio(d))
+            || (coll == 'assenze' && mio(d) && d.get('stato', '') == 'richiesta');
+        }
+        function autoreOk(d) { return d.get('creatoDa', request.auth.uid) == request.auth.uid; }
+        function autoreUguale() { return cancellato(resource.data) || nuovo().get('creatoDa', '') == resource.data.get('creatoDa', ''); }
+        function datiCantiere() { return !(coll in ['portale', 'cestino', 'attivita']); }
+        // l'aspetto dell'app (nome dell'azienda, colori, loghi, luogo) e le sezioni accese li cambia solo l'amministratore
+        function soloAdmin() { return coll == 'impostazioni' && id in ['aspetto', 'sezioni']; }
+
+        allow read: if staffA(a) && datiCantiere();
+        allow create: if datiCantiere() && (adminA(a) || (!soloAdmin() && staff(a) && !cancellato(nuovo()) && proprio(nuovo()) && ferieOk(nuovo()) && autoreOk(nuovo())));
+        allow update: if datiCantiere() && (adminA(a) || (!soloAdmin() && staff(a) && (
+          cancellato(nuovo()) ? (cancellato(resource.data) || puoCancellare(resource.data))
+            : (proprio(resource.data) && proprio(nuovo()) && ferieOk(nuovo())
+              && (cancellato(resource.data) ? autoreOk(nuovo()) : autoreUguale())
+              && (coll != 'assenze' || cancellato(resource.data) || resource.data.get('stato', '') == 'richiesta')))));
+        allow delete: if datiCantiere() && adminA(a);
+      }
     }
+
+    // Codici delle aziende: chi si registra legge solo il codice che ha scritto (non l'elenco)
+    match /codici/{c} {
+      allow get: if signedIn();
+      allow create: if (creatore() || admin(request.resource.data.azienda)) && request.resource.data.keys().hasOnly(['azienda', 'creato']);
+      allow delete: if creatore() || admin(resource.data.azienda);
+    }
+
+    // Persone: ognuno vede il proprio profilo, l'azienda vede i suoi, il gestore tutti.
+    // Chi si registra entra in attesa: con il codice dell'azienda (dipendente o cliente),
+    // oppure come primo amministratore di un'azienda nuova (creata nella stessa scrittura).
+    match /utenti/{uid} {
+      allow read: if creatore() || (signedIn() && request.auth.uid == uid) || staffA(resource.data.get('azienda', '-'));
+      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.stato == 'in_attesa'
+        && request.resource.data.keys().hasOnly(['nome', 'email', 'tipo', 'creato', 'modificato', 'stato', 'ruolo', 'azienda', 'codice'])
+        && request.resource.data.azienda is string
+        && ((request.resource.data.ruolo == 'base'
+              && exists(/databases/$(database)/documents/codici/$(request.resource.data.codice))
+              && get(/databases/$(database)/documents/codici/$(request.resource.data.codice)).data.azienda == request.resource.data.azienda)
+          || (request.resource.data.ruolo == 'admin'
+              && !exists(/databases/$(database)/documents/aziende/$(request.resource.data.azienda))
+              && getAfter(/databases/$(database)/documents/aziende/$(request.resource.data.azienda)).data.admin == uid));
+      // l'amministratore approva e cambia i permessi solo nella sua azienda, senza spostare nessuno in un'altra
+      allow update: if creatore()
+        || (adminA(resource.data.get('azienda', '-')) && request.resource.data.get('azienda', '') == resource.data.get('azienda', '')
+          && request.resource.data.get('ruolo', '') in ['base', 'editor', 'admin', 'cliente'])
+        || (signedIn() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'modificato']));
+      allow delete: if creatore() || adminA(resource.data.get('azienda', '-'));
+    }
+
   }
 }
-
