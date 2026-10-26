@@ -19,6 +19,7 @@ on:
 
 permissions:
   contents: read
+  issues: write # gli avvisi sullo spazio al gestore arrivano come segnalazione nel repository
 
 concurrency:
   group: notifiche
@@ -40,6 +41,7 @@ jobs:
         working-directory: .github/notifiche
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PROVA: ${{ github.event_name == 'workflow_dispatch' && inputs.prova && '1' || '' }}
           SOLO_EMAIL: ${{ github.event_name == 'workflow_dispatch' && inputs.email || '' }}
         run: node invia.js

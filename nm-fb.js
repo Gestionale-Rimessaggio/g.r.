@@ -909,8 +909,8 @@
           var last = R && R.list ? R.list.filter(function (x) { return crTipo(x) === 'accessi'; })[0] : null, err7 = R && R.list ? R.list.filter(function (x) { return crTipo(x) === 'errori' && Date.now() - Date.parse(x.il) < 7 * 864e5; }).length : 0;
           info = esc(persone(k) + (persone(k) === 1 ? ' persona' : ' persone') + (attesa(k) ? ' (+' + attesa(k) + ' in attesa)' : '') + ' · codice ' + (codBello(a.codice) || '—')) + '<br>' +
             esc('Ultimo accesso: ' + (R && R.loading ? '…' : last ? (last.nome || '') + ', ' + crQuando(last.il) : 'nessuno')) + (err7 ? ' · <span style="color:#ff8a80">' + err7 + (err7 === 1 ? ' errore' : ' errori') + ' in 7 giorni</span>' : '') + '<br>' +
-            esc(a.adminNome || '') + ' · ' + esc(a.email || '') + ' · tel. ' + esc(a.telefono || '—');
-          acts = '<button class="b pri" data-cr="rep" data-id="' + k + '">Report</button>' + (a.assistenza ? '<button class="b" data-cr="entra" data-id="' + k + '">Entra per assistenza</button>' : '') + '<button class="b red" data-cr="sosp" data-id="' + k + '">Sospendi</button>';
+            esc(a.adminNome || '') + ' · ' + esc(a.email || '') + ' · tel. ' + esc(a.telefono || '—') + '<br>' + crSpazio(a);
+          acts = '<button class="b pri" data-cr="rep" data-id="' + k + '">Report</button>' + (a.assistenza ? '<button class="b" data-cr="entra" data-id="' + k + '">Entra per assistenza</button>' : '') + '<button class="b" data-cr="quota" data-id="' + k + '">Quota spazio</button>' + '<button class="b red" data-cr="sosp" data-id="' + k + '">Sospendi</button>';
         } else {
           info = esc((a.adminNome || '') + ' · ' + (a.email || ''));
           acts = '<button class="b" data-cr="riatt" data-id="' + k + '">' + (st === 'rifiutata' ? 'Approva' : 'Riattiva') + '</button>';
@@ -920,6 +920,7 @@
       var sec = function (t, l) { return l.length ? '<h4>' + t + ' (' + l.length + ')</h4><div class="grp">' + l.map(row).join('') + '</div>' : ''; };
       h += '<div class="top"><span style="min-width:64px"></span><h3>Pannello del gestore</h3><button class="back" data-cr="out" style="text-align:right">Esci</button></div>' +
         (CR.err ? '<p class="note">Non riesco a leggere le aziende (' + esc(CR.err) + ').</p>' : '') +
+        crSpazioTot() +
         sec('Richieste da approvare', by('in_attesa')) + sec('Aziende attive', by('attiva')) + sec('Sospese', by('sospesa')) + sec('Rifiutate', by('rifiutata')) +
         (!ids.length && !CR.err ? '<p class="note">Ancora nessuna azienda. Quando un’azienda si registra dal sito, la sua richiesta compare qui.</p>' : '') +
         '<p class="note">Approvando un’azienda, chi l’ha registrata diventa il suo amministratore e l’azienda riceve il suo codice per far entrare colleghi e clienti. Nei dati di un’azienda entri solo se ha acceso «Permetti assistenza» in Altro › Utenti e permessi.</p>';
@@ -936,6 +937,20 @@
       try { await b.commit(); toast((a.nome || 'Azienda') + ' approvata. Codice: ' + codBello(c)); return; } catch (e) { if (a.codice || i === 3) { toast('Non riuscito: ' + errOf(e).code); return; } }
     }
   }
+  // Spazio di ogni azienda: lo misura ogni mattina l'invio delle notifiche (aziende/{az}.spazioMb); la quota la decide il gestore (100 MB se non scritta)
+  var QUOTA0 = 100;
+  function crQuota(a) { return a.quotaMb > 0 ? a.quotaMb : QUOTA0; }
+  function crSpazio(a) {
+    if (a.spazioMb == null) return 'Spazio: non ancora misurato';
+    var q = crQuota(a), p = Math.round(a.spazioMb / q * 100), col = p >= 95 ? '#ff8a80' : p >= 80 ? '#ffb020' : '';
+    return '<span' + (col ? ' style="color:' + col + '"' : '') + '>Spazio: ' + Math.round(a.spazioMb) + ' MB su ' + q + ' MB (' + p + '%)</span>';
+  }
+  function crSpazioTot() {
+    var mb = 0, n = 0; Object.keys(CR.az).forEach(function (k) { if (CR.az[k].spazioMb != null) { mb += CR.az[k].spazioMb; n++; } });
+    if (!n) return '';
+    var p = Math.round(mb / 1024 * 100), col = p >= 95 ? '#ff8a80' : p >= 80 ? '#ffb020' : '';
+    return '<p class="note"' + (col ? ' style="color:' + col + '"' : '') + '>Spazio del servizio (foto di tutte le aziende): ' + Math.round(mb) + ' MB su 1024 MB del piano gratuito (' + p + '%). Si aggiorna ogni mattina; quando un’azienda o il totale arrivano all’80% e al 95% ti arriva un avviso.</p>';
+  }
   function crStato(k, st, msg) { fs.collection('aziende').doc(k).update({ stato: st, modificato: nowISO() }).then(function () { toast(msg); }, function (e) { toast('Non riuscito: ' + errOf(e).code); }); }
   document.addEventListener('click', function (e) {
     var t = e.target.closest && e.target.closest('#nmcr [data-cr]'); if (!t) return;
@@ -948,6 +963,12 @@
     else if (k === 'riatt') crStato(id, 'attiva', 'Azienda riattivata');
     else if (k === 'no') { if (confirm('Rifiutare la richiesta di ' + (a.nome || 'questa azienda') + '?')) crStato(id, 'rifiutata', 'Richiesta rifiutata'); }
     else if (k === 'sosp') { if (confirm('Sospendere ' + (a.nome || 'questa azienda') + '? Nessuno dell’azienda potrà entrare finché non la riattivi. I dati restano.')) crStato(id, 'sospesa', 'Azienda sospesa'); }
+    else if (k === 'quota') {
+      var v = prompt('Spazio per le foto di ' + (a.nome || 'questa azienda') + ', in MB (oggi ' + crQuota(a) + '). Tutte le aziende insieme stanno in 1024 MB.', String(crQuota(a)));
+      if (v == null) return; var q = Math.round(parseFloat(String(v).replace(',', '.')));
+      if (!(q >= 10 && q <= 1024)) { toast('Scrivi un numero tra 10 e 1024'); return; }
+      fs.collection('aziende').doc(id).update({ quotaMb: q, modificato: nowISO() }).then(function () { toast('Quota: ' + q + ' MB'); }, function (e) { toast('Non riuscito: ' + errOf(e).code); });
+    }
     else if (k === 'entra') { try { sessionStorage.setItem('nm-assist', id); } catch (x) { } location.reload(); }
   });
 
