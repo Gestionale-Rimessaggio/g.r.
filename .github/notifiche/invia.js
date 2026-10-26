@@ -3,6 +3,7 @@
    chi è iscritto (notifiche/{utente}) e le scadenze, poi manda un solo avviso a testa con Firebase Cloud Messaging.
    Le regole si cambiano dall'app: Altro › Notifiche. */
 'use strict';
+var gestore = require('./gestore');
 
 var DEF = { ora: '07:30', chi: 'tutti', avvisi: 'settimana', preavviso: 30, ripetiScadute: true, sogliaOre: 20, cantiere: true, weekend: false };
 var STAFF = ['base', 'editor', 'admin'];
@@ -68,14 +69,6 @@ function messaggio0(voci) {
 var QUOTA0 = 100, SERVIZIO_MB = 1024;
 function livello(pct) { return pct >= 95 ? 95 : pct >= 80 ? 80 : 0; }
 
-// Il gestore riceve sempre gli avvisi sullo spazio: come segnalazione (issue) nel repository GitHub, che gli arriva per email e nell'app GitHub.
-async function alGestore(titolo, testo) {
-  var tok = process.env.GITHUB_TOKEN, repo = process.env.GITHUB_REPOSITORY;
-  if (!tok || !repo) { console.log('Avviso al gestore (senza GitHub):', titolo); return; }
-  var r = await fetch('https://api.github.com/repos/' + repo + '/issues', { method: 'POST', headers: { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' }, body: JSON.stringify({ title: titolo, body: testo }) });
-  console.log('Avviso al gestore:', titolo, r.status);
-}
-
 async function main() {
   var admin = require('firebase-admin');
   if (!process.env.FIREBASE_SERVICE_ACCOUNT) { console.log('Manca il segreto FIREBASE_SERVICE_ACCOUNT: notifiche non attive.'); return; }
@@ -87,17 +80,17 @@ async function main() {
     console.log('— ' + (az.docs[a].data().nome || az.docs[a].id));
     try { await unaAzienda(admin, root, az.docs[a], spazi); } catch (e) { console.error(e); process.exitCode = 1; }
   }
+  if (process.env.PROVA !== '1') { try { await gestore.consumi(admin, root, oraRoma(new Date()).oggi); } catch (e) { console.error('Consumi non contati:', e); } }
   if (!spazi.length) return; // misurato oggi già prima, o prova
   var tot = 0; az.docs.forEach(function (d) { tot += d.data().spazioMb || 0; });
   spazi.forEach(function (x) { tot += x.mb - x.mbPrima; });
   var pct = tot / SERVIZIO_MB * 100, liv = livello(pct), sRef = root.collection('servizio').doc('spazio'), sDoc = await sRef.get(), prima = sDoc.exists ? sDoc.data().liv || 0 : 0;
   await sRef.set({ mb: Math.round(tot), pct: Math.round(pct), liv: liv, il: new Date().toISOString() }, { merge: true });
   var salite = spazi.filter(function (x) { return x.liv > x.prima; });
-  if (liv > prima || salite.length) {
-    var righe = spazi.slice().sort(function (p, q) { return q.mb - p.mb; }).map(function (x) { return '- ' + x.nome + ': ' + Math.round(x.mb) + ' MB su ' + x.quota + ' MB (' + Math.round(x.pct) + '%)' + (x.liv > x.prima ? ' ⚠️' : ''); });
-    await alGestore('Spazio ' + (liv > prima ? 'del servizio al ' + Math.round(pct) + '%' : (salite.length === 1 ? 'quasi pieno per ' + salite[0].nome : 'quasi pieno per ' + salite.length + ' aziende')),
-      'Foto di tutte le aziende: ' + Math.round(tot) + ' MB su ' + SERVIZIO_MB + ' MB del piano gratuito (' + Math.round(pct) + '%).\n\n' + righe.join('\n') + '\n\nLa quota di ogni azienda si cambia nel Pannello del gestore › Quota spazio.');
-  }
+  // al gestore sempre (pannello, telefono o GitHub): ogni azienda che sale di livello e il totale del servizio
+  for (var q = 0; q < salite.length; q++) { var x = salite[q]; await gestore.avvisa(admin, root, { tipo: 'spazio', azienda: x.az, nome: x.nome, titolo: x.nome + ': spazio ' + (x.liv >= 95 ? 'quasi finito' : 'quasi pieno') + ' (' + Math.round(x.pct) + '%)', testo: Math.round(x.mb) + ' MB su ' + x.quota + ' MB. La quota si cambia nel Pannello del gestore.' }); }
+  if (liv > prima) await gestore.avvisa(admin, root, { tipo: 'spazio', titolo: 'Spazio del servizio al ' + Math.round(pct) + '%', testo: 'Foto di tutte le aziende: ' + Math.round(tot) + ' MB su ' + SERVIZIO_MB + ' MB del piano gratuito.' });
+
 }
 
 async function unaAzienda(admin, root, azDoc, spazi) {
@@ -147,7 +140,7 @@ async function unaAzienda(admin, root, azDoc, spazi) {
     var A = azDoc.data(), quota = A.quotaMb > 0 ? A.quotaMb : QUOTA0, mb = kb / 1024, pct = mb / quota * 100, liv = livello(pct), prima = cfgRaw.spazioLiv || 0;
     await cfgRef.set({ spazioIl: now.oggi, spazioMb: Math.round(mb), spazioPct: Math.round(pct), spazioLiv: liv, spazioQuota: quota }, { merge: true });
     await db.update({ spazioMb: Math.round(mb * 10) / 10, spazioLiv: liv, spazioIl: now.oggi });
-    spazi.push({ nome: NOME, mb: mb, mbPrima: A.spazioMb || 0, quota: quota, pct: pct, liv: liv, prima: prima });
+    spazi.push({ az: azDoc.id, nome: NOME, mb: mb, mbPrima: A.spazioMb || 0, quota: quota, pct: pct, liv: liv, prima: prima });
     if (liv <= prima) return;
     var ut = {}; (await tutti('utenti')).forEach(function (u) { ut[u.id] = u; });
     var dest = (await tutti('notifiche')).filter(function (n) { var u = ut[n.utente || n.id]; return u && u.stato === 'attivo' && u.ruolo === 'admin' && n.spazio !== false && (n.tokens || []).length; });

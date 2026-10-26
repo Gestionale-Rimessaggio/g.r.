@@ -25,6 +25,20 @@ service cloud.firestore {
 
     match /creatori/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
+      // il gestore iscrive i suoi telefoni alle notifiche (solo questo)
+      allow update: if signedIn() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tokens', 'modificato']);
+    }
+
+    // Servizio: avvisi e consumi (li scrive GitHub ogni ora e ogni mattina), note private del gestore sulle aziende
+    match /servizio/{doc=**} {
+      allow read: if creatore();
+      allow write: if creatore();
+    }
+
+    // Messaggio del gestore a tutte le aziende: lo leggono tutti quelli che entrano, lo scrive solo il gestore
+    match /messaggioServizio/{id} {
+      allow read: if signedIn();
+      allow write: if creatore();
     }
 
     // Aziende: nascono in attesa insieme al profilo del loro primo amministratore; le approva il gestore.
