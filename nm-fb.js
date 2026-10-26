@@ -164,7 +164,7 @@
       var dbg = null; try { dbg = localStorage.getItem('nm_appcheck_debug'); } catch (e) { }
       if (dbg) self.FIREBASE_APPCHECK_DEBUG_TOKEN = dbg === 'true' ? true : dbg;
       APPC = firebase.appCheck();
-      APPC.activate(ACK.tipo === 'enterprise' ? new firebase.appCheck.ReCaptchaEnterpriseProvider(ACK.siteKey) : new firebase.appCheck.ReCaptchaV3Provider(ACK.siteKey), true);
+      APPC.activate(ACK.tipo === 'enterprise' ? new firebase.appCheck.ReCaptchaEnterpriseProvider(ACK.siteKey) : new firebase.appCheck.ReCaptchaV3Provider(ACK.siteKey), false); // niente rinnovo automatico: il gettone si chiede solo quando serve all'AI (meno verifiche Fraud Defense)
     } catch (e) { APPC = null; console.warn('App Check', e); }
   }
   function appCheckToken() {
