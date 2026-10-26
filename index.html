@@ -1801,6 +1801,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var b = boatById(V.boatId);
     if (!b) { if (V.boatId === S.pendingBoat) return '<div class="notice" style="margin-top:14px">Apro la scheda…</div>'; V.boatId = null; return viewBarche(); }
     if (V.boatView === 'resoconto') return viewResoconto(b);
+    if (V.boatView === 'storia') return viewStoria(b);
     var h = '<section class="hero"><div class="main"><div class="pills">' +
       (b.stato ? '<span class="pill acc">' + esc(b.stato) + '</span>' : '') + (b.tipo ? '<span class="pill">' + esc(b.tipo) + '</span>' : '') +
       (Porto.berthLabel(b.id) ? '<span class="pill teal">Porto · ' + esc(Porto.berthLabel(b.id)) + '</span>' : '') + (b.vendita && b.vendita.attiva ? '<span class="pill vio">In vendita</span>' : '') + '</div>' +
@@ -1836,7 +1837,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     h += '<div class="tiles" style="margin-top:18px">' + oreTile + schedaTile + '</div>';
     var onMap = !!(boatPos(b) && boatDims(b)), berth = Porto.berthLabel(b.id);
     h += '<div class="grid2" style="margin-top:10px"><button type="button" class="btn sec" data-act="res-open">' + I.doc + 'Resoconto</button>' +
-      (berth && !onMap ? '<button type="button" class="btn sec" data-act="go-porto" data-id="' + esc(berth) + '">' + I.map + 'Al porto · ' + esc(berth) + '</button>' : '<button type="button" class="btn sec" data-act="go-map" data-id="' + esc(b.id) + '">' + I.map + (onMap ? 'Sulla mappa' : 'Posiziona') + '</button>') + '</div>';
+      (berth && !onMap ? '<button type="button" class="btn sec" data-act="go-porto" data-id="' + esc(berth) + '">' + I.map + 'Al porto · ' + esc(berth) + '</button>' : '<button type="button" class="btn sec" data-act="go-map" data-id="' + esc(b.id) + '">' + I.map + (onMap ? 'Sulla mappa' : 'Posiziona') + '</button>') + '</div>' +
+      '<button type="button" class="btn sec" data-act="storia-open" style="width:100%;margin-top:10px">' + I.hours + 'Storia della barca</button>';
 
     var fotoB = (b.foto || []).map(function (id) { return { id: id, boat: true }; });
     S.lavori.filter(function (l) { return l.barcaId === b.id && l.foto && l.foto.length; })
@@ -7071,7 +7073,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['barche', 'Barche'], ['lavori', 'Lavorazioni e mansioni'], ['scadenze', 'Scadenze'], ['vari', 'Vari e alaggi'],
     ['magazzino', 'Ricambi del magazzino'], ['movimenti', 'Carichi e scarichi di magazzino'], ['operazioni', 'Servizi di cantiere'],
     ['opModelli', 'Gruppi dei servizi'], ['mezzi', 'Mezzi e carrelli'], ['conferme', 'Giornate confermate'],
-    ['dipendenti', 'Nomi dei dipendenti'], ['impostazioni', 'Misure della mappa'], ['posti', 'Posti al porto'], ['attrezzatura', 'Attrezzatura di bordo'], ['programma', 'Programma dei lavori'], ['cariche', 'Cariche delle batterie'], ['richieste', 'Richieste di chi cerca una barca'], ['rifiuti', 'Rifiuti segnati'], ['ritiri', 'Ritiri dei rifiuti'], ['scadCantiere', 'Scadenze del cantiere'], ['preventivi', 'Preventivi'], ['assenze', 'Ferie e permessi'], ['giri', 'Giri di controllo'], ['ditte', 'Ditte esterne'],
+    ['dipendenti', 'Nomi dei dipendenti'], ['impostazioni', 'Misure della mappa'], ['posti', 'Posti al porto'], ['attrezzatura', 'Attrezzatura di bordo'], ['programma', 'Programma dei lavori'], ['cariche', 'Cariche delle batterie'], ['richieste', 'Richieste di chi cerca una barca'], ['rifiuti', 'Rifiuti segnati'], ['ritiri', 'Ritiri dei rifiuti'], ['scadCantiere', 'Scadenze del cantiere'], ['preventivi', 'Preventivi'], ['assenze', 'Ferie e permessi'], ['giri', 'Giri di controllo'], ['ditte', 'Ditte esterne'], ['kit', 'Kit di ricambi'], ['inventari', 'Inventari del magazzino'],
     ['checklist', 'Vecchie checklist'], ['checkBarca', 'Vecchie liste per barca'], ['modelli', 'Vecchi modelli di checklist']
   ];
   var BK_OLD = ['checklist', 'checkBarca', 'modelli'];
@@ -7128,7 +7130,80 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       '<p>Se qualcosa è stato cancellato per errore, scegli il file di una copia: l’app rimette solo quello che non c’è più. Quello che c’è già non viene toccato, anche se è stato modificato dopo la copia.</p>' +
       '<div class="acts">' + btn + '</div></div>';
     h += '<p class="cap" style="margin:14px 4px 0">Il file è un normale file di testo (.json): si apre su qualsiasi telefono o computer, iPhone, Android, Windows o Mac. Puoi tenerlo in File o iCloud, su Google Drive, inviarlo per email o WhatsApp. Per il ripristino basta aprire l’app da qualsiasi dispositivo e scegliere il file.</p>';
+    if (S.isOwner && window.__NM_FB && window.__NM_FB.foto) h += fsHtml();
     return h;
+  }
+
+  /* ---------- Spazio nel database e foto (solo amministratore, sito con Firebase) ----------
+     Il piano gratuito ha 1 GB per tutto, foto comprese. Da qui: quanto è usato, foto non più usate, file con tutte le foto.
+     Il lavoro vero lo fa nm-fb.js (window.__NM_FB.foto). */
+  var FS = { info: null, carico: false, busy: '', prog: '', lista: null, parti: null };
+  function fsMB(mb) { return mb >= 1000 ? fmtNum(mb / 1024, 2) + ' GB' : mb >= 10 ? fmtNum(Math.round(mb)) + ' MB' : fmtNum(mb, 1) + ' MB'; }
+  function fsCarica() {
+    if (FS.carico) return; FS.carico = true;
+    window.__NM_FB.foto.spazio().then(function (x) { FS.info = x; if (V.tab === 'backup') render(); }, function () { FS.carico = false; });
+  }
+  function fsHtml() {
+    var F = window.__NM_FB.foto, x = FS.info, h = secH('Spazio nel database');
+    fsCarica();
+    if (!x) return h + '<div class="notice">Calcolo lo spazio usato…</div>';
+    var usato = x.mb + x.datiMb, pct = Math.min(100, Math.round(usato * 100 / x.limiteMb)), col = pct >= 85 ? 'var(--late)' : pct >= 65 ? 'var(--soon)' : 'var(--accent)';
+    h += '<div class="group"><div class="kv-row" style="display:block"><div style="display:flex;justify-content:space-between;gap:10px"><b>' + esc(fsMB(usato)) + ' usati su ' + esc(fsMB(x.limiteMb)) + '</b><span class="cap">' + pct + '%</span></div>' +
+      '<div class="progress" style="margin-top:8px"><i style="width:' + Math.max(pct, 1) + '%;background:' + col + '"></i></div>' +
+      '<p class="cap" style="margin:8px 0 0">Il piano gratuito di Firebase ha 1 GB per tutto. Quando è pieno non si salva più niente.</p></div>' +
+      '<div class="kv-row"><span class="k">Foto</span><span class="v">' + fmtNum(x.n) + ' · ' + esc(fsMB(x.mb)) + '</span></div>' +
+      '<div class="kv-row"><span class="k">Dati (barche, lavori, magazzino…)</span><span class="v">circa ' + esc(fsMB(x.datiMb)) + '</span></div>';
+    var pu = window.__NM_FB.foto.pulizia();
+    h += '<div class="kv-row" style="display:block"><span class="k">Pulizia automatica</span><p class="cap" style="margin:4px 0 0">Una volta a settimana l’app toglie del tutto le voci cancellate da più di 60 giorni (quelle che non si possono più recuperare dal cestino).' +
+      (pu && pu.il ? ' Ultima: ' + esc(fmtWhen(pu.il)) + ', ' + (pu.tolte ? fmtNum(pu.tolte) + (pu.tolte === 1 ? ' voce tolta' : ' voci tolte') : 'niente da togliere') + (pu.totale ? ' (' + fmtNum(pu.totale) + ' in tutto)' : '') + '.' : '') + '</p></div></div>';
+    var ct = x.contate;
+    h += '<div class="notice" style="margin-top:10px">' + (ct ? 'Ultimo conteggio di tutte le foto: ' + esc(fmtWhen(ct.il)) + (ct.n != null ? ', ' + fmtNum(ct.n) + ' foto' : '') + '. Le foto nuove si contano da sole; ricontale quando vuoi essere sicuro.' : 'Le foto caricate prima di questa versione dell’app non sono ancora contate: lo spazio usato è di più.') +
+      '<div class="acts" style="margin-top:8px"><button type="button" class="btn sec" data-act="fs-conta"' + (FS.busy ? ' disabled' : '') + '>' + (FS.busy === 'conta' ? esc(FS.prog || 'Conto le foto…') : ct ? 'Conta di nuovo le foto' : 'Conta le foto') + '</button></div>' +
+      '<p class="cap" style="margin:6px 0 0">Scarica tutte le foto per pesarle: meglio dal computer o col Wi-Fi.</p></div>';
+
+    h += secH('Foto non più usate');
+    if (FS.busy === 'cerca') h += '<div class="notice">Cerco le foto che non sono in nessuna barca, lavoro o voce del cestino…</div>';
+    else if (FS.busy === 'togli') h += '<div class="notice">' + esc(FS.prog || 'Tolgo le foto…') + '</div>';
+    else if (!FS.lista) h += '<div class="empty"><p>Le foto di barche e lavori cancellati, o tolte da una scheda, restano nel database e occupano spazio.</p><div class="acts"><button type="button" class="btn sec" data-act="fs-cerca"' + (FS.busy ? ' disabled' : '') + '>Cerca le foto non più usate</button></div></div>';
+    else if (!FS.lista.length) h += '<div class="notice">Nessuna foto da togliere: sono tutte in uso.</div>';
+    else {
+      var kb = FS.lista.reduce(function (a, f) { return a + f.kb; }, 0);
+      h += '<div class="empty"><h3>' + fmtNum(FS.lista.length) + (FS.lista.length === 1 ? ' foto non più usata' : ' foto non più usate') + ' · ' + esc(fsMB(kb / 1024)) + '</h3>' +
+        '<p>Non sono in nessuna barca, lavoro, scadenza o voce del cestino. Le foto degli ultimi 2 giorni restano comunque.</p>' +
+        '<div class="acts"><button type="button" class="btn danger-ghost" data-act="fs-togli">' + I.trash + 'Togli per sempre</button></div><p class="cap" style="margin:6px 0 0">Non si possono recuperare: se vuoi tenerle, prima scarica il file con tutte le foto qui sotto.</p></div>';
+    }
+
+    h += secH('Tutte le foto in un file');
+    if (FS.busy === 'file') h += '<div class="notice">' + esc(FS.prog || 'Scarico le foto…') + '</div>';
+    else if (FS.parti) h += FS.parti.length ? '<div class="group">' + FS.parti.map(function (p, i) {
+      return '<div class="kv-row"><span class="k">' + esc(FS.parti.length > 1 ? 'Parte ' + (i + 1) + ' di ' + FS.parti.length : 'File delle foto') + '<br><span class="cap">' + fmtNum(p.n) + ' foto · ' + esc(fsMB(p.mb)) + '</span></span><span class="v"><button type="button" class="btn sec" data-act="fs-salva" data-i="' + i + '">' + I.dl + 'Salva</button></span></div>';
+    }).join('') + '</div>' : '<div class="notice">Non ci sono foto da scaricare.</div>';
+    else h += '<div class="empty"><p>Un file .zip con tutte le foto, divise in cartelle col nome della barca. Si apre su qualsiasi computer o telefono.</p><div class="acts"><button type="button" class="btn sec" data-act="fs-file"' + (FS.busy ? ' disabled' : '') + '>' + I.dl + 'Prepara il file</button></div>' +
+      '<p class="cap" style="margin:6px 0 0">Scarica tutte le foto: meglio dal computer o col Wi-Fi. Oltre 150 MB il file è diviso in parti.</p></div>';
+    return h;
+  }
+  function fsErr(e) { FS.busy = ''; FS.prog = ''; render(); toast(e && e.code === 'non_pronto' ? 'I dati non sono ancora tutti caricati: riprova tra poco.' : 'Non è andata: controlla la rete e riprova.', true); }
+  function fsProg(t) { FS.prog = t; if (V.tab === 'backup') render(); }
+  function fsAzione(k, i) {
+    var F = window.__NM_FB && window.__NM_FB.foto; if (!F || !S.isOwner || (FS.busy && k !== 'salva')) return;
+    if (k === 'conta') {
+      FS.busy = 'conta'; render();
+      F.conta(function (n, mb) { fsProg('Conto le foto: ' + fmtNum(n) + ' · ' + fsMB(mb) + '…'); }).then(function () { FS.busy = ''; FS.prog = ''; FS.carico = false; FS.info = null; render(); toast('Foto contate'); }, fsErr);
+    } else if (k === 'cerca') {
+      FS.busy = 'cerca'; render();
+      F.nonUsate().then(function (l) { FS.busy = ''; FS.lista = l; render(); }, fsErr);
+    } else if (k === 'togli') {
+      var l = FS.lista || []; if (!l.length) return;
+      if (!confirm('Tolgo per sempre ' + l.length + (l.length === 1 ? ' foto' : ' foto') + '? Non si potranno recuperare.')) return;
+      FS.busy = 'togli'; render();
+      F.pulisci(l, function (a, n) { fsProg('Tolgo le foto: ' + a + ' di ' + n + '…'); }).then(function (n) { FS.busy = ''; FS.prog = ''; FS.lista = null; FS.carico = false; FS.info = null; render(); toast(n === 1 ? 'Tolta 1 foto' : 'Tolte ' + n + ' foto'); }, fsErr);
+    } else if (k === 'file') {
+      FS.busy = 'file'; FS.parti = null; render();
+      F.file(function (n, mb) { fsProg('Scarico le foto: ' + fmtNum(n) + ' · ' + fsMB(mb) + '…'); }).then(function (p) { FS.busy = ''; FS.prog = ''; FS.parti = p; FS.carico = false; FS.info = null; render(); }, fsErr);
+    } else if (k === 'salva') {
+      var p = FS.parti && FS.parti[i]; if (!p) return;
+      F.salva(p).then(function (r) { if (r && r.status === 'saved') toast('File salvato'); }, function (e) { if (!(e && e.code === 'declined')) toast('Non è andata. Riprova.', true); });
+    }
   }
 
   async function bkSave() {
@@ -7382,6 +7457,79 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     h += '</div><button type="button" class="btn sec" data-act="res-copy" style="width:100%;margin-top:12px">Copia il testo da inviare al cliente</button>';
     return h;
   }
+  /* ---------- Storia della barca: tutto quello che è successo, in una sola linea del tempo ----------
+     Si legge dai dati che ci sono già (lavori, mansioni, ricambi, vari e alaggi, batterie, scadenze, servizi,
+     preventivi, giri dopo il vento, lavori dati fuori): niente da inserire in più. Le più recenti in cima. */
+  var ST_F = [['tutto', 'Tutto'], ['lav', 'Lavori'], ['ric', 'Ricambi'], ['vari', 'Vari e alaggi'], ['batt', 'Batterie'], ['altro', 'Altro']];
+  function storiaEventi(b) {
+    var ev = [];
+    function add(k, data, tit, sub, act, id, ic) { if (data) ev.push({ k: k, d: String(data).slice(0, 10), t: String(data), tit: tit, sub: sub || '', act: act || '', id: id || '', ic: ic }); }
+    var mans = {};
+    S.lavori.forEach(function (l) {
+      if (l.barcaId !== b.id) return;
+      if (l.fonte === 'scheda') { // le mansioni della scheda lavoro: una riga per giorno
+        if (!l.data) return; var g = mans[l.data] = mans[l.data] || { ore: 0, chi: {}, cosa: [] };
+        g.ore += num(l.oreLavoro) || 0; if (l.utente) g.chi[nameOf(l.utente)] = (g.chi[nameOf(l.utente)] || 0) + (num(l.oreLavoro) || 0);
+        if (l.titolo && g.cosa.indexOf(l.titolo) < 0) g.cosa.push(l.titolo); return;
+      }
+      if (l.fuori && l.fuori.ditta) {
+        if (l.fuori.uscito) add('lav', l.fuori.uscito, 'Dato fuori a ' + l.fuori.ditta, [l.fuori.cosa, l.titolo].filter(Boolean).join(' · '), 'edit-lav', l.id, I.truck);
+        if (l.fuori.rientrato) add('lav', l.fuori.rientrato, 'Rientrato da ' + l.fuori.ditta, [l.fuori.cosa, l.titolo].filter(Boolean).join(' · '), 'edit-lav', l.id, I.truck);
+      }
+      if (l.stato !== 'fatto') return;
+      var sub = [];
+      if (num(l.oreLavoro) != null) sub.push(fmtH(l.oreLavoro));
+      if (l.categoria && l.categoria !== 'Altro') sub.push(l.categoria);
+      if (l.ricambi && l.ricambi.length) sub.push('Ricambi: ' + fmtRic(l.ricambi));
+      if (l.foto && l.foto.length) sub.push(l.foto.length + ' foto');
+      add('lav', l.data || l.modificato, l.titolo || 'Lavoro', sub.join(' · '), 'edit-lav', l.id, I.wrench);
+    });
+    Object.keys(mans).forEach(function (d) {
+      var g = mans[d], chi = Object.keys(g.chi).map(function (n) { return n + (g.chi[n] ? ' ' + fmtH(g.chi[n]) : ''); });
+      add('lav', d, 'Scheda lavoro' + (g.ore ? ': ' + fmtH(g.ore) : ''), [g.cosa.slice(0, 4).join(', ') + (g.cosa.length > 4 ? '…' : ''), chi.join(', ')].filter(Boolean).join(' · '), 'go-scheda', '', I.clip);
+    });
+    var scar = {};
+    S.mov.forEach(function (x) {
+      if (x.barcaId !== b.id || x.tipo !== 'scarico' || !x.data) return;
+      var m = S.mag.find(function (a) { return a.id === x.articoloId; });
+      (scar[x.data] = scar[x.data] || []).push((m ? m.nome : 'Articolo') + ' × ' + fmtQ(Math.abs(num(x.qta) || 0), m && m.um));
+    });
+    Object.keys(scar).forEach(function (d) { add('ric', d, 'Ricambi dal magazzino', scar[d].join(', '), '', '', I.box); });
+    S.vari.forEach(function (v) { if (v.barcaId === b.id && v.fatto) add('vari', v.fattoIl || v.data, TIPI_V[v.tipo] || 'Movimento', v.note || '', 'edit-vari', v.id, I.updown); });
+    (S.cariche || []).forEach(function (c) { if (c.barcaId === b.id) add('batt', c.data, 'Batterie caricate', c.utente ? 'da ' + nameOf(c.utente) : '', '', '', I.batt); });
+    S.scadenze.forEach(function (x) { if (x.barcaId === b.id && x.fatta) add('altro', x.fattaIl, 'Scadenza fatta: ' + (x.tipo || ''), x.note || '', '', '', I.alarm); });
+    S.ops.forEach(function (o) { if (o.barcaId === b.id && opDone(o)) add('altro', o.completataIl || o.data, 'Servizio: ' + opTitle(o), num(opHours(o)) ? fmtDur(opHours(o)) : '', 'open-op', o.id, I.list); });
+    prevOfBoat(b.id).forEach(function (p) { add('altro', p.data, 'Preventivo' + (p.titolo ? ': ' + p.titolo : ''), prevStato(p.stato) + (p.numero ? ' · n. ' + p.numero : ''), 'prev-edit', p.id, I.doc); });
+    (S.giri || []).forEach(function (g) {
+      var v = giroVoce(g, b.id); if (!v) return;
+      add('altro', v.il || g.data, v.esito === 'problema' ? 'Giro dopo il vento: ' + ((v.cosa || []).join(', ').toLowerCase() || 'problema') : 'Giro dopo il vento: tutto a posto',
+        [v.note, v.sistemato ? 'sistemato subito' : '', v.utente ? nameOf(v.utente) : ''].filter(Boolean).join(' · '), '', '', I.wind);
+    });
+    if (b.creato) add('altro', b.creato, 'Scheda della barca creata', '', '', '', I.boat);
+    return ev.sort(function (x, y) { return y.d.localeCompare(x.d) || y.t.localeCompare(x.t); });
+  }
+  function viewStoria(b) {
+    var all = storiaEventi(b), f = V.stFiltro || 'tutto', n = {};
+    all.forEach(function (e) { n[e.k] = (n[e.k] || 0) + 1; });
+    var h = '<div class="hero" style="margin-top:12px"><div class="main"><h2>' + esc(b.nome || 'Barca') + '</h2>' + (b.modello || b.proprietario ? '<div class="model">' + esc([b.modello, b.proprietario].filter(Boolean).join(' · ')) + '</div>' : '') + '</div></div>';
+    h += '<div class="chips" role="group" aria-label="Cosa mostrare" style="margin-top:12px">' + ST_F.filter(function (o) { return o[0] === 'tutto' || n[o[0]]; }).map(function (o) {
+      return '<button type="button" data-act="st-filtro" data-f="' + o[0] + '" aria-pressed="' + (f === o[0]) + '">' + o[1] + ' (' + (o[0] === 'tutto' ? all.length : n[o[0]]) + ')</button>';
+    }).join('') + '</div>';
+    var list = all.filter(function (e) { return f === 'tutto' || e.k === f; });
+    if (!list.length) return h + '<div class="notice" style="margin-top:12px">Ancora niente da raccontare: la storia si riempie da sola con lavori, ricambi, vari e alaggi, cariche delle batterie e scadenze fatte.</div>';
+    var MAX = 80, shown = V.stTutto ? list : list.slice(0, MAX), mese = '', rows = [];
+    function chiudi() { if (rows.length) { h += '<div class="group">' + rows.join('') + '</div>'; rows = []; } }
+    shown.forEach(function (e) {
+      var mk = e.d.slice(0, 7);
+      if (mk !== mese) { chiudi(); mese = mk; h += '<div class="sec-h"><h2>' + esc(cap(monthLabel(mk))) + '</h2></div>'; }
+      var inner = dateBlock(e.d, '') + '<span class="main"><span class="title">' + esc(e.tit) + '</span>' + (e.sub ? '<span class="sub">' + esc(e.sub) + '</span>' : '') + '</span>';
+      var act = e.act && (e.act === 'go-scheda' || e.act === 'open-op' || S.canWrite) ? e.act : '';
+      rows.push(act ? '<button type="button" class="row" data-act="' + act + '"' + (e.id ? ' data-id="' + esc(e.id) + '"' : '') + (act === 'go-scheda' ? ' data-d="' + esc(e.d) + '"' : '') + '>' + inner + '</button>' : '<div class="row">' + inner + '</div>');
+    });
+    chiudi();
+    if (list.length > shown.length) h += '<button type="button" class="link" data-act="st-tutto" style="margin:12px 4px">Mostra le altre ' + (list.length - shown.length) + '</button>';
+    return h;
+  }
   function resText(b) {
     var d = resData(b), L = [NOME().toUpperCase() + ' – Resoconto lavori', (b.nome || 'Barca') + (b.modello ? ' (' + b.modello + ')' : ''), resPeriod(d.from), ''];
     if (!d.list.length) L.push('Nessun lavoro fatto in questo periodo.');
@@ -7409,6 +7557,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var t = $('#top'), add = S.canWrite && S.status === 'ready', help = HELP_BTN + I.help + '</button>';
     if (V.tab === 'barche' && V.boatId && boatById(V.boatId)) {
       var b = boatById(V.boatId);
+      if (V.boatView === 'storia') { t.innerHTML = '<div class="l"><button type="button" class="icon-btn blue" data-act="res-back" aria-label="Torna alla scheda">' + I.back + '</button></div><h1>Storia</h1><div class="r">' + help + '</div>'; return; }
       if (V.boatView === 'resoconto') { t.innerHTML = '<div class="l"><button type="button" class="icon-btn blue" data-act="res-back" aria-label="Torna alla scheda">' + I.back + '</button></div><h1>Resoconto</h1><div class="r">' + help + '</div>'; return; }
       t.innerHTML = '<div class="l"><button type="button" class="icon-btn blue" data-act="back" aria-label="Torna alle barche">' + I.back + '</button>' + '</div><h1>' + esc(b.nome || 'Barca') + '</h1>' +
         '<div class="r">' + help + (S.canWrite ? '<button type="button" class="icon-btn blue" data-act="edit-boat" data-id="' + esc(b.id) + '" aria-label="Modifica scheda">' + I.pencil + '</button>' : '') + '</div>';
@@ -7632,6 +7781,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'Il tasto ? in alto apre questa guida, già sulla sezione in cui ti trovi.',
       'In Home e in Altro c’è la ricerca unica: scrivi una barca, un cliente, un articolo, un codice o un lavoro e l’app cerca dappertutto.',
       'Senza campo l’app si apre lo stesso con gli ultimi dati: quello che salvi parte appena torna la rete.',
+      'In alto a destra il wifi barrato con un numero vuol dire: senza rete, tante modifiche ancora da inviare. La nuvola con la freccia vuol dire che le sta inviando, la spunta verde che sono arrivate. Toccalo per leggere la spiegazione.',
+      'A|Se l’app dà un errore sul telefono di qualcuno, ti arriva insieme agli avvisi su chi entra e cosa fa (e in «Mentre non c’eri»), con la sezione in cui è successo.',
       'Sul telefono conviene aggiungerla alla schermata Home: su iPhone da Safari › Condividi › «Aggiungi alla schermata Home», su Android da Chrome › tre puntini › «Installa app».'] },
     home: { t: 'Home', p: 'La pagina di riepilogo: cosa c’è da fare subito e com’è la giornata.', li: [
       'In primo piano scorri le schede con le cose urgenti (giornata da confermare, vari di oggi, scadenze, ferie da approvare, batterie, ricambi da riordinare). Ognuna ha il suo tasto per farla subito.',
@@ -7684,6 +7835,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'Sotto trovi attrezzatura di bordo, ricambi montati, batterie, vari, scadenze, servizi, preventivi e lavori: ognuno ha il suo + per aggiungere da qui.',
       '«Trasporto: passa?» controlla se la barca sul carrello passa dai portoni e dalla strada fino alla Marina.',
       '«Resoconto» prepara il riepilogo dei lavori di un periodo, pronto da copiare e mandare al cliente.',
+      '«Storia della barca» mette in fila, dal più recente, tutto quello che è successo: lavori fatti, scheda lavoro giorno per giorno, ricambi dal magazzino, vari e alaggi, cariche delle batterie, scadenze fatte, servizi, preventivi, giri dopo il vento e lavori dati fuori. In alto scegli cosa vedere; tocca una riga per aprirla.',
       'I tasti mappa e porto mostrano dove si trova la barca.',
       'A|In fondo, «Unisci con un’altra barca» serve quando la stessa barca è stata registrata due volte: scegli cosa tenere campo per campo e tutto passa sulla scheda che resta. Il doppione va nel cestino e da lì si può annullare l’unione.'] },
     mappa: { t: 'Mappa del cantiere', p: 'Il piazzale e il capannone in scala, con le barche disegnate con le loro misure.', li: [
@@ -7808,7 +7960,11 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     backup: { t: 'Copia dei dati', p: 'Un file unico con tutti i dati del gestionale.', li: [
       '«Scarica» salva il file sul telefono o sul computer: conviene farlo ogni tanto e tenerlo su Drive o iCloud.',
       '«Recupera ciò che manca» rimette dalla copia solo quello che non c’è più, senza toccare il resto.',
-      'Le foto non entrano nella copia.'] },
+      'Le foto non entrano nella copia: per quelle c’è «Tutte le foto in un file».',
+      'A|«Spazio nel database» dice quanto è pieno il piano gratuito di Firebase (1 GB per tutto, foto comprese). «Conta le foto» le scarica tutte per pesarle (meglio dal computer o col Wi-Fi); il tasto resta, così puoi ricontarle quando vuoi.',
+      'A|«Cerca le foto non più usate» trova le foto che non sono più in nessuna barca, lavoro o voce del cestino; «Togli per sempre» libera lo spazio. Non si recuperano: prima scarica il file delle foto se vuoi tenerle.',
+      'A|«Tutte le foto in un file» prepara un file .zip con le foto divise per barca (oltre 150 MB in più parti): tocca «Salva» su ogni parte.',
+      'A|Una volta a settimana l’app toglie da sola le voci cancellate da più di 60 giorni, che non si possono più recuperare dal cestino: non cambia niente di quello che vedete.'] },
     inventario: { rif: 'magazzino' },
     account: { t: 'Account e permessi', p: 'Ognuno entra con la sua email e password; nessuno usa account condivisi.', li: [
       '«Il mio account» (in fondo ad Altro) serve per cambiare la password o uscire.',
@@ -9437,6 +9593,11 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'fb': if (window.__NM_FB) window.__NM_FB.open(t.getAttribute('data-k')); break;
       case 'tab': if (t.getAttribute('data-tab') === 'mappa' && V.tab !== 'mappa') { M.prevTab = V.tab; M.prevBoat = null; } V.tab = t.getAttribute('data-tab'); V.boatId = null; V.boatView = null; V.exConfirm = false; if (V.tab === 'giro') V.giroId = null; window.scrollTo(0, 0); render(); break;
       case 'bk-save': bkSave(); break;
+      case 'fs-conta': fsAzione('conta'); break;
+      case 'fs-cerca': fsAzione('cerca'); break;
+      case 'fs-togli': fsAzione('togli'); break;
+      case 'fs-file': fsAzione('file'); break;
+      case 'fs-salva': fsAzione('salva', +t.getAttribute('data-i')); break;
       case 'back': V.boatId = null; V.boatView = null; render(); window.scrollTo(0, 0); break;
       case 'open-boat': closeLightbox(); V.tab = 'barche'; V.boatId = id; V.boatView = null; V.boatLavAll = false; V.boatRicAll = false; render(); window.scrollTo(0, 0); break;
       case 'cat-add': if (S.isOwner) catAdd(); break;
@@ -9478,6 +9639,9 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'gq-go': gqGo(t.getAttribute('data-k'), id); break;
       case 'gq-cli': x = $('#gq'); if (x) { x.value = V.gq = t.getAttribute('data-q'); $('#gq-res').innerHTML = gqResults(V.gq); } break;
       case 'res-open': V.boatView = 'resoconto'; window.scrollTo(0, 0); render(); break;
+      case 'storia-open': V.boatView = 'storia'; V.stFiltro = 'tutto'; V.stTutto = false; window.scrollTo(0, 0); render(); break;
+      case 'st-filtro': V.stFiltro = t.getAttribute('data-f'); V.stTutto = false; render(); break;
+      case 'st-tutto': V.stTutto = true; render(); break;
       case 'res-back': V.boatView = null; window.scrollTo(0, 0); render(); break;
       case 'res-range': V.resRange = t.getAttribute('data-r'); render(); break;
       case 'res-copy':

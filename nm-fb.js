@@ -112,6 +112,10 @@
     '#nmatt{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 76px);right:10px;left:10px;z-index:100001;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}' +
     '#nmatt .it{pointer-events:auto;position:relative;max-width:420px;width:100%;box-sizing:border-box;background:#2b2c33;color:#fff;border-radius:14px;padding:10px 40px 10px 14px;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.3)}#nmatt .x{position:absolute;top:4px;right:4px;width:32px;height:32px;border:0;background:none;color:#c9cbe0;font-size:20px;line-height:1;cursor:pointer}' +
     '#nmatt .it b{display:block}#nmatt .it span{color:#c9cbe0}#nmattv{width:100%;text-align:left}#nmattv .ar{display:block;padding:10px 0;border-top:1px solid #2a2d55}#nmattv .ar:first-child{border-top:0}#nmattv .ar b{display:block}#nmattv .ar div{color:#b7bad8;font-size:.9rem}' +
+    /* modifiche in attesa di rete: piccola icona in alto a destra, sotto la barra (giallo = da inviare, verde = inviate) */
+    '#nmpend{position:fixed;top:calc(env(safe-area-inset-top) + 46px);right:10px;z-index:99990;display:flex;align-items:center;gap:4px;height:25px;padding:0 8px;border:1px solid rgba(255,200,90,.5);background:rgba(40,30,8,.94);color:#ffd27a;border-radius:99px;font:700 12px/1 -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer}' +
+    '#nmpend svg{width:15px;height:15px;flex:none}#nmpend[data-s="ok"]{border-color:rgba(90,220,150,.5);background:rgba(8,40,26,.94);color:#7fe0a0}' +
+    '@media (min-width:1024px) and (min-height:500px){#nmpend{top:10px;right:190px;height:38px;padding:0 14px;gap:7px;font-size:16px}#nmpend svg{width:22px;height:22px}}' +
     '#nmtoast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 90px);transform:translateX(-50%);z-index:100000;background:#2b2c33;color:#fff;padding:10px 16px;border-radius:12px;font:15px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;max-width:90vw;box-shadow:0 6px 20px rgba(0,0,0,.4)}';
   function ensureCss() { if (!$('#nmfb-css')) { var st = document.createElement('style'); st.id = 'nmfb-css'; st.textContent = CSS; document.head.appendChild(st); } }
   function logoSrc() { var l = document.getElementById('logo-src'); return l ? l.getAttribute('src') : ''; }
@@ -204,7 +208,7 @@
     return { docs: docs, size: docs.length, empty: !docs.length };
   }
   function emit(L) {
-    var s = snapOf(L); L.subs.slice().forEach(function (x) { try { x.next(s); } catch (e) { console.error(e); } });
+    var s = snapOf(L); L.subs.slice().forEach(function (x) { try { x.next(s); } catch (e) { console.error(e); errScrivi(e); } });
     if (L.name === 'barche' || L.name === 'lavori' || L.name === 'posti') schedulePortale();
   }
   function docSnap(id, d) { return { id: id, exists: !!d, data: function () { return d ? clone(d) : undefined; } }; }
@@ -253,6 +257,7 @@
       delete L.map[id]; L.pend[id] = 'del';
     }
     p.then(function () { if (L.pend) delete L.pend[id]; }, function () { if (L.pend) delete L.pend[id]; });
+    pendAdd(p);
     attScrittura(name, kind === 'delete' ? 'cancella' : prev0 ? 'modifica' : 'aggiunge', data || prev0);
     emit(L); save(L);
     return settle(p, L);
@@ -353,7 +358,12 @@
         if (b.size > 650 * 1024) b = await shrink(b, 1100, 0.6);
         if (b.size > 700 * 1024) throw { code: 'too_large', message: 'Foto troppo grande' };
         var url = await blobToDataUrl(b), id = rid('f');
-        await settle(fs.collection('foto').doc(id).set({ data: url, creato: nowISO(), da: ME ? ME.uid : '', _ts: FV.serverTimestamp() }));
+        // con la foto, una scheda leggera in «fotoInfo» (quanto pesa): così lo spazio si conta senza scaricare le foto
+        var fb = fs.batch(), cr = nowISO(), da = ME ? ME.uid : '';
+        fb.set(fs.collection('foto').doc(id), { data: url, creato: cr, da: da, _ts: FV.serverTimestamp() });
+        fb.set(fs.collection('fotoInfo').doc(id), { kb: Math.ceil(url.length / 1024), creato: cr, da: da, _ts: FV.serverTimestamp() });
+        var fp = fb.commit(); pendAdd(fp);
+        await settle(fp);
         PH[id] = url; IDB.put('foto', id, url);
         return { id: id, url: url, sizeBytes: b.size, contentType: 'image/jpeg' };
       })();
@@ -524,7 +534,8 @@
     D.start.then(function () { return whenReady(D, 15000); }).then(function () {
       if (ME && !D.map[ME.uid]) write('dipendenti', ME.uid, 'set', { nome: ME.nome || '', modificato: nowISO() }).catch(function () { });
     });
-    if (ME && ME.ruolo === 'admin') setTimeout(purgeCestino, 5000);
+    if (ME && ME.ruolo === 'admin') { setTimeout(purgeCestino, 5000); setTimeout(pulisciSegnaposto, 20000); }
+    pendVecchie();
     attEntra(); attAscolta();
     // aperto dal link per portare i dati dall'app di Claude
     if (IMP_KEY) setTimeout(offerImport, 800);
@@ -1015,6 +1026,221 @@
     $('#nmattok').onclick = hideOverlay;
   }
 
+  /* ---------- errori dell'app: arrivano all'amministratore insieme alle attività ----------
+     Se l'app si blocca sul telefono di qualcuno, l'errore finisce in «attivita» (avviso in diretta e «Mentre non c'eri»).
+     Solo errori del nostro codice, ognuno una volta per apertura, al massimo 5. */
+  var ERR = { visti: {}, n: 0 };
+  function errScrivi(e, dove) {
+    try {
+      if (!ME || !started || ERR.n >= 5) return;
+      var msg = String((e && (e.message || e.code)) || e || '').slice(0, 120); if (!msg) return;
+      var riga = /(index\.html|nm-fb\.js):(\d+)/.exec(String((e && e.stack) || dove || ''));
+      var k = msg + (riga ? riga[0] : ''); if (ERR.visti[k]) return; ERR.visti[k] = true; ERR.n++;
+      attScrivi('⚠ errore nell’app' + (ATT.vista ? ' (in ' + ATT.vista + ')' : '') + ': ' + msg + (riga ? ' · ' + riga[1] + ' riga ' + riga[2] : ''));
+    } catch (x) { }
+  }
+  window.addEventListener('error', function (ev) {
+    if (!ev || !ev.filename || ev.filename.indexOf(location.origin) !== 0) return; // estensioni del browser e librerie esterne: non nostri
+    errScrivi(ev.error || ev.message, ev.filename.split('/').pop() + ':' + ev.lineno);
+  });
+  window.addEventListener('unhandledrejection', function (ev) {
+    var r = ev && ev.reason;
+    if (r instanceof Error && /index\.html|nm-fb\.js/.test(String(r.stack || ''))) errScrivi(r); // i rifiuti di Firebase (rete, permessi) li gestisce già l'app
+  });
+
+  /* ---------- modifiche in attesa di rete ----------
+     Senza campo le modifiche restano sul telefono e partono da sole: una piccola icona in alto a destra con il numero
+     di quelle che mancano. Con il campo compare solo se l'invio dura più di 3 secondi (campo debole). */
+  var PEND = { n: 0, vecchie: false, t: null, fatto: 0 };
+  var PEND_IC = { // icone: senza rete, da inviare, inviate
+    off: '<path d="M12 20h.01"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/><path d="M5 12.86a10 10 0 0 1 5.17-2.69"/><path d="M19 12.86a10 10 0 0 0-2-1.52"/><path d="M2 8.82a15 15 0 0 1 4.18-2.64"/><path d="M22 8.82a15 15 0 0 0-11.29-3.76"/><path d="m2 2 20 20"/>',
+    su: '<path d="M12 13v8"/><path d="M4 14.9A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.24"/><path d="m8 17 4-4 4 4"/>',
+    ok: '<path d="m17 15-5.5 5.5L9 18"/><path d="M5 17.74A7 7 0 1 1 15.71 10h1.79a4.5 4.5 0 0 1 1.5 8.74"/>'
+  };
+  function pendIc(k) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + PEND_IC[k] + '</svg>'; }
+  function pendAdd(p) {
+    PEND.n++; pendShow();
+    var fine = function () { PEND.n = Math.max(0, PEND.n - 1); if (!PEND.n) PEND.fatto = Date.now(); pendShow(); };
+    p.then(fine, fine);
+  }
+  // modifiche rimaste dall'ultima volta (app chiusa senza campo): Firebase le manda appena può
+  function pendVecchie() {
+    var ok = false;
+    try { fs.waitForPendingWrites().then(function () { ok = true; if (PEND.vecchie) { PEND.vecchie = false; PEND.fatto = Date.now(); pendShow(); } }, function () { }); } catch (e) { return; }
+    setTimeout(function () { if (!ok) { PEND.vecchie = true; pendShow(); } }, 3000);
+  }
+  function pendShow() {
+    clearTimeout(PEND.t);
+    // le modifiche con il campo partono in un attimo: l'icona compare solo se aspettano più di 3 secondi
+    PEND.t = setTimeout(pendDraw, PEND.n || PEND.vecchie ? (navigator.onLine === false ? 300 : 3000) : 0);
+  }
+  function pendDraw() {
+    if (!document.body) return;
+    var el = $('#nmpend'), off = navigator.onLine === false, n = PEND.n;
+    if (!n && !PEND.vecchie) {
+      if (el && el.getAttribute('data-s') !== 'ok' && Date.now() - PEND.fatto < 4000) {
+        el.setAttribute('data-s', 'ok'); el.innerHTML = pendIc('ok'); el.setAttribute('aria-label', 'Modifiche inviate'); el.title = 'Modifiche inviate';
+        setTimeout(function () { var e2 = $('#nmpend'); if (e2 && e2.getAttribute('data-s') === 'ok') e2.remove(); }, 2500);
+      } else if (el && el.getAttribute('data-s') !== 'ok') el.remove();
+      return;
+    }
+    ensureCss();
+    if (!el) {
+      el = document.createElement('button'); el.type = 'button'; el.id = 'nmpend'; document.body.appendChild(el);
+      el.onclick = function () {
+        var k = el.getAttribute('data-s');
+        toast(k === 'ok' ? 'Tutte le modifiche sono state inviate.' : (k === 'off' ? 'Sei senza rete. ' : 'Il campo è debole: le modifiche stanno partendo. ') + 'Restano salvate sul telefono, anche se chiudi l’app, e partono da sole appena torna il campo.');
+      };
+    }
+    var t = (off ? 'Senza rete' : 'Invio in corso') + (n ? ': ' + n + (n === 1 ? ' modifica da inviare' : ' modifiche da inviare') : ': modifiche da inviare');
+    el.setAttribute('data-s', off ? 'off' : 'su'); el.setAttribute('aria-label', t); el.title = t;
+    el.innerHTML = pendIc(off ? 'off' : 'su') + (n ? '<b>' + n + '</b>' : '');
+  }
+  window.addEventListener('online', pendShow); window.addEventListener('offline', pendShow);
+
+  /* ---------- segnaposto delle voci cancellate ----------
+     Cancellare scrive { _del: true } al posto della voce, così gli altri telefoni lo sanno. Dopo 60 giorni
+     tutti l'hanno saputo (chi resta fuori più a lungo rilegge tutto comunque, vedi FULL_EVERY): si toglie del tutto.
+     Lo fa l'amministratore, una volta a settimana, senza che si veda. */
+  async function pulisciSegnaposto() {
+    try {
+      var K = 'nm-segnaposto', last = 0; try { last = +localStorage.getItem(K) || 0; } catch (e) { }
+      if (Date.now() - last < 7 * 864e5) return;
+      var cut = Date.now() - CEST_DAYS * 864e5, tolte = 0;
+      for (var i = 0; i < COLLS.length + 1; i++) {
+        var c = COLLS[i] || 'foto';
+        var s = await fs.collection(c).where('_del', '==', true).limit(400).get();
+        var vecchi = s.docs.filter(function (d) { var t = d.get('_ts'); return t && t.toMillis && t.toMillis() < cut; });
+        for (var j = 0; j < vecchi.length; j += 400) {
+          var b = fs.batch(); vecchi.slice(j, j + 400).forEach(function (d) { b.delete(d.ref); }); await b.commit();
+        }
+        tolte += vecchi.length;
+      }
+      try { localStorage.setItem(K, String(Date.now())); } catch (e) { }
+      var prima = await fs.collection('impostazioni').doc('pulizia').get();
+      await write('impostazioni', 'pulizia', 'set', { il: nowISO(), tolte: tolte, totale: ((prima.exists && prima.get('totale')) || 0) + tolte });
+    } catch (e) { }
+  }
+
+  /* ---------- spazio e foto (solo amministratori, in «Copia dei dati») ----------
+     Le foto stanno nel database (raccolta «foto»): il piano gratuito di Firebase ha 1 GB in tutto.
+     «fotoInfo» tiene quanto pesa ogni foto. Le foto di prima si contano una volta scaricandole (giroFoto).
+     Una foto è «non più usata» se nessuna voce, nemmeno nel cestino, la nomina più. */
+  var FOTO_GB = 1;
+  async function fotoInfoAll() { var s = await fs.collection('fotoInfo').get(); var m = {}; s.docs.forEach(function (d) { m[d.id] = d.data(); }); return m; }
+  async function fotoSpazio() {
+    var info = await fotoInfoAll(), conta = await fs.collection('impostazioni').doc('fotoConta').get(), n = 0, kb = 0;
+    Object.keys(info).forEach(function (id) { n++; kb += info[id].kb || 0; });
+    var dati = 0; COLLS.forEach(function (c) { var L = LIVE[c]; if (L) dati += JSON.stringify(L.map).length; });
+    return { n: n, mb: kb / 1024, datiMb: dati / 1048576, limiteMb: FOTO_GB * 1024, contate: conta.exists ? conta.data() : null };
+  }
+  // ogni testo scritto nei dati, compreso il cestino: le foto si nominano con il loro codice
+  async function testiUsati() {
+    var ok = await Promise.all(COLLS.map(function (c) { var L = live(c); return L.start.then(function () { return whenReady(L, 20000); }).then(function () { return L.ready; }); }));
+    if (ok.indexOf(false) >= 0) throw { code: 'non_pronto', message: 'Dati non ancora caricati' };
+    var set = {}, dove = {};
+    function giro(v, etichetta) {
+      if (typeof v === 'string') { if (v.length < 40) { set[v] = true; if (etichetta && !dove[v]) dove[v] = etichetta; } }
+      else if (v && typeof v === 'object') Object.keys(v).forEach(function (k) { giro(v[k], etichetta); });
+    }
+    function nomeBarca(id) { var b = LIVE.barche.map[id]; return b ? b.nome || 'Barca senza nome' : ''; }
+    COLLS.forEach(function (c) {
+      Object.keys(LIVE[c].map).forEach(function (id) {
+        var d = LIVE[c].map[id];
+        giro(d, c === 'barche' ? d.nome || 'Barca senza nome' : d.barcaId ? nomeBarca(d.barcaId) || (CEST_NOMI[c] || c) : (CEST_NOMI[c] || c));
+      });
+    });
+    var cs = await fs.collection('cestino').get();
+    cs.docs.forEach(function (d) { giro(dec(d.get('dati') || {}), 'Nel cestino'); });
+    return { set: set, dove: dove };
+  }
+  async function fotoNonUsate() {
+    var info = await fotoInfoAll(), u = await testiUsati(), cut = new Date(Date.now() - 2 * 864e5).toISOString(), list = [];
+    // le foto degli ultimi 2 giorni restano: potrebbero essere in una scheda non ancora salvata
+    Object.keys(info).forEach(function (id) { if (!u.set[id] && String(info[id].creato || '') < cut) list.push({ id: id, kb: info[id].kb || 0 }); });
+    return list;
+  }
+  async function fotoPulisci(list, prog) {
+    var fatte = 0;
+    for (var i = 0; i < list.length; i += 200) {
+      var b = fs.batch();
+      list.slice(i, i + 200).forEach(function (x) { b.delete(fs.collection('foto').doc(x.id)); b.delete(fs.collection('fotoInfo').doc(x.id)); IDB.del('foto', x.id); delete PH[x.id]; });
+      await b.commit(); fatte = Math.min(list.length, i + 200); if (prog) prog(fatte, list.length);
+    }
+    return fatte;
+  }
+  // passa tutte le foto una per volta (a gruppi di 8): scrive quanto pesano e, se serve, le tiene per il file da scaricare
+  async function giroFoto(prog, tieni) {
+    var info = await fotoInfoAll(), visti = {}, last = null, n = 0, kb = 0, out = [], ID = firebase.firestore.FieldPath.documentId();
+    for (;;) {
+      var q = fs.collection('foto').orderBy(ID).limit(8); if (last) q = q.startAfter(last);
+      var s = await q.get(); if (!s.size) break;
+      var b = fs.batch(), nb = 0;
+      s.docs.forEach(function (d) {
+        var x = d.data();
+        if (x._del || !x.data) { b.delete(d.ref); nb++; return; } // segnaposto di foto già tolte
+        n++; visti[d.id] = true; var k = Math.ceil(String(x.data).length / 1024); kb += k;
+        if (!info[d.id]) { b.set(fs.collection('fotoInfo').doc(d.id), { kb: k, creato: x.creato || '', da: x.da || '', _ts: FV.serverTimestamp() }); nb++; }
+        if (tieni) out.push({ id: d.id, data: x.data, creato: x.creato || '' });
+      });
+      if (nb) await b.commit();
+      last = s.docs[s.docs.length - 1];
+      if (prog) prog(n, kb / 1024);
+    }
+    // schede di foto che non ci sono più: via, così il conto torna preciso
+    var orfane = Object.keys(info).filter(function (id) { return !visti[id]; });
+    for (var i = 0; i < orfane.length; i += 400) { var bo = fs.batch(); orfane.slice(i, i + 400).forEach(function (id) { bo.delete(fs.collection('fotoInfo').doc(id)); }); await bo.commit(); }
+    await write('impostazioni', 'fotoConta', 'set', { il: nowISO(), n: n, mb: Math.round(kb / 102.4) / 10 });
+    return out;
+  }
+  // il file zip, senza comprimere (le foto sono già compresse): a parti da 150 MB per non riempire la memoria del telefono
+  var CRC_T = null;
+  function crc32(u) {
+    if (!CRC_T) { CRC_T = new Uint32Array(256); for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; CRC_T[n] = c >>> 0; } }
+    var r = 0xFFFFFFFF; for (var i = 0; i < u.length; i++) r = CRC_T[(r ^ u[i]) & 255] ^ (r >>> 8); return (r ^ 0xFFFFFFFF) >>> 0;
+  }
+  function dosOra(iso) { var d = new Date(iso); if (isNaN(d) || d.getFullYear() < 1980) d = new Date(); return [(d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()]; }
+  function zip(files) { // files: [{ nome, dati: Uint8Array, il }]
+    var parti = [], dir = [], off = 0, te = new TextEncoder();
+    files.forEach(function (f) {
+      var nm = te.encode(f.nome), crc = crc32(f.dati), t = dosOra(f.il), h = new DataView(new ArrayBuffer(30));
+      h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(10, t[0], true); h.setUint16(12, t[1], true); h.setUint32(14, crc, true);
+      h.setUint32(18, f.dati.length, true); h.setUint32(22, f.dati.length, true); h.setUint16(26, nm.length, true);
+      parti.push(h.buffer, nm, f.dati);
+      var c = new DataView(new ArrayBuffer(46));
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(12, t[0], true); c.setUint16(14, t[1], true); c.setUint32(16, crc, true);
+      c.setUint32(20, f.dati.length, true); c.setUint32(24, f.dati.length, true); c.setUint16(28, nm.length, true); c.setUint32(42, off, true);
+      dir.push(c.buffer, nm); off += 30 + nm.length + f.dati.length;
+    });
+    var dl = dir.reduce(function (a, x) { return a + x.byteLength; }, 0), e = new DataView(new ArrayBuffer(22));
+    e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, dl, true); e.setUint32(16, off, true);
+    return new Blob(parti.concat(dir, [e.buffer]), { type: 'application/zip' });
+  }
+  async function fotoFile(prog) {
+    var u = await testiUsati(), foto = await giroFoto(prog, true), MAX = 150 * 1048576, parti = [], cur = [], tot = 0, usati = {};
+    function chiudi() { if (cur.length) { parti.push({ blob: zip(cur), n: cur.length }); cur = []; tot = 0; } }
+    foto.forEach(function (f) {
+      var b64 = String(f.data).replace(/^data:[^,]*,/, ''), bin = atob(b64), dati = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) dati[i] = bin.charCodeAt(i);
+      var cart = String(u.dove[f.id] || 'Senza barca').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 60) || 'Senza nome';
+      var base = cart + '/' + (String(f.creato).slice(0, 10) || 'senza-data') + '_' + f.id, nome = base + '.jpg';
+      for (var k = 2; usati[nome]; k++) nome = base + '-' + k + '.jpg'; usati[nome] = true;
+      if (tot + dati.length > MAX) chiudi();
+      cur.push({ nome: nome, dati: dati, il: f.creato }); tot += dati.length; f.data = null;
+    });
+    chiudi();
+    return parti.map(function (p, i) { return { blob: p.blob, n: p.n, mb: p.blob.size / 1048576, nome: 'Foto-Nautica-Mare-' + nowISO().slice(0, 10) + (parti.length > 1 ? '-parte-' + (i + 1) : '') + '.zip' }; });
+  }
+  var FOTO = {
+    spazio: function () { return ME && ME.ruolo === 'admin' ? fotoSpazio() : Promise.reject({ code: 'permission_denied' }); },
+    conta: function (prog) { return ME && ME.ruolo === 'admin' ? giroFoto(prog, false).then(function () { }) : Promise.reject({ code: 'permission_denied' }); },
+    nonUsate: function () { return ME && ME.ruolo === 'admin' ? fotoNonUsate() : Promise.reject({ code: 'permission_denied' }); },
+    pulisci: function (list, prog) { return ME && ME.ruolo === 'admin' ? fotoPulisci(list, prog) : Promise.reject({ code: 'permission_denied' }); },
+    file: function (prog) { return ME && ME.ruolo === 'admin' ? fotoFile(prog) : Promise.reject({ code: 'permission_denied' }); },
+    salva: function (p) { return DL.save({ filename: p.nome, data: p.blob }); },
+    pulizia: function () { var L = live('impostazioni'); return L.map.pulizia || null; }
+  };
+
   /* ---------- quello che vede l'app ---------- */
   window.__NM_FB = {
     use: function (name) {
@@ -1025,6 +1251,7 @@
     open: open,
     vista: attVista,
     clientiBarca: clientiBarca,
-    spostaClienti: spostaClienti
+    spostaClienti: spostaClienti,
+    foto: FOTO
   };
 })();
