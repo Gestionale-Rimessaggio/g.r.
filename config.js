@@ -1,12 +1,12 @@
 /* Collegamento al database Firebase di questo sito: i valori si copiano da Firebase › Impostazioni progetto › Le tue app.
    Non sono segreti: servono al sito per sapere a quale progetto collegarsi. La protezione dei dati sta in firestore.rules. */
 window.NM_FIREBASE_CONFIG = {
-  apiKey: '',
-  authDomain: '',
-  projectId: '',
-  storageBucket: '',
-  messagingSenderId: '',
-  appId: ''
+  apiKey: 'AIzaSyC0lYTnGK2jQs6_agSkExWnKRnfmn8k2Ow',
+  authDomain: 'gestionale-rimessaggio.firebaseapp.com',
+  projectId: 'gestionale-rimessaggio',
+  storageBucket: 'gestionale-rimessaggio.firebasestorage.app',
+  messagingSenderId: '265979005250',
+  appId: '1:265979005250:web:eb55d6f22799e51d2ae0db'
 };
 
 /* Chiave pubblica per le notifiche sul telefono (Firebase › Impostazioni progetto › Cloud Messaging ›
