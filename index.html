@@ -5685,12 +5685,12 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function misUnitSel(id, cur) { return '<div class="seg2 mis-u" role="group"><button type="button" data-act="mis-u" data-f="' + id + '" data-u="mm" aria-pressed="' + (cur !== 'in') + '">mm</button><button type="button" data-act="mis-u" data-f="' + id + '" data-u="in" aria-pressed="' + (cur === 'in') + '">pollici</button></div>'; }
   /* Altre unità: ogni unità ha il fattore per passare alla prima (la temperatura a parte) */
   var MIS_UN = {
-    lung: { n: 'Lunghezza', u: [['m', 'Metri', 1], ['ft', 'Piedi', 0.3048], ['in', 'Pollici', 0.0254], ['cm', 'Centimetri', 0.01]], nota: 'Le barche si misurano spesso in piedi: 1 piede = 0,3048 m = 12 pollici. Si può scrivere anche 32\'6" nei piedi.' },
-    vol: { n: 'Volume', u: [['l', 'Litri', 1], ['galus', 'Galloni USA', 3.785411784], ['galuk', 'Galloni inglesi', 4.54609], ['qt', 'Quarti USA', 0.946352946]], nota: 'Olio e carburante dei motori americani sono in galloni o quarti USA; i manuali inglesi usano il gallone imperiale, più grande.' },
-    pot: { n: 'Potenza', u: [['cv', 'Cavalli (CV)', 1], ['kw', 'Kilowatt (kW)', 1 / 0.73549875], ['hp', 'Horsepower (HP)', 1.01386967887]], nota: '1 CV = 0,7355 kW; l\u2019HP americano è un po\u2019 più grande del CV (1 HP = 1,014 CV).' },
-    pres: { n: 'Pressione', u: [['bar', 'Bar', 1], ['psi', 'PSI', 0.0689475729], ['kpa', 'Kilopascal (kPa)', 0.01]], nota: 'Gomme dei carrelli, impianto idraulico e manometri americani: 1 bar = 14,5 psi.' },
+    lung: { n: 'Lunghezza', u: [['m', 'Metri (m)', 1], ['mm', 'Millimetri (mm)', 0.001], ['cm', 'Centimetri (cm)', 0.01], ['dm', 'Decimetri (dm)', 0.1], ['km', 'Chilometri (km)', 1000], ['ft', 'Piedi', 0.3048], ['in', 'Pollici', 0.0254], ['yd', 'Iarde', 0.9144], ['nmi', 'Miglia nautiche', 1852]], nota: 'Le barche si misurano spesso in piedi: 1 piede = 0,3048 m = 12 pollici. Si può scrivere anche 32\'6" nei piedi.' },
+    vol: { n: 'Volume', u: [['l', 'Litri (l)', 1], ['ml', 'Millilitri (ml)', 0.001], ['cl', 'Centilitri (cl)', 0.01], ['dl', 'Decilitri (dl)', 0.1], ['m3', 'Metri cubi (m³)', 1000], ['galus', 'Galloni USA', 3.785411784], ['galuk', 'Galloni inglesi', 4.54609], ['qt', 'Quarti USA', 0.946352946], ['floz', 'Once liquide USA', 0.0295735295625]], nota: 'Olio e carburante dei motori americani sono in galloni o quarti USA; i manuali inglesi usano il gallone imperiale, più grande.' },
+    pot: { n: 'Potenza', u: [['cv', 'Cavalli (CV)', 1], ['kw', 'Kilowatt (kW)', 1 / 0.73549875], ['w', 'Watt (W)', 1 / 735.49875], ['hp', 'Horsepower (HP)', 1.01386967887]], nota: '1 CV = 0,7355 kW; l\u2019HP americano è un po\u2019 più grande del CV (1 HP = 1,014 CV).' },
+    pres: { n: 'Pressione', u: [['bar', 'Bar', 1], ['mbar', 'Millibar (mbar)', 0.001], ['psi', 'PSI', 0.0689475729], ['kpa', 'Kilopascal (kPa)', 0.01], ['mpa', 'Megapascal (MPa)', 10], ['atm', 'Atmosfere (atm)', 1.01325], ['kgcm2', 'kg/cm²', 0.980665]], nota: 'Gomme dei carrelli, impianto idraulico e manometri americani: 1 bar = 14,5 psi.' },
     vel: { n: 'Velocità', u: [['kn', 'Nodi', 1], ['kmh', 'km/h', 1 / 1.852], ['mph', 'Miglia/ora', 0.868976242], ['ms', 'Metri al secondo', 1.94384449]], nota: '1 nodo = 1 miglio nautico all\u2019ora = 1,852 km/h.' },
-    peso: { n: 'Peso', u: [['kg', 'Chilogrammi', 1], ['lb', 'Libbre', 0.45359237], ['t', 'Tonnellate', 1000]], nota: 'Dislocamento e portata dei mezzi: 1 tonnellata = 1.000 kg; 1 libbra = 0,4536 kg.' },
+    peso: { n: 'Peso', u: [['kg', 'Chilogrammi (kg)', 1], ['g', 'Grammi (g)', 0.001], ['q', 'Quintali (q)', 100], ['t', 'Tonnellate (t)', 1000], ['lb', 'Libbre (lb)', 0.45359237], ['oz', 'Once (oz)', 0.028349523125]], nota: 'Dislocamento e portata dei mezzi: 1 tonnellata = 1.000 kg; 1 libbra = 0,4536 kg.' },
     coppia: { n: 'Coppia di serraggio', u: [['nm', 'Newton metro (Nm)', 1], ['lbft', 'Libbre piede (lb·ft)', 1.3558179483], ['lbin', 'Libbre pollice (lb·in)', 0.112984829], ['kgm', 'kgf·m', 9.80665]], nota: 'Per la chiave dinamometrica coi manuali americani: 1 lb·ft = 1,356 Nm.' },
     temp: { n: 'Temperatura', u: [['c', 'Gradi Celsius (°C)'], ['f', 'Gradi Fahrenheit (°F)']], nota: '°F = °C × 1,8 + 32. Acqua di raffreddamento e olio nei manuali americani sono in °F.' }
   };
@@ -5708,7 +5708,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     G.u.forEach(function (u, i) {
       if (i === st.i) return;
       var x = g === 'temp' ? (i === 0 ? base : base * 1.8 + 32) : base / u[2];
-      var d = Math.abs(x) >= 1000 ? 0 : Math.abs(x) >= 100 ? 1 : Math.abs(x) >= 10 ? 2 : 3;
+      var ax = Math.abs(x), d = ax >= 1000 ? 0 : ax >= 100 ? 1 : ax >= 10 ? 2 : ax >= 0.1 || ax === 0 ? 3 : Math.min(9, 2 - Math.floor(Math.log10(ax)) + 1);
       out[i] = String(Math.round(x * Math.pow(10, d)) / Math.pow(10, d)).replace('.', ',');
     });
     return out;
@@ -8376,7 +8376,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'A|Le richieste da approvare compaiono qui e in Home: approva o rifiuta con un tocco.'] },
     misure: { t: 'Misure e unità', p: 'Strumenti di misura per l’officina.', li: [
       'Convertitore tra millimetri e pollici.',
-      '«Altre unità» converte lunghezza (metri, piedi, pollici), volume (litri, galloni USA e inglesi), potenza (CV, kW, HP), pressione (bar, psi), velocità (nodi, km/h), peso, coppia di serraggio (Nm, lb·ft) e temperatura (°C, °F): scrivi in un campo e gli altri si aggiornano.',
+      '«Altre unità» converte lunghezza (mm, cm, dm, m, km, piedi, pollici, miglia nautiche), volume (ml, cl, dl, litri, m³, galloni USA e inglesi), potenza (W, kW, CV, HP), pressione (bar, mbar, psi, kPa, atm), velocità (nodi, km/h), peso, coppia di serraggio (Nm, lb·ft) e temperatura (°C, °F): scrivi in un campo e gli altri si aggiornano.',
       'Chiavi metriche e in pollici: ti dice se una chiave va bene o è troppo larga.',
       'Riconoscimento dei filetti metrici, UNC, UNF, BSP e NPT dal diametro e dal passo.'] },
     ore: { t: 'Ore del mese', p: 'Le ore di ogni dipendente, prese dalla Scheda lavoro.', li: [
