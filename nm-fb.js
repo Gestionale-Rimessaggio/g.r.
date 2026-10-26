@@ -6,7 +6,7 @@
   'use strict';
   var CFG = window.NM_FIREBASE_CONFIG || null;
   var COLLS = ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
-    'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'programma', 'cariche', 'posti', 'richieste', 'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin'];
+    'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'programma', 'cariche', 'posti', 'richieste', 'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi'];
   var RUOLI = { base: 'Dipendente', editor: 'Dipendente', admin: 'Amministratore', cliente: 'Cliente' }; // «editor» era «Può cancellare»: ora vale come Dipendente
   var FULL_EVERY = 7 * 864e5;            // una rilettura completa a settimana per sicurezza
   var GIF0 = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
