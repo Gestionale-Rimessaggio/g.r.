@@ -342,7 +342,9 @@
       img.src = url;
     });
   }
-  function patchImgs(id, url) { document.querySelectorAll('img[data-blob="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]').forEach(function (im) { if (im.getAttribute('src') !== url) im.setAttribute('src', url); }); }
+  function patchImgs(id, url) { // anche le <image> dentro gli svg (la planimetria della mappa), che usano href
+    document.querySelectorAll('[data-blob="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]').forEach(function (im) { var a = im.tagName === 'IMG' ? 'src' : 'href'; if (im.getAttribute(a) !== url) im.setAttribute(a, url); });
+  }
   function loadPhoto(id) {
     if (PH[id] || PH_LOADING[id] || PH_MISS[id]) return; PH_LOADING[id] = true;
     IDB.get('foto', id).then(function (u) {
