@@ -7927,7 +7927,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var h = '<div class="cal-nav"><button type="button" class="icon-btn blue" data-act="ore-prev" aria-label="Mese precedente">' + I.left + '</button><h2>' + monthLabel(key) + '</h2><button type="button" class="icon-btn blue" data-act="ore-next" aria-label="Mese successivo">' + I.right + '</button></div>';
     if (!order.length) return h + '<div class="notice" style="margin-top:12px">Nessuna ora segnata in questo mese. Le ore arrivano dalla Scheda lavoro.</div>' + assOreHtml(key);
     h += '<div class="day-sum"><div><span class="big">' + fmtNum(all, 2) + ' <small>h</small></span><span class="cap">Totale squadra · ' + order.length + (order.length === 1 ? ' persona' : ' persone') + '</span></div></div>';
-    if (S.isOwner) h += '<button type="button" class="btn" data-act="ore-xlsx" style="width:100%;margin:12px 0 4px">' + I.dl + ' Scarica Excel delle schede lavoro</button><p class="cap" style="margin:0 2px 8px">Una pagina da stampare per ogni dipendente: giorno per giorno lavorazioni, cliente, barca e ore, con il totale del mese.</p>';
+    if (S.isOwner) h += '<button type="button" class="btn" data-act="ore-xlsx" style="width:100%;margin:12px 0 4px">' + I.dl + ' Scarica Excel delle schede lavoro</button><p class="cap" style="margin:0 2px 8px">Una pagina da stampare per ogni dipendente: giorno per giorno lavorazioni, cliente, barca e ore, con il totale del mese.</p>' +
+      '<button type="button" class="btn sec" data-act="ore-comm" style="width:100%;margin:4px 0 4px">' + I.dl + ' Scarica Excel per il commercialista</button><p class="cap" style="margin:0 2px 8px">Solo le ore: una riga per dipendente e una colonna per giorno, con totali' + (COMM_ASS ? ', ferie, malattia e permessi' : '') + '.</p>';
     h += secH('Dipendenti') + '<div class="group">';
     order.forEach(function (uid) {
       var p = per[uid], days = Object.keys(p.days).sort(), pend = days.filter(function (d) { return !isConfirmed(uid, d) && d <= todayISO(); }).length, open = V.oreOpen === uid;
@@ -7981,20 +7982,23 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       if (r[0] === 's') merge.push('A' + (i + 1) + ':D' + (i + 1));
       xml += '<row r="' + (i + 1) + '"' + (r[0] === 'n' ? ' ht="24" customHeight="1"' : '') + '>' + cells + '</row>';
     });
+    return xlsxWrap(xml, cols, merge, breaks, false);
+  }
+  function xlsxWrap(xml, cols, merge, breaks, landscape) {
     return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>' +
       '<sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols>' +
       cols.map(function (w, i) { return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>'; }).join('') + '</cols><sheetData>' + xml + '</sheetData>' +
       (merge.length ? '<mergeCells count="' + merge.length + '">' + merge.map(function (m) { return '<mergeCell ref="' + m + '"/>'; }).join('') + '</mergeCells>' : '') +
-      '<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="portrait" fitToWidth="1" fitToHeight="0"/>' +
+      '<pageMargins left="0.4" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="' + (landscape ? 'landscape' : 'portrait') + '" fitToWidth="1" fitToHeight="0"/>' +
       (breaks.length ? '<rowBreaks count="' + breaks.length + '" manualBreakCount="' + breaks.length + '">' + breaks.map(function (b) { return '<brk id="' + b + '" max="16383" man="1"/>'; }).join('') + '</rowBreaks>' : '') + '</worksheet>';
   }
   function xlsxFile(title, sheetXml) {
     var styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
       '<numFmts count="1"><numFmt numFmtId="164" formatCode="0.0#"/></numFmts>' +
-      '<fonts count="5"><font><sz val="11"/><name val="Calibri"/></font><font><sz val="10"/><color rgb="FF667085"/><name val="Calibri"/></font><font><b/><sz val="16"/><color rgb="FF0B1640"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
-      '<fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0B1640"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1B8F86"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF2F5F9"/></patternFill></fill></fills>' +
+      '<fonts count="8"><font><sz val="11"/><name val="Calibri"/></font><font><sz val="10"/><color rgb="FF667085"/><name val="Calibri"/></font><font><b/><sz val="16"/><color rgb="FF0B1640"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FF1B6F86"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFB42318"/><name val="Calibri"/></font><font><sz val="8"/><name val="Calibri"/></font></fonts>' +
+      '<fills count="6"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0B1640"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1B8F86"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF2F5F9"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE4E8EF"/></patternFill></fill></fills>' +
       '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFC9D2DE"/></left><right style="thin"><color rgb="FFC9D2DE"/></right><top style="thin"><color rgb="FFC9D2DE"/></top><bottom style="thin"><color rgb="FFC9D2DE"/></bottom><diagonal/></border></borders>' +
-      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="14">' +
+      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="22">' +
       '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +                                   // 0
       '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +                     // 1 intestazione piccola
       '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +                     // 2 nome
@@ -8009,6 +8013,14 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       '<xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf>' + // 11 fascia
       '<xf numFmtId="0" fontId="4" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top"/></xf>' + // 12
       '<xf numFmtId="164" fontId="0" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="top"/></xf>' + // 13
+      '<xf numFmtId="0" fontId="3" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' + // 14 titoli a due righe
+      '<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' + // 15 ore del giorno
+      '<xf numFmtId="164" fontId="0" fillId="5" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' + // 16 sabato e domenica
+      '<xf numFmtId="0" fontId="5" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' + // 17 F
+      '<xf numFmtId="0" fontId="6" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' + // 18 M
+      '<xf numFmtId="0" fontId="7" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' + // 19 ore + permesso
+      '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' + // 20 giorni (numero intero)
+      '<xf numFmtId="0" fontId="3" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' + // 21 totale in giorni
       '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
     var R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
     return zipStore([
@@ -8045,6 +8057,79 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       if (n < ids.length - 1) { breaks.push(rows.length); rows.push(['v']); }
     });
     return { rows: rows, breaks: breaks, n: ids.length };
+  }
+  /* Excel per il commercialista: solo le ore, una riga per dipendente e una colonna per giorno,
+     con ferie (F), malattia (M) e permessi (P) approvati. Ferie e malattia contano i giorni dal lunedì al venerdì. */
+  var COMM_ASS = true;
+  function xCol(n) { var s = ''; n++; while (n > 0) { var m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; }
+  function assOrePerm(a) { var o = num(a.ore); if (o != null) return o; var m = /^(\d+):(\d+)$/, x = m.exec(a.dalle || ''), y = m.exec(a.alle || ''); return x && y ? Math.max(0, (+y[1] * 60 + +y[2] - +x[1] * 60 - +x[2]) / 60) : 0; }
+  function commSheet(key) {
+    var y = +key.slice(0, 4), mo = +key.slice(5, 7), nd = new Date(y, mo, 0).getDate(), per = {};
+    function P(uid) { return per[uid] = per[uid] || { ore: {}, ass: {}, perm: {} }; }
+    S.lavori.forEach(function (l) {
+      if (l.fonte !== 'scheda' || !l.utente || !l.data || String(l.data).slice(0, 7) !== key) return;
+      var p = P(l.utente), d = +l.data.slice(8, 10); p.ore[d] = (p.ore[d] || 0) + (num(l.oreLavoro) || 0);
+    });
+    if (COMM_ASS) (S.assenze || []).forEach(function (a) {
+      if (a.stato !== 'approvata' || !a.utente) return;
+      assDays(a).forEach(function (day) {
+        if (!day || day.slice(0, 7) !== key) return; var p = P(a.utente), d = +day.slice(8, 10);
+        if (a.tipo === 'permesso') p.perm[d] = (p.perm[d] || 0) + assOrePerm(a); else p.ass[d] = a.tipo === 'malattia' ? 'M' : 'F';
+      });
+    });
+    var ids = Object.keys(per).sort(function (a, b) { return nameOf(a).localeCompare(nameOf(b), 'it'); });
+    if (!ids.length) return null;
+    function r2(n) { return Math.round(n * 100) / 100; }
+    function c(col, row, st, v) {
+      var ref = xCol(col) + row;
+      if (typeof v === 'number') return '<c r="' + ref + '" s="' + st + '"><v>' + v + '</v></c>';
+      if (v != null && v !== '') return '<c r="' + ref + '" s="' + st + '" t="inlineStr"><is><t xml:space="preserve">' + xEsc(v) + '</t></is></c>';
+      return '<c r="' + ref + '" s="' + st + '"/>';
+    }
+    var wk = [], GG1 = ['D', 'L', 'M', 'M', 'G', 'V', 'S'];
+    for (var d = 1; d <= nd; d++) wk[d] = new Date(y, mo - 1, d).getDay();
+    var tail = COMM_ASS ? ['Totale ore', 'Giorni lavorati', 'Ferie (gg)', 'Malattia (gg)', 'Permessi (ore)'] : ['Totale ore', 'Giorni lavorati'];
+    var xml = '<row r="1">' + c(0, 1, 2, NOME() + ' · Ore lavorate · ' + cap(monthLabel(key))) + '</row>' +
+      '<row r="2">' + c(0, 2, 1, 'Ore dalla scheda lavoro di ogni dipendente' + (COMM_ASS ? '. F = ferie, M = malattia, P = ore di permesso. Ferie e malattia in giorni dal lunedì al venerdì.' : '.')) + '</row><row r="3"/>';
+    var h = c(0, 4, 14, 'Dipendente');
+    for (d = 1; d <= nd; d++) h += c(d, 4, 14, d + '\n' + GG1[wk[d]]);
+    tail.forEach(function (t, j) { h += c(nd + 1 + j, 4, 14, t); });
+    xml += '<row r="4" ht="30" customHeight="1">' + h + '</row>';
+    var row = 4, T = [0, 0, 0, 0, 0];
+    ids.forEach(function (uid) {
+      var p = per[uid], cells = '', tot = 0, gl = 0, fe = 0, ma = 0, pe = 0; row++;
+      cells += c(0, row, 6, nameOf(uid));
+      for (d = 1; d <= nd; d++) {
+        var o = p.ore[d] || 0, a = p.ass[d], pm = p.perm[d] || 0, we = wk[d] === 0 || wk[d] === 6;
+        if (o) { tot += o; gl++; }
+        if (pm) pe += pm;
+        if (a && !we) { if (a === 'M') ma++; else fe++; }
+        if (pm) cells += c(d, row, 19, (o ? fmtNum(r2(o), 2) + ' ' : '') + '(P' + fmtNum(r2(pm), 2) + ')');
+        else if (o) cells += c(d, row, we ? 16 : 15, r2(o));
+        else if (a && !we) cells += c(d, row, a === 'M' ? 18 : 17, a);
+        else cells += c(d, row, we ? 16 : 15, '');
+      }
+      var vals = [r2(tot), gl, fe, ma, r2(pe)];
+      tail.forEach(function (t, j) { T[j] += vals[j]; cells += c(nd + 1 + j, row, j === 0 ? 7 : j === 4 ? 15 : 20, vals[j] || ''); });
+      xml += '<row r="' + row + '">' + cells + '</row>';
+    });
+    row++;
+    var tr = c(0, row, 8, 'Totale');
+    for (d = 1; d <= nd; d++) tr += c(d, row, 8, '');
+    tail.forEach(function (t, j) { tr += c(nd + 1 + j, row, j === 0 || j === 4 ? 9 : 21, r2(T[j]) || ''); });
+    xml += '<row r="' + row + '">' + tr + '</row>';
+    var cols = [20]; for (d = 1; d <= nd; d++) cols.push(5.2); tail.forEach(function () { cols.push(9.5); });
+    return xlsxWrap(xml, cols, [], [], true);
+  }
+  async function oreCommXlsx() {
+    if (!S.isOwner) return;
+    if (S.dl === undefined) { try { S.dl = (await CLD().use('downloads')) || null; } catch (e) { S.dl = null; } }
+    if (!S.dl) { toast('Da qui non si possono scaricare file.', true); return; }
+    var key = V.oreMonth, sheet = commSheet(key);
+    if (!sheet) { toast('Nessuna ora segnata in questo mese.', true); return; }
+    var blob = new Blob([xlsxFile('Ore ' + monthLabel(key), sheet)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    try { var res = await S.dl.save({ filename: 'Ore-per-il-commercialista-' + key + '.xlsx', data: blob }); if (res && res.status === 'saved') toast('Excel per il commercialista pronto'); }
+    catch (e) { bkDlErr(e && e.code); }
   }
   async function oreXlsx() {
     if (!S.isOwner) return;
@@ -10511,6 +10596,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         if (om < 0) { om = 11; oy--; } if (om > 11) { om = 0; oy++; }
         V.oreMonth = oy + '-' + pad(om + 1); V.oreOpen = null; render(); break;
       case 'ore-xlsx': oreXlsx(); break;
+      case 'ore-comm': oreCommXlsx(); break;
       case 'ore-open': V.oreOpen = V.oreOpen === t.getAttribute('data-u') ? null : t.getAttribute('data-u'); render(); break;
       case 'new-modello': modelloSheet(null); break;
       case 'edit-modello': x = S.modelli.find(function (m) { return m.id === id; }); if (x && S.canWrite) modelloSheet(x); break;
