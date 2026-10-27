@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gestionale Rimessaggio · il gestionale per cantieri e rimessaggi nautici</title>
+<meta name="description" content="Barche, lavori, scadenze, magazzino, mappa del cantiere e porto in un'unica app, dal telefono e dal computer. Registra la tua azienda.">
+<meta name="theme-color" content="#0d131a">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+:root { color-scheme: dark; --bg: #0d131a; --card: #18212c; --card-2: #212c39; --line: #2a3644; --ink: #eef3f8; --muted: #9aabbd; --accent: #2ec4b6; --accent-ink: #062a26; }
+* { box-sizing: border-box; }
+body { margin: 0; background: radial-gradient(110% 50% at 50% 0%, #1b2a38 0%, var(--bg) 60%) no-repeat, var(--bg); color: var(--ink); font: 400 17px/1.55 'IBM Plex Sans', system-ui, sans-serif; }
+h1, h2, h3 { font-family: 'Space Grotesk', system-ui, sans-serif; line-height: 1.15; margin: 0; }
+a { color: var(--accent); }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 0; }
+.logo { display: flex; align-items: center; gap: 10px; font: 600 1.05rem 'Space Grotesk', sans-serif; color: var(--ink); text-decoration: none; }
+.logo img { width: 34px; height: 34px; border-radius: 9px; }
+.btn { display: inline-block; border-radius: 999px; padding: 13px 24px; font-weight: 600; text-decoration: none; background: var(--accent); color: var(--accent-ink); }
+.btn.sec { background: var(--card-2); color: var(--ink); }
+.btn.small { padding: 9px 16px; font-size: .92rem; }
+.hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 40px; align-items: center; padding: 40px 0 56px; }
+.hero h1 { font-size: clamp(2rem, 4.4vw, 3.2rem); letter-spacing: -.01em; }
+.hero p { color: var(--muted); font-size: 1.1rem; margin: 18px 0 26px; max-width: 34em; }
+.acts { display: flex; flex-wrap: wrap; gap: 10px; }
+.shot { border-radius: 16px; border: 1px solid var(--line); box-shadow: 0 24px 60px rgba(0,0,0,.45); width: 100%; height: auto; display: block; }
+.duo { position: relative; }
+.duo .tel { position: absolute; width: 30%; right: -10px; bottom: -34px; border-radius: 22px; }
+section { padding: 52px 0; border-top: 1px solid var(--line); }
+section > h2 { font-size: clamp(1.5rem, 3vw, 2rem); margin-bottom: 10px; }
+.lead { color: var(--muted); margin: 0 0 28px; max-width: 40em; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+.card h3 { font-size: 1.08rem; margin-bottom: 6px; }
+.card p { margin: 0; color: var(--muted); font-size: .97rem; }
+.split { display: grid; grid-template-columns: 1fr 1.4fr; gap: 36px; align-items: center; }
+.split.rev { grid-template-columns: 1.4fr 1fr; }
+.split ul { margin: 0; padding-left: 20px; color: var(--muted); }
+.split li { margin: 6px 0; }
+.tel-only { max-width: 300px; margin: 0 auto; border-radius: 26px; }
+.steps { counter-reset: s; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.steps .card { counter-increment: s; }
+.steps .card h3::before { content: counter(s); display: inline-grid; place-items: center; width: 28px; height: 28px; margin-right: 10px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: .9rem; }
+.cta { text-align: center; }
+.cta p { color: var(--muted); max-width: 36em; margin: 12px auto 24px; }
+footer { padding: 30px 0 44px; color: var(--muted); font-size: .9rem; border-top: 1px solid var(--line); }
+@media (max-width: 860px) {
+  .hero, .split, .split.rev { grid-template-columns: 1fr; }
+  .split.rev > :first-child { order: 2; }
+  .grid, .steps { grid-template-columns: 1fr 1fr; }
+  .duo .tel { right: 0; bottom: -24px; }
+}
+@media (max-width: 560px) {
+  body { font-size: 16px; }
+  .wrap { padding: 0 16px; }
+  .grid, .steps { grid-template-columns: 1fr; }
+  header .acts { display: none; }
+  .hero { padding: 20px 0 48px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="logo" href="./presentazione.html"><img src="icon-192.png" alt="">Gestionale Rimessaggio</a>
+    <div class="acts">
+      <a class="btn sec small" href="./">Ho già un account</a>
+      <a class="btn small" href="./#registra">Registra la tua azienda</a>
+    </div>
+  </header>
+
+  <div class="hero">
+    <div>
+      <h1>Il gestionale per cantieri e rimessaggi nautici</h1>
+      <p>Barche, lavori, scadenze, magazzino, mappa del cantiere e porto in un’unica app. Si usa dal telefono in banchina e dal computer in ufficio, senza installare niente.</p>
+      <div class="acts">
+        <a class="btn" href="./#registra">Registra la tua azienda</a>
+        <a class="btn sec" href="#come">Come si comincia</a>
+      </div>
+    </div>
+    <div class="duo">
+      <img class="shot" src="presentazione/home-computer.jpg" width="1280" height="800" alt="La Home sul computer: scadenze in primo piano e riepilogo di barche e lavori">
+      <img class="shot tel" src="presentazione/home-telefono.jpg" width="390" height="844" alt="La Home sul telefono">
+    </div>
+  </div>
+</div>
+
+<section>
+  <div class="wrap">
+    <h2>Tutto il cantiere in un posto</h2>
+    <p class="lead">Ogni sezione si accende o si spegne: tieni solo quello che serve alla tua azienda.</p>
+    <div class="grid">
+      <div class="card"><h3>Barche e clienti</h3><p>Scheda di ogni barca con modello, misure, posto, proprietario e la storia di tutti i lavori fatti.</p></div>
+      <div class="card"><h3>Scheda lavoro</h3><p>Ognuno segna le sue ore e le mansioni del giorno; l’amministratore conferma le giornate.</p></div>
+      <div class="card"><h3>Lavorazioni e programma</h3><p>Cosa c’è da fare, chi lo fa e quando, con calendario e mezzi già impegnati.</p></div>
+      <div class="card"><h3>Scadenze</h3><p>Zattere, estintori, tagliandi: avviso sul telefono prima che scadano, con l’elenco dei clienti da chiamare.</p></div>
+      <div class="card"><h3>Magazzino</h3><p>Carico e scarico anche col codice a barre, kit di ricambi, inventario e lista della spesa.</p></div>
+      <div class="card"><h3>Mappa del cantiere e porto</h3><p>Carica la pianta del piazzale e trascina le barche al loro posto; vari e alaggi in calendario.</p></div>
+      <div class="card"><h3>Ore del mese in Excel</h3><p>Le schede lavoro da stampare e la griglia delle ore per il commercialista, pronte da scaricare.</p></div>
+      <div class="card"><h3>Anche per i clienti</h3><p>Il cliente entra con il codice dell’azienda e vede la sua barca e i lavori fatti.</p></div>
+      <div class="card"><h3>Rifiuti, ferie, mezzi</h3><p>Registro dei rifiuti, ferie e permessi, controllo dei mezzi prima dell’uso.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap split">
+    <div>
+      <h2>Le scadenze non scappano più</h2>
+      <p class="lead" style="margin-top:12px">Ogni mattina feriale l’app manda l’avviso di cosa scade. Le vedi per data, per cliente, per articolo o per modello.</p>
+      <ul>
+        <li>Scadute in rosso, in arrivo in giallo</li>
+        <li>Un tocco per segnarle fatte</li>
+        <li>Il telefono del cliente sempre a portata di mano</li>
+      </ul>
+    </div>
+    <img class="shot tel-only" src="presentazione/scadenze-telefono.jpg" width="390" height="844" alt="Elenco delle scadenze sul telefono">
+  </div>
+</section>
+
+<section>
+  <div class="wrap split rev">
+    <img class="shot" src="presentazione/pannello-computer.jpg" width="1280" height="800" alt="Il Pannello dell'amministratore con le ore dell'anno per tipo di lavoro">
+    <div>
+      <h2>I numeri dell’azienda, aggiornati</h2>
+      <p class="lead" style="margin-top:12px">Il Pannello dell’amministratore mostra le ore per persona, barca, cliente o tipo di lavoro: della settimana, del mese o dell’anno intero.</p>
+      <ul>
+        <li>Giornate da confermare e lavori aperti</li>
+        <li>Contratti del porto in scadenza</li>
+        <li>Magazzino da riordinare</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="come">
+  <div class="wrap">
+    <h2>Come si comincia</h2>
+    <p class="lead">Ogni azienda vede solo i suoi dati.</p>
+    <div class="steps">
+      <div class="card"><h3>Registra l’azienda</h3><p>Scegli «Registro la mia azienda» e scrivi nome dell’azienda, telefono e i tuoi dati.</p></div>
+      <div class="card"><h3>Ti approviamo</h3><p>Il gestore del servizio controlla la richiesta e la approva: entri come amministratore.</p></div>
+      <div class="card"><h3>Fai entrare la squadra</h3><p>Manda il codice dell’azienda a colleghi e clienti: si registrano con quello e li approvi tu.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="cta">
+  <div class="wrap">
+    <h2>Vuoi provarlo nel tuo cantiere?</h2>
+    <p>Registra la tua azienda: la richiesta arriva al gestore del servizio, che ti attiva e ti ricontatta al numero che lasci.</p>
+    <a class="btn" href="./#registra">Registra la tua azienda</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">Gestionale Rimessaggio · <a href="./">Entra nell’app</a></div>
+</footer>
+</body>
+</html>
