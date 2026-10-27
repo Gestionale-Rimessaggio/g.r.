@@ -5193,6 +5193,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function panRange(per) {
     var t = todayISO();
     if (per === 'mese') return { a: t.slice(0, 8) + '01', b: t, l: 'questo mese' };
+    if (per === 'anno') return { a: t.slice(0, 4) + '-01-01', b: t, l: 'quest’anno' };
+    if (per === 'annoPrima') { var y = +t.slice(0, 4) - 1; return { a: y + '-01-01', b: y + '-12-31', l: 'l’anno scorso (' + y + ')' }; }
     if (per === 'scorso') { var d = new Date(isoToUTC(t.slice(0, 8) + '01') - 86400000), e = utcToISO(d.getTime()); return { a: e.slice(0, 8) + '01', b: e, l: 'il mese scorso' }; }
     return { a: utcToISO(mondayOf(t)), b: t, l: 'questa settimana' };
   }
@@ -5230,7 +5232,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ];
     // Ore
     var r = panRange(V.panPer), E = panEntries(r), tot = E.reduce(function (a, l) { return a + num(l.oreLavoro); }, 0), cant = E.filter(function (l) { return !l.barcaId; }).reduce(function (a, l) { return a + num(l.oreLavoro); }, 0);
-    var o = secH('Ore lavorate') + '<div class="chips" role="group" aria-label="Periodo" style="margin-top:0">' + [['sett', 'Settimana'], ['mese', 'Mese'], ['scorso', 'Mese scorso']].map(function (o) { return '<button type="button" data-act="pan-per" data-p="' + o[0] + '" aria-pressed="' + (V.panPer === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
+    var o = secH('Ore lavorate') + '<div class="chips" role="group" aria-label="Periodo" style="margin-top:0;flex-wrap:wrap">' + [['sett', 'Settimana'], ['mese', 'Mese'], ['scorso', 'Mese scorso'], ['anno', 'Quest’anno'], ['annoPrima', 'Anno scorso']].map(function (o) { return '<button type="button" data-act="pan-per" data-p="' + o[0] + '" aria-pressed="' + (V.panPer === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
     o += '<div class="chips" role="group" aria-label="Dividi per" style="margin-top:8px">' + [['persona', 'Persona'], ['barca', 'Barca'], ['cliente', 'Cliente'], ['categoria', 'Categoria']].map(function (o) { return '<button type="button" data-act="pan-by" data-b="' + o[0] + '" aria-pressed="' + (V.panBy === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
     o += '<p class="cap" style="margin:10px 2px 6px">Totale ' + esc(r.l) + ': <b style="color:var(--ink)">' + esc(fmtNum(tot, 1)) + ' h</b>' + (cant ? ' · di cui ' + esc(fmtNum(cant, 1)) + ' h per il cantiere' : '') + '</p>';
     var keyFn = V.panBy === 'barca' ? function (l) { var b = l.barcaId && boatById(l.barcaId); return l.barcaId ? (b ? b.nome || 'Barca' : 'Barca eliminata') : 'Cantiere'; }
@@ -8744,6 +8746,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'Quando segni una cosa fatta, ricordati di mettere le ore nella Scheda lavoro.'] },
     pannello: { t: 'Pannello', p: 'Una pagina unica di controllo, aggiornata in tempo reale.', li: [
       'Ore della settimana, programma di oggi, giornate da confermare, lavori e servizi aperti.',
+      '«Ore lavorate» divide le ore per persona, barca, cliente o tipo di lavoro (categoria): per settimana, mese, mese scorso, quest’anno o l’anno scorso.',
       'Contratti del porto in scadenza, posti liberi e occupati, barche in vendita.',
       'Servizi degli ultimi 30 giorni: nei tempi, più lunghi o più veloci del previsto.',
       'Magazzino da riordinare e batterie da caricare.',
