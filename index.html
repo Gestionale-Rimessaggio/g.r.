@@ -22,10 +22,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Gestionale">
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check-compat.js"></script>
+<!-- Firebase con l'impronta (integrity): se il file sul CDN cambiasse, il browser non lo esegue. «?i=1» = indirizzo nuovo, così non si usano le copie salvate senza impronta -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js?i=1" integrity="sha384-ZaR6mWzmJtrRibZ1Vm7SoHFr8OXjyAuGAXalGDKqbxFT18oi/z+oZLIRFkpeNor1" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js?i=1" integrity="sha384-I1LYojsZ5RM1cOda44Z2h42Qa6YfsQ1XkXxREnhp4ueYBR/4d1pG1K+NZM537Vsj" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js?i=1" integrity="sha384-Ke0FJhH7LyRqDxZ0wt+/OXV38yfQVu7g9VPEEGjYmB4RVOY/ta04uecRhsMwT7V3" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check-compat.js?i=1" integrity="sha384-Tsd7RAB2e2isM7pHHNFd4hZbrHBtszy6x4HCQqkLDM7PTHvRAjrMZKBOP2ntQDqc" crossorigin="anonymous"></script>
 <script src="config.js"></script>
 <script>
 /* Aspetto dell'azienda: nome, i due colori della sfumatura, logo d'apertura e logo in alto nella Home.
@@ -3516,6 +3517,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   // ogni libreria esterna ha la sua impronta (integrity): se il file sul sito esterno cambiasse, il telefono non lo userebbe
   var THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js', ORBIT_URL = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js', threeP = null;
   var LIB_SRI = {};
+  var FB_MSG_URL = 'https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js?i=1';
+  LIB_SRI[FB_MSG_URL] = 'sha384-HY9kcCUNf5iP55Q7dt4qtyKGMq0L6BbtAwNb4LYA6MXDWUL8DRlsj1xhtwKBZ2BL';
   LIB_SRI[THREE_URL] = 'sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu';
   LIB_SRI[ORBIT_URL] = 'sha384-wagZhIFgY4hD+7awjQjR4e2E294y6J2HSnd8eTNc15ZubTeQeVRZwhQJ+W6hnBsf';
   LIB_SRI['https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js'] = 'sha384-BzBxP10ZE72aitqj5UMmUsbKFliP/DZqA8Wq+BNNhlIJDGoEd1tpkMYXOg9+n6sB';
@@ -7151,7 +7154,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   async function ntAttiva() {
     var why = ntSupport(); if (why) { toast(why, true); return; }
     try {
-      if (!firebase.messaging) await loadScript('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
+      if (!firebase.messaging) await loadScript(FB_MSG_URL);
       var perm = await Notification.requestPermission();
       if (perm !== 'granted') { toast('Hai negato le notifiche: si riattivano dalle impostazioni del telefono per questo sito.', true); return; }
       var reg = await navigator.serviceWorker.ready;

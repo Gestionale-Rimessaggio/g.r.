@@ -545,7 +545,7 @@
   function showWait(u, nuova) {
     var o = overlay('<h2>Richiesta inviata</h2><div class="card"><p style="margin:0">Ciao <b>' + esc(u.nome || '') + '</b>, ' +
       (nuova ? 'la richiesta per <b>' + esc((AZD && AZD.nome) || 'la tua azienda') + '</b> è arrivata al gestore del servizio. Appena la approva, l’app si apre da sola e da Altro › Utenti e permessi potrai far entrare colleghi e clienti.'
-        : 'il tuo account è in attesa. L’amministratore di <b>' + esc((AZD && AZD.nome) || 'della tua azienda') + '</b> deve approvarlo: appena lo fa, l’app si apre da sola.') + '</p></div>' +
+        : 'il tuo account è in attesa. ' + (AZD && AZD.nome ? 'L’amministratore di <b>' + esc(AZD.nome) + '</b>' : 'L’amministratore della tua azienda') + ' deve approvarlo: appena lo fa, l’app si apre da sola.') + '</p></div>' +
       '<button class="lnk" id="nm-out">Esci</button>');
     $('#nm-out', o).onclick = logout;
   }
@@ -578,11 +578,12 @@
   // la scheda dell'azienda dice se è attiva (approvata dal gestore) e ha il codice e il permesso di assistenza
   function seguiAzienda(x) {
     MEX = x;
-    if (!AZ_UNSUB || AZ_UNSUB.az !== x.azienda) {
+    // chi è in attesa con il codice non legge la scheda dell'azienda: quando viene approvato la si riapre
+    if (!AZ_UNSUB || AZ_UNSUB.az !== x.azienda || (AZD === null && AZ_UNSUB.st !== x.stato)) {
       if (AZ_UNSUB) AZ_UNSUB();
       AZD = undefined;
       var un = fs.collection('aziende').doc(x.azienda).onSnapshot(function (d) { AZD = d.exists ? d.data() : null; decidi(); if ($('#nmpan')) renderPanel(); }, function () { AZD = null; decidi(); });
-      un.az = x.azienda; AZ_UNSUB = un;
+      un.az = x.azienda; un.st = x.stato; AZ_UNSUB = un;
     }
     decidi();
   }
@@ -590,6 +591,8 @@
     var x = MEX; if (!x || AZD === undefined) return;
     if (!AZD || AZD.stato !== 'attiva') {
       if (started) { location.reload(); return; }
+      if (!AZD && x.stato === 'in_attesa' && x.ruolo !== 'admin') { showWait(x); return; }
+      if (!AZD && x.stato === 'bloccato') { showBlocked(); return; }
       if (AZD && AZD.stato === 'in_attesa') showWait(x, true); else showBlocked(AZD ? 'azienda' : 'nessuna');
       return;
     }
@@ -942,7 +945,7 @@
     if (!window.NM_VAPID_KEY) return 'Manca la chiave per le notifiche web (NM_VAPID_KEY in config.js): appena la metti, qui compare «Attiva».';
     return '';
   }
-  function crScript(src) { return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
+  function crScript(src, sri) { return new Promise(function (res, rej) { var s = document.createElement('script'); if (sri) { s.integrity = sri; s.crossOrigin = 'anonymous'; } s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
   async function crPush(on) {
     var ref = fs.collection('creatori').doc(ME.uid), cur = (CR.me && CR.me.tokens) || [], tok = crDevTok();
     try {
@@ -951,7 +954,7 @@
         try { localStorage.removeItem('gr-gestore-token'); if (firebase.messaging && tok) await firebase.messaging().deleteToken(); } catch (e) { }
         toast('Notifiche spente su questo telefono'); return;
       }
-      if (!firebase.messaging) await crScript('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
+      if (!firebase.messaging) await crScript('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js?i=1', 'sha384-HY9kcCUNf5iP55Q7dt4qtyKGMq0L6BbtAwNb4LYA6MXDWUL8DRlsj1xhtwKBZ2BL');
       if (await Notification.requestPermission() !== 'granted') { toast('Hai negato le notifiche: si riattivano dalle impostazioni del telefono.'); return; }
       var t = await firebase.messaging().getToken({ vapidKey: window.NM_VAPID_KEY, serviceWorkerRegistration: await navigator.serviceWorker.ready });
       if (!t) throw new Error('token');

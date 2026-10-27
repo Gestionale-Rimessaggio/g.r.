@@ -2,7 +2,7 @@
    Le pagine del sito: prima la rete (così gli aggiornamenti arrivano subito), se manca il campo la copia salvata.
    Librerie esterne (Firebase, mappa 3D, caratteri): la copia salvata, aggiornata in background.
    I dati non passano di qui: li gestisce Firebase. */
-var V = 'nm-v4'; // v4: librerie con l'impronta (integrity), le copie vecchie salvate senza vanno buttate
+var V = 'nm-v5'; // v4: librerie con l'impronta (integrity), le copie vecchie salvate senza vanno buttate; v5: anche Firebase
 var CORE = ['./', './index.html', './nm-fb.js', './config.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-180.png'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(V).then(function (c) { return c.addAll(CORE); }).then(function () { return self.skipWaiting(); }));
