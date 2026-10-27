@@ -607,7 +607,7 @@
   var DOM = new Promise(function (r) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', r, { once: true }); else r(); });
   auth.onAuthStateChanged(function (u) {
     DOM.then(function () {
-      if (!u) { if (started) { location.reload(); return; } showLogin(); return; }
+      if (!u) { if (started) { location.reload(); return; } if (/^#registra$/.test(location.hash)) { history.replaceState(null, '', location.pathname + location.search); showRegister('azienda'); } else showLogin(); return; } // #registra: arriva dalla pagina di presentazione
       if (!registering) watchMe(u);
     });
   });

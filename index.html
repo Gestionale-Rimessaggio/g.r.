@@ -1252,6 +1252,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   function scadRow(x, showBoat, showOwner) {
     var s = x.s, i = x.i, done = !!s.fatta, lvl = done ? '' : i.level, sub = [];
+    if (s.modello && !(V.tab === 'scadenze' && V.scadBy === 'modello')) sub.push(esc(s.modello));
     if (showBoat) sub.push(esc(boatLabel(i.boat)));
     if (showOwner && i.boat && i.boat.proprietario) sub.push(esc(i.boat.proprietario));
     if (num(s.ricorrenzaMesi) || num(s.ricorrenzaOre)) {
@@ -1634,8 +1635,9 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ].concat(LY_W));
   }
 
-  // filtro scadenze: per data, per cliente (proprietario della barca) o per articolo (tipo di scadenza)
+  // filtro scadenze: per data, per cliente (proprietario della barca), per articolo (tipo di scadenza) o per modello dell'articolo
   function scadKey(s, by) {
+    if (by === 'modello') { var m = String(s.modello || '').trim(); return m ? [normT(m), m] : ['', 'Modello non segnato']; }
     if (by === 'cliente') { var b = boatById(s.barcaId), o = b && String(b.proprietario || '').trim(); return o ? [normT(o), o] : ['', 'Proprietario non segnato']; }
     var t = String(s.tipo || '').trim(); return t ? [normT(t), t] : ['', 'Senza nome'];
   }
@@ -1648,15 +1650,15 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (!S.boats.length) return '<div style="margin-top:14px">' + emptyCard(I.boat, 'Prima aggiungi una barca', 'Ogni scadenza è collegata a una barca.', ['new-boat', 'Aggiungi barca']) + '</div>';
     var by = V.scadBy || 'data', all = openScad(null), open = all, h = '';
     var doneAll = S.scadenze.filter(function (s) { return s.fatta; }).sort(function (a, b) { return String(b.fattaIl || '').localeCompare(String(a.fattaIl || '')); }), done = doneAll;
-    if (all.length || doneAll.length) h += '<div class="chips" role="group" aria-label="Filtra le scadenze">' + [['data', 'Per data'], ['cliente', 'Per cliente'], ['articolo', 'Per articolo']].map(function (o) {
+    if (all.length || doneAll.length) h += '<div class="chips" role="group" aria-label="Filtra le scadenze">' + [['data', 'Per data'], ['cliente', 'Per cliente'], ['articolo', 'Per articolo'], ['modello', 'Per modello']].map(function (o) {
       return '<button type="button" data-act="scad-by" data-v="' + o[0] + '" aria-pressed="' + (by === o[0]) + '">' + o[1] + '</button>';
     }).join('') + '</div>';
-    var owner = by === 'articolo';
+    var owner = by === 'articolo' || by === 'modello';
     function row(x) { return scadRow(x, true, owner); }
     if (by !== 'data' && (all.length || doneAll.length)) {
       var gs = scadGroups(all.concat(doneAll.map(function (s) { return { s: s, i: scadInfo(s) }; })), by), sel = V.scadSel || '';
       if (sel && !gs.some(function (g) { return (g.k || '-') === sel; })) sel = V.scadSel = '';
-      h += '<div style="margin-top:12px">' + field(lab('scad-sel', by === 'cliente' ? 'Cliente' : 'Articolo'), '<select id="scad-sel">' + opts([['', by === 'cliente' ? 'Tutti i clienti' : 'Tutti gli articoli']].concat(gs.map(function (g) {
+      h += '<div style="margin-top:12px">' + field(lab('scad-sel', by === 'cliente' ? 'Cliente' : by === 'modello' ? 'Modello' : 'Articolo'), '<select id="scad-sel">' + opts([['', by === 'cliente' ? 'Tutti i clienti' : by === 'modello' ? 'Tutti i modelli' : 'Tutti gli articoli']].concat(gs.map(function (g) {
         var n = g.items.filter(function (x) { return !x.s.fatta; }).length; return [g.k || '-', g.label + ' (' + n + (n === 1 ? ' aperta' : ' aperte') + ')'];
       })), sel) + '</select>') + '</div>';
       if (!sel) {
@@ -1672,7 +1674,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       var key = sel === '-' ? '' : sel;
       open = all.filter(function (x) { return scadKey(x.s, by)[0] === key; });
       done = doneAll.filter(function (s) { return scadKey(s, by)[0] === key; });
-      if (!open.length) h += '<div class="notice" style="margin-top:14px">Nessuna scadenza aperta per ' + (by === 'cliente' ? 'questo cliente' : 'questo articolo') + '.</div>';
+      if (!open.length) h += '<div class="notice" style="margin-top:14px">Nessuna scadenza aperta per ' + (by === 'cliente' ? 'questo cliente' : by === 'modello' ? 'questo modello' : 'questo articolo') + '.</div>';
     }
     var late = open.filter(function (x) { return x.i.level === 'late'; });
     var soon = open.filter(function (x) { return x.i.level === 'soon'; });
@@ -5191,6 +5193,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function panRange(per) {
     var t = todayISO();
     if (per === 'mese') return { a: t.slice(0, 8) + '01', b: t, l: 'questo mese' };
+    if (per === 'anno') return { a: t.slice(0, 4) + '-01-01', b: t, l: 'quest’anno' };
+    if (per === 'annoPrima') { var y = +t.slice(0, 4) - 1; return { a: y + '-01-01', b: y + '-12-31', l: 'l’anno scorso (' + y + ')' }; }
     if (per === 'scorso') { var d = new Date(isoToUTC(t.slice(0, 8) + '01') - 86400000), e = utcToISO(d.getTime()); return { a: e.slice(0, 8) + '01', b: e, l: 'il mese scorso' }; }
     return { a: utcToISO(mondayOf(t)), b: t, l: 'questa settimana' };
   }
@@ -5228,7 +5232,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ];
     // Ore
     var r = panRange(V.panPer), E = panEntries(r), tot = E.reduce(function (a, l) { return a + num(l.oreLavoro); }, 0), cant = E.filter(function (l) { return !l.barcaId; }).reduce(function (a, l) { return a + num(l.oreLavoro); }, 0);
-    var o = secH('Ore lavorate') + '<div class="chips" role="group" aria-label="Periodo" style="margin-top:0">' + [['sett', 'Settimana'], ['mese', 'Mese'], ['scorso', 'Mese scorso']].map(function (o) { return '<button type="button" data-act="pan-per" data-p="' + o[0] + '" aria-pressed="' + (V.panPer === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
+    var o = secH('Ore lavorate') + '<div class="chips" role="group" aria-label="Periodo" style="margin-top:0;flex-wrap:wrap">' + [['sett', 'Settimana'], ['mese', 'Mese'], ['scorso', 'Mese scorso'], ['anno', 'Quest’anno'], ['annoPrima', 'Anno scorso']].map(function (o) { return '<button type="button" data-act="pan-per" data-p="' + o[0] + '" aria-pressed="' + (V.panPer === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
     o += '<div class="chips" role="group" aria-label="Dividi per" style="margin-top:8px">' + [['persona', 'Persona'], ['barca', 'Barca'], ['cliente', 'Cliente'], ['categoria', 'Categoria']].map(function (o) { return '<button type="button" data-act="pan-by" data-b="' + o[0] + '" aria-pressed="' + (V.panBy === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
     o += '<p class="cap" style="margin:10px 2px 6px">Totale ' + esc(r.l) + ': <b style="color:var(--ink)">' + esc(fmtNum(tot, 1)) + ' h</b>' + (cant ? ' · di cui ' + esc(fmtNum(cant, 1)) + ' h per il cantiere' : '') + '</p>';
     var keyFn = V.panBy === 'barca' ? function (l) { var b = l.barcaId && boatById(l.barcaId); return l.barcaId ? (b ? b.nome || 'Barca' : 'Barca eliminata') : 'Cantiere'; }
@@ -7925,6 +7929,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var h = '<div class="cal-nav"><button type="button" class="icon-btn blue" data-act="ore-prev" aria-label="Mese precedente">' + I.left + '</button><h2>' + monthLabel(key) + '</h2><button type="button" class="icon-btn blue" data-act="ore-next" aria-label="Mese successivo">' + I.right + '</button></div>';
     if (!order.length) return h + '<div class="notice" style="margin-top:12px">Nessuna ora segnata in questo mese. Le ore arrivano dalla Scheda lavoro.</div>' + assOreHtml(key);
     h += '<div class="day-sum"><div><span class="big">' + fmtNum(all, 2) + ' <small>h</small></span><span class="cap">Totale squadra · ' + order.length + (order.length === 1 ? ' persona' : ' persone') + '</span></div></div>';
+    if (S.isOwner) h += '<button type="button" class="btn" data-act="ore-xlsx" style="width:100%;margin:12px 0 4px">' + I.dl + ' Scarica Excel delle schede lavoro</button><p class="cap" style="margin:0 2px 8px">Una pagina da stampare per ogni dipendente: giorno per giorno lavorazioni, cliente, barca e ore, con il totale del mese.</p>' +
+      '<button type="button" class="btn sec" data-act="ore-comm" style="width:100%;margin:4px 0 4px">' + I.dl + ' Scarica Excel per il commercialista</button><p class="cap" style="margin:0 2px 8px">Solo le ore: una riga per dipendente e una colonna per giorno, con totali' + (COMM_ASS ? ', ferie, malattia e permessi' : '') + '.</p>';
     h += secH('Dipendenti') + '<div class="group">';
     order.forEach(function (uid) {
       var p = per[uid], days = Object.keys(p.days).sort(), pend = days.filter(function (d) { return !isConfirmed(uid, d) && d <= todayISO(); }).length, open = V.oreOpen === uid;
@@ -7937,6 +7943,206 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       });
     });
     return h + '</div>' + assOreHtml(key);
+  }
+  /* ---------- Excel delle schede lavoro: una pagina da stampare per ogni dipendente ----------
+     Il file .xlsx si scrive qui (zip senza compressione + fogli XML): niente librerie da scaricare. */
+  var GG3 = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
+  function xEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, ''); }
+  var CRC_T = null;
+  function crc32(u) {
+    if (!CRC_T) { CRC_T = []; for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; CRC_T[n] = c >>> 0; } }
+    var x = 0xFFFFFFFF; for (var i = 0; i < u.length; i++) x = CRC_T[(x ^ u[i]) & 255] ^ (x >>> 8); return (x ^ 0xFFFFFFFF) >>> 0;
+  }
+  function zipStore(files) { // files: [[nome, testo]] -> Uint8Array (zip senza compressione)
+    var enc = new TextEncoder(), parts = [], cen = [], off = 0;
+    function le(n, b) { var a = []; for (var i = 0; i < b; i++) a.push((n >>> (8 * i)) & 255); return a; }
+    files.forEach(function (f) {
+      var name = enc.encode(f[0]), data = enc.encode(f[1]), crc = crc32(data);
+      var head = [].concat(le(0x04034b50, 4), le(20, 2), le(0x0800, 2), le(0, 2), le(0, 2), le(0x21, 2), le(crc, 4), le(data.length, 4), le(data.length, 4), le(name.length, 2), le(0, 2));
+      parts.push(new Uint8Array(head), name, data);
+      cen.push(new Uint8Array([].concat(le(0x02014b50, 4), le(20, 2), le(20, 2), le(0x0800, 2), le(0, 2), le(0, 2), le(0x21, 2), le(crc, 4), le(data.length, 4), le(data.length, 4), le(name.length, 2), le(0, 2), le(0, 2), le(0, 2), le(0, 2), le(0, 4), le(off, 4))), name);
+      off += head.length + name.length + data.length;
+    });
+    var cl = cen.reduce(function (a, p) { return a + p.length; }, 0);
+    var end = new Uint8Array([].concat(le(0x06054b50, 4), le(0, 2), le(0, 2), le(files.length, 2), le(files.length, 2), le(cl, 4), le(off, 4), le(0, 2)));
+    var all = parts.concat(cen, [end]), tot = all.reduce(function (a, p) { return a + p.length; }, 0), out = new Uint8Array(tot), p = 0;
+    all.forEach(function (x) { out.set(x, p); p += x.length; });
+    return out;
+  }
+  // righe: [[stile, valori...]] con stili: t=intestazione piccola, n=nome, h=titoli colonne, r/d=riga (d = primo del giorno), b=riga a fascia, s=totale, f=firma, v=vuota
+  function xlsxSheet(rows, breaks, cols) {
+    var X = { t: [1], n: [2], h: [3, 3, 3, 3, 4], r: [5, 5, 5, 5, 7], d: [6, 5, 5, 5, 7], b: [11, 11, 11, 11, 13], e: [12, 11, 11, 11, 13], s: [8, 8, 8, 8, 9], f: [10] };
+    var L = 'ABCDE', xml = '', merge = [];
+    rows.forEach(function (r, i) {
+      var st = X[r[0]] || [0], cells = '';
+      for (var c = 0; c < (r[0] === 'v' ? 0 : r[0] === 't' || r[0] === 'n' || r[0] === 'f' ? 1 : 5); c++) {
+        var v = r[c + 1], s = st[c] != null ? st[c] : st[st.length - 1], ref = L[c] + (i + 1);
+        if (typeof v === 'number') cells += '<c r="' + ref + '" s="' + s + '"><v>' + v + '</v></c>';
+        else if (v != null && v !== '') cells += '<c r="' + ref + '" s="' + s + '" t="inlineStr"><is><t xml:space="preserve">' + xEsc(v) + '</t></is></c>';
+        else cells += '<c r="' + ref + '" s="' + s + '"/>';
+      }
+      if (r[0] === 's') merge.push('A' + (i + 1) + ':D' + (i + 1));
+      xml += '<row r="' + (i + 1) + '"' + (r[0] === 'n' ? ' ht="24" customHeight="1"' : '') + '>' + cells + '</row>';
+    });
+    return xlsxWrap(xml, cols, merge, breaks, false);
+  }
+  function xlsxWrap(xml, cols, merge, breaks, landscape) {
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>' +
+      '<sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols>' +
+      cols.map(function (w, i) { return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>'; }).join('') + '</cols><sheetData>' + xml + '</sheetData>' +
+      (merge.length ? '<mergeCells count="' + merge.length + '">' + merge.map(function (m) { return '<mergeCell ref="' + m + '"/>'; }).join('') + '</mergeCells>' : '') +
+      '<pageMargins left="0.4" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="' + (landscape ? 'landscape' : 'portrait') + '" fitToWidth="1" fitToHeight="0"/>' +
+      (breaks.length ? '<rowBreaks count="' + breaks.length + '" manualBreakCount="' + breaks.length + '">' + breaks.map(function (b) { return '<brk id="' + b + '" max="16383" man="1"/>'; }).join('') + '</rowBreaks>' : '') + '</worksheet>';
+  }
+  function xlsxFile(title, sheetXml) {
+    var styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<numFmts count="1"><numFmt numFmtId="164" formatCode="0.0#"/></numFmts>' +
+      '<fonts count="8"><font><sz val="11"/><name val="Calibri"/></font><font><sz val="10"/><color rgb="FF667085"/><name val="Calibri"/></font><font><b/><sz val="16"/><color rgb="FF0B1640"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FF1B6F86"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFB42318"/><name val="Calibri"/></font><font><sz val="8"/><name val="Calibri"/></font></fonts>' +
+      '<fills count="6"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0B1640"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1B8F86"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF2F5F9"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE4E8EF"/></patternFill></fill></fills>' +
+      '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFC9D2DE"/></left><right style="thin"><color rgb="FFC9D2DE"/></right><top style="thin"><color rgb="FFC9D2DE"/></top><bottom style="thin"><color rgb="FFC9D2DE"/></bottom><diagonal/></border></borders>' +
+      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="22">' +
+      '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +                                   // 0
+      '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +                     // 1 intestazione piccola
+      '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +                     // 2 nome
+      '<xf numFmtId="0" fontId="3" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>' + // 3 titoli
+      '<xf numFmtId="0" fontId="3" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' + // 4
+      '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf>' + // 5 riga
+      '<xf numFmtId="0" fontId="4" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment vertical="top"/></xf>' + // 6 giorno
+      '<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="top"/></xf>' + // 7 ore
+      '<xf numFmtId="0" fontId="3" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>' + // 8 totale
+      '<xf numFmtId="164" fontId="3" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' + // 9
+      '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +                     // 10 firma
+      '<xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf>' + // 11 fascia
+      '<xf numFmtId="0" fontId="4" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top"/></xf>' + // 12
+      '<xf numFmtId="164" fontId="0" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="top"/></xf>' + // 13
+      '<xf numFmtId="0" fontId="3" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' + // 14 titoli a due righe
+      '<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' + // 15 ore del giorno
+      '<xf numFmtId="164" fontId="0" fillId="5" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' + // 16 sabato e domenica
+      '<xf numFmtId="0" fontId="5" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' + // 17 F
+      '<xf numFmtId="0" fontId="6" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' + // 18 M
+      '<xf numFmtId="0" fontId="7" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' + // 19 ore + permesso
+      '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' + // 20 giorni (numero intero)
+      '<xf numFmtId="0" fontId="3" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' + // 21 totale in giorni
+      '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+    var R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+    return zipStore([
+      ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
+      ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="' + R + '/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+      ['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="' + R + '"><sheets><sheet name="' + xEsc(title) + '" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+      ['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="' + R + '/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="' + R + '/styles" Target="styles.xml"/></Relationships>'],
+      ['xl/styles.xml', styles],
+      ['xl/worksheets/sheet1.xml', sheetXml]
+    ]);
+  }
+  function schedeRows(key) {
+    var per = {};
+    S.lavori.forEach(function (l) {
+      if (l.fonte !== 'scheda' || !l.utente || !l.data || String(l.data).slice(0, 7) !== key) return;
+      (per[l.utente] = per[l.utente] || []).push(l);
+    });
+    var rows = [], breaks = [], ids = Object.keys(per).sort(function (a, b) { return nameOf(a).localeCompare(nameOf(b), 'it'); });
+    ids.forEach(function (uid, n) {
+      var list = per[uid].map(function (l) {
+        var b = l.barcaId ? boatById(l.barcaId) : null, altre = (l.altreBarche || []).map(boatById).filter(Boolean);
+        return { d: l.data, t: l.titolo || 'Lavoro', c: l.barcaId ? (b && b.proprietario) || '' : 'Lavori del cantiere', b: l.barcaId ? [b ? b.nome || 'Barca' : 'Barca eliminata'].concat(altre.map(function (x) { return x.nome || 'Barca'; })).join(', ') : '—', o: num(l.oreLavoro) || 0 };
+      }).sort(function (a, b) { return a.d.localeCompare(b.d) || a.t.localeCompare(b.t, 'it') || a.c.localeCompare(b.c, 'it'); });
+      rows.push(['t', NOME() + ' · Schede lavoro · ' + cap(monthLabel(key))], ['n', nameOf(uid)], ['v'], ['h', 'Data', 'Lavorazione', 'Cliente', 'Barca', 'Ore']);
+      var last = '', band = true, tot = 0;
+      list.forEach(function (x) {
+        var first = x.d !== last; if (first) band = !band;
+        var dt = new Date(x.d + 'T12:00:00');
+        rows.push([band ? (first ? 'e' : 'b') : (first ? 'd' : 'r'), first ? GG3[dt.getDay()] + ' ' + x.d.slice(8, 10) + '/' + x.d.slice(5, 7) : '', x.t, x.c, x.b, Math.round(x.o * 100) / 100]);
+        last = x.d; tot += x.o;
+      });
+      rows.push(['s', 'Totale ' + nameOf(uid), '', '', '', Math.round(tot * 100) / 100], ['v'], ['f', 'Firma ______________________________']);
+      if (n < ids.length - 1) { breaks.push(rows.length); rows.push(['v']); }
+    });
+    return { rows: rows, breaks: breaks, n: ids.length };
+  }
+  /* Excel per il commercialista: solo le ore, una riga per dipendente e una colonna per giorno,
+     con ferie (F), malattia (M) e permessi (P) approvati. Ferie e malattia contano i giorni dal lunedì al venerdì. */
+  var COMM_ASS = true;
+  function xCol(n) { var s = ''; n++; while (n > 0) { var m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; }
+  function assOrePerm(a) { var o = num(a.ore); if (o != null) return o; var m = /^(\d+):(\d+)$/, x = m.exec(a.dalle || ''), y = m.exec(a.alle || ''); return x && y ? Math.max(0, (+y[1] * 60 + +y[2] - +x[1] * 60 - +x[2]) / 60) : 0; }
+  function commSheet(key) {
+    var y = +key.slice(0, 4), mo = +key.slice(5, 7), nd = new Date(y, mo, 0).getDate(), per = {};
+    function P(uid) { return per[uid] = per[uid] || { ore: {}, ass: {}, perm: {} }; }
+    S.lavori.forEach(function (l) {
+      if (l.fonte !== 'scheda' || !l.utente || !l.data || String(l.data).slice(0, 7) !== key) return;
+      var p = P(l.utente), d = +l.data.slice(8, 10); p.ore[d] = (p.ore[d] || 0) + (num(l.oreLavoro) || 0);
+    });
+    if (COMM_ASS) (S.assenze || []).forEach(function (a) {
+      if (a.stato !== 'approvata' || !a.utente) return;
+      assDays(a).forEach(function (day) {
+        if (!day || day.slice(0, 7) !== key) return; var p = P(a.utente), d = +day.slice(8, 10);
+        if (a.tipo === 'permesso') p.perm[d] = (p.perm[d] || 0) + assOrePerm(a); else p.ass[d] = a.tipo === 'malattia' ? 'M' : 'F';
+      });
+    });
+    var ids = Object.keys(per).sort(function (a, b) { return nameOf(a).localeCompare(nameOf(b), 'it'); });
+    if (!ids.length) return null;
+    function r2(n) { return Math.round(n * 100) / 100; }
+    function c(col, row, st, v) {
+      var ref = xCol(col) + row;
+      if (typeof v === 'number') return '<c r="' + ref + '" s="' + st + '"><v>' + v + '</v></c>';
+      if (v != null && v !== '') return '<c r="' + ref + '" s="' + st + '" t="inlineStr"><is><t xml:space="preserve">' + xEsc(v) + '</t></is></c>';
+      return '<c r="' + ref + '" s="' + st + '"/>';
+    }
+    var wk = [], GG1 = ['D', 'L', 'M', 'M', 'G', 'V', 'S'];
+    for (var d = 1; d <= nd; d++) wk[d] = new Date(y, mo - 1, d).getDay();
+    var tail = COMM_ASS ? ['Totale ore', 'Giorni lavorati', 'Ferie (gg)', 'Malattia (gg)', 'Permessi (ore)'] : ['Totale ore', 'Giorni lavorati'];
+    var xml = '<row r="1">' + c(0, 1, 2, NOME() + ' · Ore lavorate · ' + cap(monthLabel(key))) + '</row>' +
+      '<row r="2">' + c(0, 2, 1, 'Ore dalla scheda lavoro di ogni dipendente' + (COMM_ASS ? '. F = ferie, M = malattia, P = ore di permesso. Ferie e malattia in giorni dal lunedì al venerdì.' : '.')) + '</row><row r="3"/>';
+    var h = c(0, 4, 14, 'Dipendente');
+    for (d = 1; d <= nd; d++) h += c(d, 4, 14, d + '\n' + GG1[wk[d]]);
+    tail.forEach(function (t, j) { h += c(nd + 1 + j, 4, 14, t); });
+    xml += '<row r="4" ht="30" customHeight="1">' + h + '</row>';
+    var row = 4, T = [0, 0, 0, 0, 0];
+    ids.forEach(function (uid) {
+      var p = per[uid], cells = '', tot = 0, gl = 0, fe = 0, ma = 0, pe = 0; row++;
+      cells += c(0, row, 6, nameOf(uid));
+      for (d = 1; d <= nd; d++) {
+        var o = p.ore[d] || 0, a = p.ass[d], pm = p.perm[d] || 0, we = wk[d] === 0 || wk[d] === 6;
+        if (o) { tot += o; gl++; }
+        if (pm) pe += pm;
+        if (a && !we) { if (a === 'M') ma++; else fe++; }
+        if (pm) cells += c(d, row, 19, (o ? fmtNum(r2(o), 2) + ' ' : '') + '(P' + fmtNum(r2(pm), 2) + ')');
+        else if (o) cells += c(d, row, we ? 16 : 15, r2(o));
+        else if (a && !we) cells += c(d, row, a === 'M' ? 18 : 17, a);
+        else cells += c(d, row, we ? 16 : 15, '');
+      }
+      var vals = [r2(tot), gl, fe, ma, r2(pe)];
+      tail.forEach(function (t, j) { T[j] += vals[j]; cells += c(nd + 1 + j, row, j === 0 ? 7 : j === 4 ? 15 : 20, vals[j] || ''); });
+      xml += '<row r="' + row + '">' + cells + '</row>';
+    });
+    row++;
+    var tr = c(0, row, 8, 'Totale');
+    for (d = 1; d <= nd; d++) tr += c(d, row, 8, '');
+    tail.forEach(function (t, j) { tr += c(nd + 1 + j, row, j === 0 || j === 4 ? 9 : 21, r2(T[j]) || ''); });
+    xml += '<row r="' + row + '">' + tr + '</row>';
+    var cols = [20]; for (d = 1; d <= nd; d++) cols.push(5.2); tail.forEach(function () { cols.push(9.5); });
+    return xlsxWrap(xml, cols, [], [], true);
+  }
+  async function oreCommXlsx() {
+    if (!S.isOwner) return;
+    if (S.dl === undefined) { try { S.dl = (await CLD().use('downloads')) || null; } catch (e) { S.dl = null; } }
+    if (!S.dl) { toast('Da qui non si possono scaricare file.', true); return; }
+    var key = V.oreMonth, sheet = commSheet(key);
+    if (!sheet) { toast('Nessuna ora segnata in questo mese.', true); return; }
+    var blob = new Blob([xlsxFile('Ore ' + monthLabel(key), sheet)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    try { var res = await S.dl.save({ filename: 'Ore-per-il-commercialista-' + key + '.xlsx', data: blob }); if (res && res.status === 'saved') toast('Excel per il commercialista pronto'); }
+    catch (e) { bkDlErr(e && e.code); }
+  }
+  async function oreXlsx() {
+    if (!S.isOwner) return;
+    if (S.dl === undefined) { try { S.dl = (await CLD().use('downloads')) || null; } catch (e) { S.dl = null; } }
+    if (!S.dl) { toast('Da qui non si possono scaricare file.', true); return; }
+    var key = V.oreMonth, x = schedeRows(key);
+    if (!x.n) { toast('Nessuna ora segnata in questo mese.', true); return; }
+    var data = xlsxFile('Schede lavoro', xlsxSheet(x.rows, x.breaks, [12, 34, 22, 16, 8]));
+    var blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    try { var res = await S.dl.save({ filename: 'Schede-lavoro-' + key + '.xlsx', data: blob }); if (res && res.status === 'saved') toast('Excel pronto: una pagina per ogni dipendente'); }
+    catch (e) { bkDlErr(e && e.code); }
   }
 
   function viewChecklist() {
@@ -8540,6 +8746,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'Quando segni una cosa fatta, ricordati di mettere le ore nella Scheda lavoro.'] },
     pannello: { t: 'Pannello', p: 'Una pagina unica di controllo, aggiornata in tempo reale.', li: [
       'Ore della settimana, programma di oggi, giornate da confermare, lavori e servizi aperti.',
+      '«Ore lavorate» divide le ore per persona, barca, cliente o tipo di lavoro (categoria): per settimana, mese, mese scorso, quest’anno o l’anno scorso.',
       'Contratti del porto in scadenza, posti liberi e occupati, barche in vendita.',
       'Servizi degli ultimi 30 giorni: nei tempi, più lunghi o più veloci del previsto.',
       'Magazzino da riordinare e batterie da caricare.',
@@ -9384,13 +9591,20 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     });
   }
 
+  // i modelli già scritti nelle scadenze, suggeriti mentre si scrive (così restano scritti uguali)
+  function scadModelli() {
+    var m = {}; S.scadenze.forEach(function (s) { var t = String(s.modello || '').trim(); if (t && !m[normT(t)]) m[normT(t)] = t; });
+    return Object.keys(m).map(function (k) { return m[k]; }).sort(function (a, b) { return a.localeCompare(b, 'it', { sensitivity: 'base' }); });
+  }
   function scadSheet(s, presetBoat, presetDate) {
     var isNew = !s; s = s || { barcaId: presetBoat || '', data: presetDate || '' };
     var body =
       '<datalist id="tipi-scad">' + TIPI_SCADENZA.map(function (t) { return '<option value="' + esc(t) + '">'; }).join('') + '</datalist>' +
+      '<datalist id="mod-scad">' + scadModelli().map(function (t) { return '<option value="' + esc(t) + '">'; }).join('') + '</datalist>' +
       aiFillBtn('scad', 'Leggi dalla foto (etichetta o documento)') +
       field(lab('f-barca', 'Barca'), boatSelect(s.barcaId)) +
       field(lab('f-tipoS', 'Scadenza'), inp('f-tipoS', s.tipo, 'type="text" list="tipi-scad" required placeholder="es. Tagliando motore"')) +
+      field(lab('f-modS', 'Modello dell’articolo'), inp('f-modS', s.modello, 'type="text" list="mod-scad" maxlength="80" placeholder="es. Yamaha F150, zattera Eurovinil 6 posti"'), 'Il modello di quello che va revisionato: motore, zattera, estintore… Serve per raggruppare le scadenze per modello.') +
       '<div class="grid2">' + field(lab('f-dataS', 'Entro il'), inp('f-dataS', s.data, 'type="date"')) + field(lab('f-oreS', 'Oppure a ore motore'), inp('f-oreS', s.oreScadenza, 'type="text" inputmode="numeric" placeholder="es. 500"')) + '</div>' +
       '<span class="hint" id="hint-ore" style="margin-top:-8px"></span>' +
       '<div class="grid2">' + field(lab('f-ricM', 'Si ripete ogni (mesi)'), inp('f-ricM', s.ricorrenzaMesi, 'type="text" inputmode="numeric" placeholder="es. 12"')) + field(lab('f-ricO', 'Si ripete ogni (ore)'), inp('f-ricO', s.ricorrenzaOre, 'type="text" inputmode="numeric" placeholder="es. 100"')) + '</div>' +
@@ -9407,7 +9621,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       },
       onSubmit: async function (f) {
         var data = {
-          barcaId: val(f, 'f-barca'), tipo: val(f, 'f-tipoS'), data: val(f, 'f-dataS') || null, oreScadenza: parseIntS(val(f, 'f-oreS')),
+          barcaId: val(f, 'f-barca'), tipo: val(f, 'f-tipoS'), modello: val(f, 'f-modS'), data: val(f, 'f-dataS') || null, oreScadenza: parseIntS(val(f, 'f-oreS')),
           ricorrenzaMesi: parseIntS(val(f, 'f-ricM')), ricorrenzaOre: parseIntS(val(f, 'f-ricO')), note: val(f, 'f-noteS'), preavviso: parseIntS(val(f, 'f-preS')), modificato: new Date().toISOString()
         };
         if (!data.barcaId) { formErr('Scegli la barca.'); return false; }
@@ -9960,7 +10174,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function aiPrompt(k) {
     if (k === 'scad' || k === 'scadC') return 'Nella foto c’è un’etichetta, un cartellino, un certificato o un documento con una scadenza (estintore, razzi, zattera, giubbotti, cassetta di pronto soccorso, assicurazione, revisione, tagliando, verifica periodica). Oggi è il ' + todayISO() + '. ' +
       'Rispondi SOLO con un JSON: {"tipo": cosa scade, breve in italiano (es. "Revisione estintore"), "data": data di scadenza come AAAA-MM-GG (se c’è solo mese e anno usa l’ultimo giorno del mese; se c’è solo l’ultima revisione e la periodicità è scritta, calcola la prossima), ' +
-      '"ricorrenzaMesi": ogni quanti mesi si ripete, solo se scritto, "dettagli": marca, matricola o altri dati utili in poche parole}. Non inventare: se non leggi la data metti "".';
+      '"ricorrenzaMesi": ogni quanti mesi si ripete, solo se scritto, "modello": marca e modello dell’articolo se scritti (es. "Yamaha F150", "Eurovinil Ocean 6 posti"), "dettagli": matricola o altri dati utili in poche parole}. Non inventare: se non leggi la data metti "".';
     if (k === 'batt') return 'Nella foto c’è l’etichetta di una o più batterie di una barca. Rispondi SOLO con un JSON: {"marca": "", "modello": "", "volt": numero, "ah": capacità in Ah (numero), "spunto": corrente di spunto in A (CCA o EN, numero), ' +
       '"tipo": uno tra "AGM","gel","piombo","litio" o "", "data": data di produzione se leggibile, "quante": numero di batterie visibili}. Non inventare: se non leggi un dato metti "" o null.';
     return 'Nella foto c’è un rifiuto prodotto in un cantiere nautico. Scegli il tipo giusto tra questi (usa l’id prima dei due punti):\n' +
@@ -9978,7 +10192,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       if (k === 'scad' || k === 'scadC') {
         var d = /^\d{4}-\d{2}-\d{2}$/.test(aiStr(r.data)) ? aiStr(r.data) : '', ric = num(r.ricorrenzaMesi) > 0 ? String(Math.round(num(r.ricorrenzaMesi))) : '';
         set(k === 'scad' ? 'f-tipoS' : 'f-sct', aiStr(r.tipo), true); set(k === 'scad' ? 'f-dataS' : 'f-scd', d, true); set(k === 'scad' ? 'f-ricM' : 'f-scm', ric);
-        addNote(k === 'scad' ? 'f-noteS' : 'f-scn', aiStr(r.dettagli));
+        if (k === 'scad') set('f-modS', aiStr(r.modello));
+        addNote(k === 'scad' ? 'f-noteS' : 'f-scn', k === 'scad' ? aiStr(r.dettagli) : [aiStr(r.modello), aiStr(r.dettagli)].filter(Boolean).join(' · '));
         if (!d) msg = 'Non ho letto la data di scadenza: scrivila tu.';
       } else if (k === 'batt') {
         var t = [[aiStr(r.marca), aiStr(r.modello)].filter(Boolean).join(' '), num(r.volt) ? fmtNum(num(r.volt), 1) + ' V' : '', num(r.ah) ? fmtNum(num(r.ah), 0) + ' Ah' : '', num(r.spunto) ? fmtNum(num(r.spunto), 0) + ' A spunto' : '', aiStr(r.tipo), r.data ? 'prodotta ' + aiStr(r.data) : ''].filter(Boolean).join(' ');
@@ -10383,6 +10598,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         var op = V.oreMonth.split('-'), om = +op[1] - 1 + (act === 'ore-next' ? 1 : -1), oy = +op[0];
         if (om < 0) { om = 11; oy--; } if (om > 11) { om = 0; oy++; }
         V.oreMonth = oy + '-' + pad(om + 1); V.oreOpen = null; render(); break;
+      case 'ore-xlsx': oreXlsx(); break;
+      case 'ore-comm': oreCommXlsx(); break;
       case 'ore-open': V.oreOpen = V.oreOpen === t.getAttribute('data-u') ? null : t.getAttribute('data-u'); render(); break;
       case 'new-modello': modelloSheet(null); break;
       case 'edit-modello': x = S.modelli.find(function (m) { return m.id === id; }); if (x && S.canWrite) modelloSheet(x); break;
