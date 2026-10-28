@@ -187,8 +187,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .top .icon-btn.help { width: 32px; color: var(--muted); }
 .top .r:has(.help + .icon-btn + .icon-btn) { gap: 0; }
 .top .icon-btn.help svg { width: 23px; height: 23px; }
-/* guida: niente si restringe, la finestra scorre fino in fondo (senza, l’elenco delle sezioni spariva sugli schermi bassi) */
-.sheet-body.gd > * { flex-shrink: 0; }
+/* finestre: niente si restringe, la finestra scorre fino in fondo (senza, gli elenchi lunghi come i tipi di rifiuto restavano tagliati e non scorrevano) */
+.sheet-body > * { flex-shrink: 0; }
 .gd-p { margin: 0; color: var(--ink); }
 .gd-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 9px; color: var(--muted); }
 .top h1 { margin: 0; text-align: center; font-size: 1.05rem; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -461,6 +461,17 @@ button.row:active, .row .hit:active { opacity: .65; }
 .map-chip { position: absolute; left: 10px; top: 10px; z-index: 2; border: 0; background: rgba(242, 71, 61, .92); color: #fff; font-size: .82rem; font-weight: 700; padding: 6px 10px; border-radius: 999px; }
 .map-card { position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 3; background: rgba(24, 25, 29, .97); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); max-width: 560px; margin-inline: auto; }
 .map-card[hidden] { display: none; }
+.alt-top { display: flex; justify-content: flex-end; margin-top: 8px; }
+.alt-pen { width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: var(--dim); display: grid; place-items: center; cursor: pointer; }
+.alt-pen:hover { background: var(--card); color: var(--ink); }
+.alt-pen svg { width: 17px; height: 17px; }
+.alt-bar { margin: 12px 0 10px; padding: 12px; border-radius: 12px; background: var(--card); display: flex; flex-direction: column; gap: 6px; }
+.alt-bar .acts { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.alt-mv { margin-left: auto; display: flex; gap: 6px; flex: none; }
+.alt-mv button { width: 34px; height: 34px; border: 0; border-radius: 9px; background: var(--card-2); color: var(--ink); display: grid; place-items: center; padding: 0; cursor: pointer; }
+.alt-mv button:disabled { opacity: .3; cursor: default; }
+.alt-mv svg { width: 16px; height: 16px; transform: rotate(90deg); }
+.alt-mv button + button svg { transform: rotate(-90deg); }
 #map-root { background: var(--map-bg); }
 #map-root::after { content: ""; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 60px 10px color-mix(in srgb, var(--bg) 55%, transparent); }
 .map-list { display: none; gap: 10px; align-items: center; margin: 0 0 8px; }
@@ -1701,7 +1712,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var inProg = {}; (S.prog || []).forEach(function (x) { if (x.lavId) inProg[x.lavId] = 1; });
     S.lavori.forEach(function (l) { if (l.fonte !== 'scheda' && inProg[l.id]) return; add(l.data, { k: 'l', cls: l.stato === 'fatto' ? '' : l.stato === 'in_corso' ? 'stripe' : 'grey', o: l }); }); // le lavorazioni nel programma si vedono una volta sola
     (S.prog || []).forEach(function (x) { add(x.data, { k: 'p', cls: x.fatto ? 'grey' : 'teal', o: x }); });
-    (S.scadC || []).forEach(function (x) { if (!x.fatta) add(x.data, { k: 'z', cls: scInfo(x).level, o: x }); else if (x.fattaIl) add(x.fattaIl, { k: 'z', cls: 'grey', o: x }); });
+    (sccOn() ? S.scadC || [] : []).forEach(function (x) { if (!x.fatta) add(x.data, { k: 'z', cls: scInfo(x).level, o: x }); else if (x.fattaIl) add(x.fattaIl, { k: 'z', cls: 'grey', o: x }); });
     return m;
   }
   // calendario: le cose di un giorno riassunte (le mansioni della scheda lavoro diventano le ore della squadra)
@@ -1945,14 +1956,14 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     h += sc.length ? '<div class="group">' + sc.map(function (x) { return scadRow(x, false); }).join('') + '</div>' : '<div class="notice">Nessuna scadenza aperta.</div>';
     if (scDone.length) h += '<div class="sec-h" style="margin-top:14px"><span class="cap">Completate</span></div><div class="group">' + scDone.map(function (s) { return scadRow({ s: s, i: scadInfo(s) }, false); }).join('') + '</div>';
 
-    var bops = S.ops.filter(function (o) { return o.barcaId === b.id; }).sort(function (a, c) { return opDone(a) - opDone(c) || String(c.creato || '').localeCompare(String(a.creato || '')); });
-    h += secH('Servizi', S.canWrite ? 'new-op' : '', '+ Nuovo', ' data-boat="' + esc(b.id) + '"');
-    h += bops.length ? '<div class="group">' + bops.slice(0, 6).map(function (o) { return opRow(o, false); }).join('') + '</div>' : '<div class="notice">Nessun servizio per questa barca.</div>';
+    var bops = opsOn() ? S.ops.filter(function (o) { return o.barcaId === b.id; }).sort(function (a, c) { return opDone(a) - opDone(c) || String(c.creato || '').localeCompare(String(a.creato || '')); }) : null;
+    if (bops) h += secH('Servizi', S.canWrite ? 'new-op' : '', '+ Nuovo', ' data-boat="' + esc(b.id) + '"');
+    if (bops) h += bops.length ? '<div class="group">' + bops.slice(0, 6).map(function (o) { return opRow(o, false); }).join('') + '</div>' : '<div class="notice">Nessun servizio per questa barca.</div>';
 
     h += secH('Trasporto: passa?') + passaHtml(b);
-    var pvs = prevOfBoat(b.id);
-    h += secH('Preventivi', S.canWrite ? 'prev-new' : '', '+ Nuovo', ' data-boat="' + esc(b.id) + '"');
-    h += pvs.length ? '<div class="group">' + pvs.slice(0, 5).map(function (p) { return prevRow(p, false); }).join('') + '</div>' : '<div class="notice">Nessun preventivo per questa barca.</div>';
+    var pvs = prevOn() ? prevOfBoat(b.id) : null;
+    if (pvs) h += secH('Preventivi', S.canWrite ? 'prev-new' : '', '+ Nuovo', ' data-boat="' + esc(b.id) + '"');
+    if (pvs) h += pvs.length ? '<div class="group">' + pvs.slice(0, 5).map(function (p) { return prevRow(p, false); }).join('') + '</div>' : '<div class="notice">Nessun preventivo per questa barca.</div>';
 
     var lv = sortLavori(S.lavori.filter(function (l) { return l.barcaId === b.id || (l.altreBarche || []).indexOf(b.id) >= 0; }));
     var tot = lv.reduce(function (a, l) { return a + (l.barcaId === b.id && l.stato === 'fatto' && num(l.importo) != null ? Number(l.importo) : 0); }, 0);
@@ -2187,7 +2198,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         : (day <= today ? '<span class="pill soon">Da confermare</span>' : '');
       h += '<div class="person"><div class="person-h">' + avatar(uid) + '<span class="title">' + esc(nameOf(uid)) + '</span>' + pill + '<span class="tot">' + esc(fmtH(sumOre(list))) + '</span></div><div class="group">' + list.map(entryRow).join('') + '</div></div>';
     });
-    var openOps = S.ops.filter(function (o) { return !opDone(o); });
+    var openOps = opsOn() ? S.ops.filter(function (o) { return !opDone(o); }) : [];
     if (openOps.length) h += secH('Servizi aperti (' + openOps.length + ')', 'tab', 'Vedi tutti', ' data-tab="operazioni"') + '<div class="group">' + openOps.map(function (o) { return opRow(o, true); }).join('') + '</div>';
 
     var ws = mondayOf(day), wdays = [], wk = {}, people = [];
@@ -2531,7 +2542,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   function giroHome() {
     ventoLoad();
-    var gd = giroDaFare(); if (!gd) return '';
+    var gd = giroOn() && giroDaFare(); if (!gd) return '';
     if (gd.g) {
       var c = giroConta(gd.g);
       return featCard('late', I.wind, 'Giro di controllo in corso', c.fatte + ' di ' + c.tot + ' barche controllate' + (c.pb ? ' · ' + c.pb + (c.pb === 1 ? ' problema' : ' problemi') : ''), '',
@@ -2558,6 +2569,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   function giroOpen(id) { V.tab = 'giro'; V.giroId = id; V.giroF = 'da'; V.boatId = null; window.scrollTo(0, 0); render(); }
   function viewGiro() {
+    if (!giroOn()) return sezSpentaMsg('Il giro di controllo è spento');
     var g = V.giroId && giroById(V.giroId);
     if (!g) return giroElenco();
     var c = giroConta(g), f = V.giroF || 'da', h = '';
@@ -5196,6 +5208,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function panRange(per) {
     var t = todayISO();
     if (per === 'mese') return { a: t.slice(0, 8) + '01', b: t, l: 'questo mese' };
+    if (per === 'anno') return { a: t.slice(0, 4) + '-01-01', b: t, l: 'quest’anno' };
+    if (per === 'annoPrima') { var y = +t.slice(0, 4) - 1; return { a: y + '-01-01', b: y + '-12-31', l: 'l’anno scorso (' + y + ')' }; }
     if (per === 'scorso') { var d = new Date(isoToUTC(t.slice(0, 8) + '01') - 86400000), e = utcToISO(d.getTime()); return { a: e.slice(0, 8) + '01', b: e, l: 'il mese scorso' }; }
     return { a: utcToISO(mondayOf(t)), b: t, l: 'questa settimana' };
   }
@@ -5221,19 +5235,19 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var pt = progOf(t), ptDone = pt.filter(function (x) { return x.fatto; }).length;
     var pend = 0, pendP = {}; S.lavori.forEach(function (l) { if (l.fonte === 'scheda' && l.utente && l.data && l.data < t && !isConfirmed(l.utente, l.data)) { var k = l.utente + l.data; if (!pendP[k]) { pendP[k] = 1; pend++; } } });
     var lavOpen = S.lavori.filter(function (l) { return l.fonte !== 'scheda' && l.stato !== 'fatto'; }), inCorso = lavOpen.filter(function (l) { return l.stato === 'in_corso'; }).length;
-    var opsOpen = S.ops.filter(function (o) { return !opDone(o); }).length, ps = Porto.stats(), low = lowStock().length, bd = battDue().length;
+    var opsOpen = opsOn() ? S.ops.filter(function (o) { return !opDone(o); }).length : 0, ps = Porto.stats(), low = lowStock().length, bd = battDue().length;
     var h = '<p class="cap" style="margin:12px 2px 10px">Aggiornato in tempo reale con quello che la squadra segna nell’app.</p>';
     var tl = ['s', 'm'], sec = ['m', 'l'], fn = function (x) { return function () { return x; }; }, B = [
       { id: 'ore7', t: 'Ore della settimana', z: tl, d: 's', h: fn(panTile('tab', 'ore', I.hours, 'acc', 'Ore della settimana', esc(fmtNum(wkH, 1)) + ' <small>h</small>', wkE.length ? (function (n) { return n + (n === 1 ? ' persona' : ' persone') + ' · da lunedì'; })(new Set(wkE.map(function (l) { return l.utente; })).size) : 'Nessuna ora segnata')) },
       { id: 'prog', t: 'Programma di oggi', z: tl, d: 's', h: fn(panTile('tab', 'programma', I.plan, 'ok', 'Programma di oggi', pt.length ? ptDone + ' <small>su ' + pt.length + '</small>' : '–', pt.length ? 'cose fatte' : 'Niente in programma')) },
       { id: 'conf', t: 'Giornate da confermare', z: tl, d: 's', h: fn(panTile('tab', 'ore', I.check, pend ? 'soon' : 'ok', 'Giornate da confermare', String(pend), pend ? 'fino a ieri' : 'Tutte confermate')) },
-      { id: 'lav', t: 'Lavorazioni aperte', z: tl, d: 's', h: fn(panTile('tab', 'lavori', I.wrench, 'acc', 'Lavorazioni aperte', String(lavOpen.length), inCorso + ' in corso · ' + opsOpen + (opsOpen === 1 ? ' servizio aperto' : ' servizi aperti'))) },
+      { id: 'lav', t: 'Lavorazioni aperte', z: tl, d: 's', h: fn(panTile('tab', 'lavori', I.wrench, 'acc', 'Lavorazioni aperte', String(lavOpen.length), inCorso + ' in corso' + (opsOn() ? ' · ' + opsOpen + (opsOpen === 1 ? ' servizio aperto' : ' servizi aperti') : ''))) },
       { id: 'contr', t: 'Contratti in scadenza', z: tl, d: 's', h: fn(panTile('go-porto-tab', '', I.map, ps.due ? 'soon' : 'ok', 'Contratti in scadenza', String(ps.due), 'entro 30 giorni al porto')) },
       { id: 'riord', t: 'Da riordinare · batterie', z: tl, d: 's', h: fn(panTile('tab', low ? 'magazzino' : 'batterie', I.box, low || bd ? 'soon' : 'ok', 'Da riordinare · batterie', low + ' <small>· ' + bd + '</small>', 'articoli sotto scorta · barche da caricare')) }
     ];
     // Ore
     var r = panRange(V.panPer), E = panEntries(r), tot = E.reduce(function (a, l) { return a + num(l.oreLavoro); }, 0), cant = E.filter(function (l) { return !l.barcaId; }).reduce(function (a, l) { return a + num(l.oreLavoro); }, 0);
-    var o = secH('Ore lavorate') + '<div class="chips" role="group" aria-label="Periodo" style="margin-top:0">' + [['sett', 'Settimana'], ['mese', 'Mese'], ['scorso', 'Mese scorso']].map(function (o) { return '<button type="button" data-act="pan-per" data-p="' + o[0] + '" aria-pressed="' + (V.panPer === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
+    var o = secH('Ore lavorate') + '<div class="chips" role="group" aria-label="Periodo" style="margin-top:0;flex-wrap:wrap">' + [['sett', 'Settimana'], ['mese', 'Mese'], ['scorso', 'Mese scorso'], ['anno', 'Quest’anno'], ['annoPrima', 'Anno scorso']].map(function (o) { return '<button type="button" data-act="pan-per" data-p="' + o[0] + '" aria-pressed="' + (V.panPer === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
     o += '<div class="chips" role="group" aria-label="Dividi per" style="margin-top:8px">' + [['persona', 'Persona'], ['barca', 'Barca'], ['cliente', 'Cliente'], ['categoria', 'Categoria']].map(function (o) { return '<button type="button" data-act="pan-by" data-b="' + o[0] + '" aria-pressed="' + (V.panBy === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
     o += '<p class="cap" style="margin:10px 2px 6px">Totale ' + esc(r.l) + ': <b style="color:var(--ink)">' + esc(fmtNum(tot, 1)) + ' h</b>' + (cant ? ' · di cui ' + esc(fmtNum(cant, 1)) + ' h per il cantiere' : '') + '</p>';
     var keyFn = V.panBy === 'barca' ? function (l) { var b = l.barcaId && boatById(l.barcaId); return l.barcaId ? (b ? b.nome || 'Barca' : 'Barca eliminata') : 'Cantiere'; }
@@ -5242,9 +5256,9 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     o += panBars(panGroup(E, keyFn), 'h');
     B.push({ id: 'ore', t: 'Ore lavorate', sub: 'per persona, barca, cliente o categoria', z: sec, d: 'l', h: fn(o) });
     // Servizi
-    var since = utcToISO(isoToUTC(t) - 30 * 86400000), done = S.ops.filter(function (o) { return opDone(o) && String(o.completataIl || '').slice(0, 10) >= since && num(o.oreReali) > 0; });
+    var since = utcToISO(isoToUTC(t) - 30 * 86400000), done = (opsOn() ? S.ops : []).filter(function (o) { return opDone(o) && String(o.completataIl || '').slice(0, 10) >= since && num(o.oreReali) > 0; });
     var vv = { ok: 0, late: 0, acc: 0, none: 0 }; done.forEach(function (o) { var v = verdict(o.oreReali, o.prevMin, o.prevMax); vv[v ? v.c : 'none']++; });
-    B.push({ id: 'serv', t: 'Servizi completati', sub: 'ultimi 30 giorni', z: sec, d: 'l', h: fn(secH('Servizi completati · ultimi 30 giorni') + (done.length ? '<div class="group pan"><div class="kv-row"><span class="k">Nei tempi previsti</span><span class="v"><span class="pill ok">' + I.check + ' ' + vv.ok + '</span></span></div><div class="kv-row"><span class="k">Più lunghi del previsto</span><span class="v"><span class="pill late">▲ ' + vv.late + '</span></span></div><div class="kv-row"><span class="k">Più veloci del previsto</span><span class="v"><span class="pill acc">▼ ' + vv.acc + '</span></span></div>' + (vv.none ? '<div class="kv-row"><span class="k">Senza tempo stimato</span><span class="v">' + vv.none + '</span></div>' : '') + '</div>'
+    if (opsOn()) B.push({ id: 'serv', t: 'Servizi completati', sub: 'ultimi 30 giorni', z: sec, d: 'l', h: fn(secH('Servizi completati · ultimi 30 giorni') + (done.length ? '<div class="group pan"><div class="kv-row"><span class="k">Nei tempi previsti</span><span class="v"><span class="pill ok">' + I.check + ' ' + vv.ok + '</span></span></div><div class="kv-row"><span class="k">Più lunghi del previsto</span><span class="v"><span class="pill late">▲ ' + vv.late + '</span></span></div><div class="kv-row"><span class="k">Più veloci del previsto</span><span class="v"><span class="pill acc">▼ ' + vv.acc + '</span></span></div>' + (vv.none ? '<div class="kv-row"><span class="k">Senza tempo stimato</span><span class="v">' + vv.none + '</span></div>' : '') + '</div>'
       : '<div class="notice">Nessun servizio completato negli ultimi 30 giorni.</div>')) });
     // Cantiere e porto
     var st = {}; S.boats.forEach(function (b) { var k = b.stato || 'In rimessaggio'; st[k] = (st[k] || 0) + 1; });
@@ -5569,7 +5583,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var isNew = !x; x = x || Object.assign({ data: V.progDay || todayISO(), pers: S.myId ? [S.myId] : [] }, preset || {});
     var people = progPeople(), boats = S.boats.slice().sort(byName), pers = progPers(x), mezzi = progMezzi();
     var lavs = S.lavori.filter(function (l) { return l.fonte !== 'scheda' && l.stato !== 'fatto'; }).sort(function (a, c) { return String(a.data || '').localeCompare(String(c.data || '')); });
-    var ops = S.ops.filter(function (o) { return !opDone(o); });
+    var ops = opsOn() ? S.ops.filter(function (o) { return !opDone(o); }) : [];
     var linkOpts = '<option value="">Nessuno: scrivo io</option>' + ops.map(function (o) { var b = boatById(o.barcaId); return '<option value="op:' + esc(o.id) + '"' + (x.opId === o.id ? ' selected' : '') + '>' + esc('Servizio · ' + opTitle(o) + (b ? ' · ' + b.nome : '')) + '</option>'; }).join('') +
       lavs.map(function (l) { var b = boatById(l.barcaId); return '<option value="lav:' + esc(l.id) + '"' + (x.lavId === l.id ? ' selected' : '') + '>' + esc((l.titolo || 'Lavorazione') + (b ? ' · ' + b.nome : '')) + '</option>'; }).join('');
     var canDel = !isNew && (S.isEditor || S.isOwner || !!window.__NM_FB), more = !!(x.mezzi && x.mezzi.length || x.dove || (x.materiali || []).length || x.urgente || x.avvisare || x.note || x.ripeti);
@@ -5988,6 +6002,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   function prevOfBoat(bid) { return (S.prev || []).filter(function (p) { return p.barcaId === bid; }).sort(function (a, c) { return String(c.data || '').localeCompare(String(a.data || '')); }); }
   function viewPreventivi() {
+    if (!prevOn()) return sezSpentaMsg('I preventivi sono spenti');
     var f = V.prevFilter || 'aperti', all = (S.prev || []).slice().sort(function (a, c) { return String(c.data || '').localeCompare(String(a.data || '')); });
     var list = all.filter(function (p) { return f === 'tutti' ? true : f === 'aperti' ? (p.stato === 'bozza' || p.stato === 'inviato') : p.stato === f; });
     var h = '<div class="chips" role="group" aria-label="Filtro preventivi">' + [['aperti', 'Da inviare e inviati'], ['accettato', 'Accettati'], ['rifiutato', 'Rifiutati'], ['tutti', 'Tutti']].map(function (o) {
@@ -6076,7 +6091,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var text = days == null ? '' : days < 0 ? 'Scaduta da ' + (-days) + (days === -1 ? ' giorno' : ' giorni') : days === 0 ? 'Scade oggi' : days === 1 ? 'Scade domani' : 'Tra ' + days + ' giorni';
     return { level: level, text: text, days: days };
   }
-  function scOpen() { return (S.scadC || []).filter(function (s) { return !s.fatta; }).map(function (s) { return { s: s, i: scInfo(s) }; }).sort(function (a, b) { return String(a.s.data || '9').localeCompare(String(b.s.data || '9')); }); }
+  function scOpen() { return (sccOn() ? S.scadC || [] : []).filter(function (s) { return !s.fatta; }).map(function (s) { return { s: s, i: scInfo(s) }; }).sort(function (a, b) { return String(a.s.data || '9').localeCompare(String(b.s.data || '9')); }); }
   function scRow(x) {
     var s = x.s, i = x.i, done = !!s.fatta, lvl = done ? '' : i.level, sub = [s.rif || scGruppo(s.gruppo)];
     if (num(s.ricorrenzaMesi)) sub.push('si ripete ogni ' + s.ricorrenzaMesi + (+s.ricorrenzaMesi === 1 ? ' mese' : ' mesi'));
@@ -6088,6 +6103,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   function scCounts() { var o = scOpen(); return { late: o.filter(function (x) { return x.i.level === 'late'; }).length, soon: o.filter(function (x) { return x.i.level === 'soon'; }).length }; }
   function viewScadCantiere() {
+    if (!sccOn()) return sezSpentaMsg('Le scadenze del cantiere sono spente');
     var open = scOpen(), h = '<p class="context" style="margin-top:12px">Scadenze dei vostri mezzi, delle attrezzature e della sicurezza del cantiere. Sono separate da quelle delle barche dei clienti.</p>';
     h += secH('Da fare', S.canWrite ? 'sc-new' : '', '+ Nuova scadenza');
     if (!open.length) h += emptyCard(I.alarm, 'Nessuna scadenza del cantiere', 'Aggiungi revisioni e verifiche di gru, carrelli e muletto, la revisione degli estintori, la cassetta di pronto soccorso.', S.canWrite ? ['sc-new', 'Aggiungi scadenza'] : null);
@@ -6927,6 +6943,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       (!done && pr.tot ? '<span class="progress" style="display:block;margin-top:6px"><i style="width:' + Math.round(pr.ok * 100 / pr.tot) + '%"></i></span>' : '') + (!done ? metWrap(metChip(o.data, o.ora)) : '') + '</span><span class="side">' + tm + '</span></button>';
   }
   function viewOperazioni() {
+    if (!opsOn()) return sezSpentaMsg('I servizi di cantiere sono spenti');
     var h = '', open = S.ops.filter(function (o) { return !opDone(o); }).sort(function (a, b) { return String(a.data).localeCompare(String(b.data)); });
     if (open.length) h += secH('Aperti (' + open.length + ')') + group(open.map(function (o) { return opRow(o, true); }));
     var mods = S.opModelli.slice().sort(function (a, b) { return (num(a.ordine) || 99) - (num(b.ordine) || 99) || String(a.nome).localeCompare(String(b.nome), 'it'); });
@@ -7326,7 +7343,12 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function sezOn(k) { return sezSpente().indexOf(k) < 0; }
   function sezBlocco(b) { var ks = SEZ_BLOCCHI[b.id]; return !ks || ks.some(sezOn); }
   function riepList() { var m = { mag: 'magazzino', porto: 'porto', rif: 'rifiuti', clienti: 'clienti' }; return RIEP.filter(function (r) { return (!m[r[0]] || sezOn(m[r[0]])) && (r[0] !== 'clienti' || S.isOwner); }); }
+  function sezSpentaMsg(t) { return '<div class="notice" style="margin-top:12px">' + esc(t) + '. Si riaccende da Altro › Aspetto dell’app, tra le sezioni (lo fa l’amministratore): quello già salvato ricompare.</div>'; }
   function PORTO_ON() { return sezOn('porto'); }
+  function prevOn() { return sezOn('preventivi'); }
+  function opsOn() { return sezOn('operazioni'); }
+  function sccOn() { return sezOn('scadcantiere'); }
+  function giroOn() { return sezOn('giro'); } // spenti: spariscono anche da scheda barca, storia e ricerca; i dati restano
   function aspNuovo() { return !window.NM_ASPETTO && !(S.aspetto && !S.aspetto._del); } // azienda nuova: aspetto mai scelto
   function aspDraft() {
     if (!V.asp) {
@@ -7592,9 +7614,24 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     fbRows.forEach(function (r) { rows.push(['fb:' + r[0], I[r[1]] || I.list, r[2] || '', r[3], r[4], r[5] || '']); });
     return rows;
   }
+  // Altro riordinabile: ogni amministratore ha il suo ordine (layout_<uid>.altro), separato da quello del menù del computer
+  function altroOrd(rows) {
+    var o = lyCfg().altro; if (!Array.isArray(o) || !o.length) return rows;
+    var n = rows.length; function pos(r, i) { var k = o.indexOf(r[0]); return k >= 0 ? k : o.length + i; } // le voci nuove vanno in fondo
+    return rows.map(function (r, i) { return { r: r, p: pos(r, i) }; }).sort(function (a, b) { return a.p - b.p; }).map(function (x) { return x.r; });
+  }
+  function altroMove(i, d) {
+    var rows = altroOrd(altroRows()), j = i + d; if (j < 0 || j >= rows.length) return;
+    var x = rows[i]; rows[i] = rows[j]; rows[j] = x;
+    lySave({ altro: rows.map(function (r) { return r[0]; }) });
+  }
   function viewAltro() {
-    var rows = altroRows();
-    return exampleBanner() + gqBar() + '<div class="group" style="margin-top:14px">' + rows.map(function (r) {
+    var rows = altroOrd(altroRows()), ed = V.altroEdit && lyCan();
+    if (ed) return '<div class="alt-bar"><b>Riordina Altro</b><span class="cap">Con le frecce sposti le voci. L’ordine è solo tuo e non cambia il menù del computer.</span><span class="acts"><button type="button" class="link" data-act="alt-reset">Come all’inizio</button><button type="button" class="btn" data-act="alt-done">Fine</button></span></div>' +
+      '<div class="group">' + rows.map(function (r, i) {
+        return '<div class="row"><span class="ic-circle ' + r[2] + '">' + r[1] + '</span><span class="main"><span class="title">' + r[3] + '</span></span><span class="alt-mv"><button type="button" data-act="alt-mv" data-i="' + i + '" data-d="-1" aria-label="Sposta su"' + (i ? '' : ' disabled') + '>' + I.left + '</button><button type="button" data-act="alt-mv" data-i="' + i + '" data-d="1" aria-label="Sposta giù"' + (i < rows.length - 1 ? '' : ' disabled') + '>' + I.left + '</button></span></div>';
+      }).join('') + '</div>';
+    return exampleBanner() + gqBar() + (lyCan() ? '<div class="alt-top"><button type="button" class="alt-pen" data-act="alt-edit" aria-label="Riordina le voci" title="Riordina le voci">' + I.pencil + '</button></div>' : '') + '<div class="group" style="margin-top:' + (lyCan() ? 4 : 14) + 'px">' + rows.map(function (r) {
       if (r[0].slice(0, 3) === 'fb:') return '<button type="button" class="row" data-act="fb" data-k="' + esc(r[0].slice(3)) + '"><span class="ic-circle ' + r[2] + '">' + r[1] + '</span><span class="main"><span class="title">' + esc(r[3]) + '</span><span class="sub">' + esc(r[4]) + '</span></span>' +
         (r[5] ? '<span class="side">' + r[5] + '</span>' : '') + '<span style="color:var(--dim);width:18px;flex:none">' + I.right + '</span></button>';
       return '<button type="button" class="row" data-act="tab" data-tab="' + r[0] + '"><span class="ic-circle ' + r[2] + '">' + r[1] + '</span><span class="main"><span class="title">' + r[3] + '</span><span class="sub">' + r[4] + '</span></span>' +
@@ -8234,9 +8271,9 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     S.vari.forEach(function (v) { if (v.barcaId === b.id && v.fatto) add('vari', v.fattoIl || v.data, TIPI_V[v.tipo] || 'Movimento', v.note || '', 'edit-vari', v.id, I.updown); });
     (S.cariche || []).forEach(function (c) { if (c.barcaId === b.id) add('batt', c.data, 'Batterie caricate', c.utente ? 'da ' + nameOf(c.utente) : '', '', '', I.batt); });
     S.scadenze.forEach(function (x) { if (x.barcaId === b.id && x.fatta) add('altro', x.fattaIl, 'Scadenza fatta: ' + (x.tipo || ''), x.note || '', '', '', I.alarm); });
-    S.ops.forEach(function (o) { if (o.barcaId === b.id && opDone(o)) add('altro', o.completataIl || o.data, 'Servizio: ' + opTitle(o), num(opHours(o)) ? fmtDur(opHours(o)) : '', 'open-op', o.id, I.list); });
-    prevOfBoat(b.id).forEach(function (p) { add('altro', p.data, 'Preventivo' + (p.titolo ? ': ' + p.titolo : ''), prevStato(p.stato) + (p.numero ? ' · n. ' + p.numero : ''), 'prev-edit', p.id, I.doc); });
-    (S.giri || []).forEach(function (g) {
+    if (opsOn()) S.ops.forEach(function (o) { if (o.barcaId === b.id && opDone(o)) add('altro', o.completataIl || o.data, 'Servizio: ' + opTitle(o), num(opHours(o)) ? fmtDur(opHours(o)) : '', 'open-op', o.id, I.list); });
+    if (prevOn()) prevOfBoat(b.id).forEach(function (p) { add('altro', p.data, 'Preventivo' + (p.titolo ? ': ' + p.titolo : ''), prevStato(p.stato) + (p.numero ? ' · n. ' + p.numero : ''), 'prev-edit', p.id, I.doc); });
+    (giroOn() ? S.giri || [] : []).forEach(function (g) {
       var v = giroVoce(g, b.id); if (!v) return;
       add('altro', v.il || g.data, v.esito === 'problema' ? 'Giro dopo il vento: ' + ((v.cosa || []).join(', ').toLowerCase() || 'problema') : 'Giro dopo il vento: tutto a posto',
         [v.note, v.sistemato ? 'sistemato subito' : '', v.utente ? nameOf(v.utente) : ''].filter(Boolean).join(' · '), '', '', I.wind);
@@ -8603,10 +8640,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       var b = boatById(s.barcaId), i = scadInfo(s);
       return { s: gqScore(words, s.tipo, [b && b.nome, b && b.proprietario, s.note]), o: isoToUTC(s.data) || 0, h: gqRow('scad', s.id, (s.tipo || 'Scadenza') + (b ? ' · ' + b.nome : ''), i.text, '') };
     }));
-    grp('Scadenze del cantiere', (S.scadC || []).map(function (s) {
+    grp('Scadenze del cantiere', (sccOn() ? S.scadC || [] : []).map(function (s) {
       return { s: gqScore(words, s.tipo, [s.rif, scGruppo(s.gruppo), s.note]), o: isoToUTC(s.data) || 0, h: gqRow('scc', s.id, (s.tipo || 'Scadenza') + (s.rif ? ' · ' + s.rif : ''), scGruppo(s.gruppo) + (s.data ? ' · ' + fmtDate(s.data) : ''), '') };
     }));
-    grp('Preventivi', (S.prev || []).map(function (p) {
+    grp('Preventivi', (prevOn() ? S.prev || [] : []).map(function (p) {
       var b = boatById(p.barcaId);
       return { s: gqScore(words, p.titolo, [p.numero, b && b.nome, b && b.proprietario, (p.voci || []).map(function (v) { return v.titolo; }).join(' ')]), o: -(isoToUTC(p.data) || 0),
         h: gqRow('prev', p.id, p.titolo || 'Preventivo', [b ? b.nome : '', p.numero ? 'n. ' + p.numero : '', fmtDate(p.data)].filter(Boolean).join(' · '), p.stato || '') };
@@ -8735,6 +8772,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'Sul computer, sopra la mappa, c’è l’elenco dei vostri posti con la barca o il cliente: tocchi un posto e la mappa ci va. La scheda del posto si apre a destra.'] },
     altro: { t: 'Altro', p: 'Qui trovi tutte le sezioni che non stanno nella barra in basso, e la ricerca unica.', li: [
       'La ricerca in alto trova barche, clienti, articoli, codici, lavori e scadenze in tutta l’app.',
+      'A|Con la piccola matita sopra l’elenco riordini le voci con le frecce; l’ordine è solo tuo e non cambia il menù del computer. «Come all’inizio» rimette l’ordine di partenza.',
       'Ogni voce mostra a destra se c’è qualcosa da guardare (per esempio «3 da riordinare»).',
       'In fondo ci sono «Il mio account» per cambiare password o uscire.',
       'A|Sempre in fondo trovi Utenti e permessi e il Cestino.'] },
@@ -8747,6 +8785,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'Quando segni una cosa fatta, ricordati di mettere le ore nella Scheda lavoro.'] },
     pannello: { t: 'Pannello', p: 'Una pagina unica di controllo, aggiornata in tempo reale.', li: [
       'Ore della settimana, programma di oggi, giornate da confermare, lavori e servizi aperti.',
+      '«Ore lavorate» divide le ore per persona, barca, cliente o tipo di lavoro (categoria): per settimana, mese, mese scorso, quest’anno o l’anno scorso.',
       'Contratti del porto in scadenza, posti liberi e occupati, barche in vendita.',
       'Servizi degli ultimi 30 giorni: nei tempi, più lunghi o più veloci del previsto.',
       'Magazzino da riordinare e batterie da caricare.',
@@ -8784,7 +8823,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     preventivi: { t: 'Preventivi', p: 'I preventivi in ore e ricambi, anche dalla foto di quello dell’ufficio.', li: [
       'Puoi fotografare il preventivo (anche scritto a mano) e l’app compila le righe, oppure prepararlo qui.',
       'Lo stato va da bozza a inviato ad accettato.',
-      'Quando diventa «Accettato», i lavori previsti diventano lavorazioni da fare con le ore stimate. Dopo si confrontano ore previste e vere.'] },
+      'Quando diventa «Accettato», i lavori previsti diventano lavorazioni da fare con le ore stimate. Dopo si confrontano ore previste e vere.',
+      'A|Se non vi servono, l’amministratore li spegne in Altro › Aspetto dell’app, tra le sezioni: spariscono anche dalla scheda della barca e dalla ricerca, senza cancellare niente.'] },
     rifiuti: { t: 'Rifiuti', p: 'Il registro dei rifiuti del cantiere, con codice CER e contenitore.', li: [
       'Segna un rifiuto a pezzi, litri o sacchetti (l’app stima i kg) oppure in kg, anche legato alla barca.',
       'La fotocamera può suggerire che tipo di rifiuto è.',
@@ -8831,7 +8871,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'A|Scegli il colore in alto e quello in basso della sfumatura: mentre li cambi vedi subito come viene tutta l’app.',
       'A|Con «Scegli un’immagine» carichi il logo d’apertura (avvio, caricamento, resoconti) e quello in alto nella Home. Senza, c’è una barca stilizzata con il nome dell’azienda.',
       'A|In «Dove si trova il cantiere» cerchi il paese o il porto: da lì prende il meteo in Home e il vento per il giro di controllo.',
-      'A|In «Sezioni dell’app» spegni quelle che non usate (porto, rifiuti, batterie…): spariscono da menù, Home e guida, ma i dati restano e tornano se le riaccendi.',
+      'A|In «Sezioni dell’app» spegni quelle che non usate (porto, rifiuti, batterie…): spariscono da menù, Home e guida (preventivi, servizi, scadenze del cantiere e giro di controllo anche dalla scheda della barca, dalla storia e dalla ricerca), ma i dati restano e tornano se le riaccendi.',
       'A|«Tablet condiviso con PIN» è spento finché non lo accendi qui. Acceso, in Utenti e permessi tocchi «Usa come tablet condiviso» sull’account del tablet: lì si apre «Chi lavora adesso?», ognuno tocca il suo nome e scrive il suo PIN, e lavora a nome suo con i permessi da dipendente. Il PIN (4 cifre) si mette da Il mio account, o lo mette l’amministratore; «Ho finito» o 5 minuti senza tocchi richiudono il tablet.',
       'A|Finché non premi «Salva per tutti» le modifiche le vedi solo tu; se esci senza salvare torna com’era.',
       'A|«Torna all’aspetto di base» rimette tutto com’era all’inizio (poi va salvato).'] },
@@ -10581,6 +10621,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'nt-off': ntDisattiva(); break;
       case 'nt-cfg': ntCfgSave(); break;
       case 'side-edit': V.sideEdit = true; renderTabs(); break;
+      case 'alt-edit': V.altroEdit = true; render(); break;
+      case 'alt-done': V.altroEdit = false; render(); toast('Altro sistemato'); break;
+      case 'alt-reset': lySave({ altro: null }); break;
+      case 'alt-mv': altroMove(+t.getAttribute('data-i'), +t.getAttribute('data-d')); break;
       case 'side-done': V.sideEdit = false; renderTabs(); toast('Menù sistemato'); break;
       case 'side-reset': lySave({ side: null }); break;
       case 'side-mv': sideMove(+t.getAttribute('data-g'), +t.getAttribute('data-k'), +t.getAttribute('data-d')); break;
