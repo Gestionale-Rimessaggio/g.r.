@@ -10,7 +10,7 @@ var oraRoma = function (d) { return require('./invia').oraRoma(d); };
 var COLLS = ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
   'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'programma', 'cariche', 'posti', 'richieste',
   'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'foto', 'fotoInfo', 'notifiche', 'attivita', 'cestino', 'portale'];
-var ERRORI_SOGLIA = 5, INATTIVA_GG = 30;
+var ERRORI_SOGLIA = 5, INATTIVA_GG = 30, RICHIESTE_UNA_A_UNA = 3; // più richieste nuove di così nello stesso giro: un avviso solo
 
 // mezzanotte di Roma del giorno «g» (AAAA-MM-GG), in ISO
 function mezzanotte(g) {
@@ -99,12 +99,12 @@ async function main() {
   var admin = require('firebase-admin');
   if (!process.env.FIREBASE_SERVICE_ACCOUNT) { console.log('Manca il segreto FIREBASE_SERVICE_ACCOUNT.'); return; }
   admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
-  var root = admin.firestore(), az = await root.collection('aziende').get(), oggi = oraRoma(new Date()).oggi;
+  var root = admin.firestore(), az = await root.collection('aziende').get(), oggi = oraRoma(new Date()).oggi, nuove = [];
   for (var i = 0; i < az.docs.length; i++) {
     var A = az.docs[i], x = A.data(), nome = x.nome || A.id;
     if (x.stato === 'in_attesa' && !x.avvisatoGestore) {
       await A.ref.update({ avvisatoGestore: new Date().toISOString() });
-      await avvisa(admin, root, { tipo: 'richiesta', azienda: A.id, nome: nome, titolo: 'Nuova azienda da approvare: ' + nome, testo: (x.adminNome || '') + ' · ' + (x.email || '') + (x.telefono ? ' · tel. ' + x.telefono : '') });
+      nuove.push({ tipo: 'richiesta', azienda: A.id, nome: nome, titolo: 'Nuova azienda da approvare: ' + nome, testo: (x.adminNome || '') + ' · ' + (x.email || '') + (x.telefono ? ' · tel. ' + x.telefono : '') });
     }
     if (x.stato === 'attiva' && x.avvisoErrori !== oggi) {
       var s = await A.ref.collection('attivita').where('il', '>=', new Date(Date.now() - 864e5).toISOString()).get(), n = 0;
@@ -112,6 +112,11 @@ async function main() {
       if (n >= ERRORI_SOGLIA) { await A.ref.update({ avvisoErrori: oggi }); await avvisa(admin, root, { tipo: 'errori', azienda: A.id, nome: nome, titolo: nome + ': ' + n + ' errori nelle ultime 24 ore', testo: 'Apri il report dell’azienda nel Pannello del gestore per vedere quali.' }); }
     }
   }
+  // tante richieste insieme (anche registrazioni a raffica): un avviso solo, con i nomi, invece di uno per richiesta
+  if (nuove.length > RICHIESTE_UNA_A_UNA) {
+    var nomi = nuove.slice(0, 10).map(function (r) { return r.nome; }).join(', ') + (nuove.length > 10 ? ' e altre ' + (nuove.length - 10) : '');
+    await avvisa(admin, root, { tipo: 'richiesta', titolo: nuove.length + ' nuove aziende da approvare', testo: nomi + '. Controllale nel Pannello del gestore: se non le conosci, rifiutale.' });
+  } else for (var j = 0; j < nuove.length; j++) await avvisa(admin, root, nuove[j]);
 }
 
 module.exports = { avvisa: avvisa, consumi: consumi, mezzanotte: mezzanotte };

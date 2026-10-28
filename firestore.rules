@@ -53,7 +53,10 @@ service cloud.firestore {
     }
 
     match /aziende/{a} {
-      allow get: if creatore() || (signedIn() && exists(profilo()) && me().get('azienda', '') == a);
+      // chi è ancora in attesa con il codice non legge la scheda (email e telefono dell'amministratore, codice);
+      // la legge solo chi è stato approvato, oppure chi l'ha appena registrata
+      allow get: if creatore() || (signedIn() && exists(profilo()) && me().get('azienda', '') == a
+        && (me().stato == 'attivo' || resource.data.admin == request.auth.uid));
       allow list: if creatore();
       allow create: if signedIn() && !exists(profilo())
         && request.resource.data.admin == request.auth.uid && request.resource.data.stato == 'in_attesa'
@@ -61,7 +64,9 @@ service cloud.firestore {
         && request.resource.data.nome is string && request.resource.data.nome.size() > 0 && request.resource.data.nome.size() <= 60
         && corto(request.resource.data, 'adminNome', 60) && corto(request.resource.data, 'email', 254) && corto(request.resource.data, 'telefono', 30)
         && getAfter(profilo()).data.azienda == a;
-      allow update: if creatore()
+      // il gestore approva, sospende o rifiuta, dà il codice e la quota; il permesso di assistenza e l'amministratore non li tocca
+      allow update: if (creatore() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stato', 'codice', 'approvata', 'quotaMb', 'modificato'])
+          && (!('codice' in request.resource.data) || getAfter(/databases/$(database)/documents/codici/$(request.resource.data.codice)).data.azienda == a))
         || (admin(a) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['codice', 'assistenza', 'modificato'])
           && (!('codice' in request.resource.data) || getAfter(/databases/$(database)/documents/codici/$(request.resource.data.codice)).data.azienda == a));
 
@@ -159,8 +164,12 @@ service cloud.firestore {
           || (request.resource.data.ruolo == 'admin'
               && !exists(/databases/$(database)/documents/aziende/$(request.resource.data.azienda))
               && getAfter(/databases/$(database)/documents/aziende/$(request.resource.data.azienda)).data.admin == uid));
+      // il gestore attiva (o sospende) solo il primo amministratore di un'azienda, e senza cambiargli nient'altro:
+      // nei dati delle aziende entra solo con l'assistenza accesa
       // l'amministratore approva e cambia i permessi solo nella sua azienda, senza spostare nessuno in un'altra
-      allow update: if creatore()
+      allow update: if (creatore() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stato', 'modificato'])
+          && request.resource.data.stato in ['attivo', 'in_attesa', 'bloccato']
+          && azienda(resource.data.get('azienda', '-')).get('admin', '') == uid)
         || (adminA(resource.data.get('azienda', '-')) && request.resource.data.get('azienda', '') == resource.data.get('azienda', '')
           && request.resource.data.get('ruolo', '') in ['base', 'editor', 'admin', 'cliente'])
         || (signedIn() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'modificato']) && corto(request.resource.data, 'nome', 60));
