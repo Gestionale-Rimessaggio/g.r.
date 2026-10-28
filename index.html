@@ -1949,9 +1949,9 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     h += bops.length ? '<div class="group">' + bops.slice(0, 6).map(function (o) { return opRow(o, false); }).join('') + '</div>' : '<div class="notice">Nessun servizio per questa barca.</div>';
 
     h += secH('Trasporto: passa?') + passaHtml(b);
-    var pvs = prevOfBoat(b.id);
-    h += secH('Preventivi', S.canWrite ? 'prev-new' : '', '+ Nuovo', ' data-boat="' + esc(b.id) + '"');
-    h += pvs.length ? '<div class="group">' + pvs.slice(0, 5).map(function (p) { return prevRow(p, false); }).join('') + '</div>' : '<div class="notice">Nessun preventivo per questa barca.</div>';
+    var pvs = prevOn() ? prevOfBoat(b.id) : null;
+    if (pvs) h += secH('Preventivi', S.canWrite ? 'prev-new' : '', '+ Nuovo', ' data-boat="' + esc(b.id) + '"');
+    if (pvs) h += pvs.length ? '<div class="group">' + pvs.slice(0, 5).map(function (p) { return prevRow(p, false); }).join('') + '</div>' : '<div class="notice">Nessun preventivo per questa barca.</div>';
 
     var lv = sortLavori(S.lavori.filter(function (l) { return l.barcaId === b.id || (l.altreBarche || []).indexOf(b.id) >= 0; }));
     var tot = lv.reduce(function (a, l) { return a + (l.barcaId === b.id && l.stato === 'fatto' && num(l.importo) != null ? Number(l.importo) : 0); }, 0);
@@ -5987,6 +5987,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   function prevOfBoat(bid) { return (S.prev || []).filter(function (p) { return p.barcaId === bid; }).sort(function (a, c) { return String(c.data || '').localeCompare(String(a.data || '')); }); }
   function viewPreventivi() {
+    if (!prevOn()) return '<div class="notice" style="margin-top:12px">I preventivi sono spenti. Li accende l’amministratore in Altro › Aspetto dell’app, tra le sezioni: quelli già salvati ricompaiono.</div>';
     var f = V.prevFilter || 'aperti', all = (S.prev || []).slice().sort(function (a, c) { return String(c.data || '').localeCompare(String(a.data || '')); });
     var list = all.filter(function (p) { return f === 'tutti' ? true : f === 'aperti' ? (p.stato === 'bozza' || p.stato === 'inviato') : p.stato === f; });
     var h = '<div class="chips" role="group" aria-label="Filtro preventivi">' + [['aperti', 'Da inviare e inviati'], ['accettato', 'Accettati'], ['rifiutato', 'Rifiutati'], ['tutti', 'Tutti']].map(function (o) {
@@ -7326,6 +7327,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function sezBlocco(b) { var ks = SEZ_BLOCCHI[b.id]; return !ks || ks.some(sezOn); }
   function riepList() { var m = { mag: 'magazzino', porto: 'porto', rif: 'rifiuti', clienti: 'clienti' }; return RIEP.filter(function (r) { return (!m[r[0]] || sezOn(m[r[0]])) && (r[0] !== 'clienti' || S.isOwner); }); }
   function PORTO_ON() { return sezOn('porto'); }
+  function prevOn() { return sezOn('preventivi'); } // spenti: spariscono anche da scheda barca, storia e ricerca; i dati restano
   function aspNuovo() { return !window.NM_ASPETTO && !(S.aspetto && !S.aspetto._del); } // azienda nuova: aspetto mai scelto
   function aspDraft() {
     if (!V.asp) {
@@ -8234,7 +8236,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     (S.cariche || []).forEach(function (c) { if (c.barcaId === b.id) add('batt', c.data, 'Batterie caricate', c.utente ? 'da ' + nameOf(c.utente) : '', '', '', I.batt); });
     S.scadenze.forEach(function (x) { if (x.barcaId === b.id && x.fatta) add('altro', x.fattaIl, 'Scadenza fatta: ' + (x.tipo || ''), x.note || '', '', '', I.alarm); });
     S.ops.forEach(function (o) { if (o.barcaId === b.id && opDone(o)) add('altro', o.completataIl || o.data, 'Servizio: ' + opTitle(o), num(opHours(o)) ? fmtDur(opHours(o)) : '', 'open-op', o.id, I.list); });
-    prevOfBoat(b.id).forEach(function (p) { add('altro', p.data, 'Preventivo' + (p.titolo ? ': ' + p.titolo : ''), prevStato(p.stato) + (p.numero ? ' · n. ' + p.numero : ''), 'prev-edit', p.id, I.doc); });
+    if (prevOn()) prevOfBoat(b.id).forEach(function (p) { add('altro', p.data, 'Preventivo' + (p.titolo ? ': ' + p.titolo : ''), prevStato(p.stato) + (p.numero ? ' · n. ' + p.numero : ''), 'prev-edit', p.id, I.doc); });
     (S.giri || []).forEach(function (g) {
       var v = giroVoce(g, b.id); if (!v) return;
       add('altro', v.il || g.data, v.esito === 'problema' ? 'Giro dopo il vento: ' + ((v.cosa || []).join(', ').toLowerCase() || 'problema') : 'Giro dopo il vento: tutto a posto',
@@ -8605,7 +8607,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     grp('Scadenze del cantiere', (S.scadC || []).map(function (s) {
       return { s: gqScore(words, s.tipo, [s.rif, scGruppo(s.gruppo), s.note]), o: isoToUTC(s.data) || 0, h: gqRow('scc', s.id, (s.tipo || 'Scadenza') + (s.rif ? ' · ' + s.rif : ''), scGruppo(s.gruppo) + (s.data ? ' · ' + fmtDate(s.data) : ''), '') };
     }));
-    grp('Preventivi', (S.prev || []).map(function (p) {
+    grp('Preventivi', (prevOn() ? S.prev || [] : []).map(function (p) {
       var b = boatById(p.barcaId);
       return { s: gqScore(words, p.titolo, [p.numero, b && b.nome, b && b.proprietario, (p.voci || []).map(function (v) { return v.titolo; }).join(' ')]), o: -(isoToUTC(p.data) || 0),
         h: gqRow('prev', p.id, p.titolo || 'Preventivo', [b ? b.nome : '', p.numero ? 'n. ' + p.numero : '', fmtDate(p.data)].filter(Boolean).join(' · '), p.stato || '') };
@@ -8784,7 +8786,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     preventivi: { t: 'Preventivi', p: 'I preventivi in ore e ricambi, anche dalla foto di quello dell’ufficio.', li: [
       'Puoi fotografare il preventivo (anche scritto a mano) e l’app compila le righe, oppure prepararlo qui.',
       'Lo stato va da bozza a inviato ad accettato.',
-      'Quando diventa «Accettato», i lavori previsti diventano lavorazioni da fare con le ore stimate. Dopo si confrontano ore previste e vere.'] },
+      'Quando diventa «Accettato», i lavori previsti diventano lavorazioni da fare con le ore stimate. Dopo si confrontano ore previste e vere.',
+      'A|Se non vi servono, l’amministratore li spegne in Altro › Aspetto dell’app, tra le sezioni: spariscono anche dalla scheda della barca e dalla ricerca, senza cancellare niente.'] },
     rifiuti: { t: 'Rifiuti', p: 'Il registro dei rifiuti del cantiere, con codice CER e contenitore.', li: [
       'Segna un rifiuto a pezzi, litri o sacchetti (l’app stima i kg) oppure in kg, anche legato alla barca.',
       'La fotocamera può suggerire che tipo di rifiuto è.',
