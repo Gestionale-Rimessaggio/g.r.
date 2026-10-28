@@ -460,6 +460,17 @@ button.row:active, .row .hit:active { opacity: .65; }
 .map-chip { position: absolute; left: 10px; top: 10px; z-index: 2; border: 0; background: rgba(242, 71, 61, .92); color: #fff; font-size: .82rem; font-weight: 700; padding: 6px 10px; border-radius: 999px; }
 .map-card { position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 3; background: rgba(24, 25, 29, .97); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); max-width: 560px; margin-inline: auto; }
 .map-card[hidden] { display: none; }
+.alt-top { display: flex; justify-content: flex-end; margin-top: 8px; }
+.alt-pen { width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: var(--dim); display: grid; place-items: center; cursor: pointer; }
+.alt-pen:hover { background: var(--card); color: var(--ink); }
+.alt-pen svg { width: 17px; height: 17px; }
+.alt-bar { margin: 12px 0 10px; padding: 12px; border-radius: 12px; background: var(--card); display: flex; flex-direction: column; gap: 6px; }
+.alt-bar .acts { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.alt-mv { margin-left: auto; display: flex; gap: 6px; flex: none; }
+.alt-mv button { width: 34px; height: 34px; border: 0; border-radius: 9px; background: var(--card-2); color: var(--ink); display: grid; place-items: center; padding: 0; cursor: pointer; }
+.alt-mv button:disabled { opacity: .3; cursor: default; }
+.alt-mv svg { width: 16px; height: 16px; transform: rotate(90deg); }
+.alt-mv button + button svg { transform: rotate(-90deg); }
 #map-root { background: var(--map-bg); }
 #map-root::after { content: ""; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 60px 10px color-mix(in srgb, var(--bg) 55%, transparent); }
 .map-list { display: none; gap: 10px; align-items: center; margin: 0 0 8px; }
@@ -7600,9 +7611,24 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     fbRows.forEach(function (r) { rows.push(['fb:' + r[0], I[r[1]] || I.list, r[2] || '', r[3], r[4], r[5] || '']); });
     return rows;
   }
+  // Altro riordinabile: ogni amministratore ha il suo ordine (layout_<uid>.altro), separato da quello del menù del computer
+  function altroOrd(rows) {
+    var o = lyCfg().altro; if (!Array.isArray(o) || !o.length) return rows;
+    var n = rows.length; function pos(r, i) { var k = o.indexOf(r[0]); return k >= 0 ? k : o.length + i; } // le voci nuove vanno in fondo
+    return rows.map(function (r, i) { return { r: r, p: pos(r, i) }; }).sort(function (a, b) { return a.p - b.p; }).map(function (x) { return x.r; });
+  }
+  function altroMove(i, d) {
+    var rows = altroOrd(altroRows()), j = i + d; if (j < 0 || j >= rows.length) return;
+    var x = rows[i]; rows[i] = rows[j]; rows[j] = x;
+    lySave({ altro: rows.map(function (r) { return r[0]; }) });
+  }
   function viewAltro() {
-    var rows = altroRows();
-    return exampleBanner() + gqBar() + '<div class="group" style="margin-top:14px">' + rows.map(function (r) {
+    var rows = altroOrd(altroRows()), ed = V.altroEdit && lyCan();
+    if (ed) return '<div class="alt-bar"><b>Riordina Altro</b><span class="cap">Con le frecce sposti le voci. L’ordine è solo tuo e non cambia il menù del computer.</span><span class="acts"><button type="button" class="link" data-act="alt-reset">Come all’inizio</button><button type="button" class="btn" data-act="alt-done">Fine</button></span></div>' +
+      '<div class="group">' + rows.map(function (r, i) {
+        return '<div class="row"><span class="ic-circle ' + r[2] + '">' + r[1] + '</span><span class="main"><span class="title">' + r[3] + '</span></span><span class="alt-mv"><button type="button" data-act="alt-mv" data-i="' + i + '" data-d="-1" aria-label="Sposta su"' + (i ? '' : ' disabled') + '>' + I.left + '</button><button type="button" data-act="alt-mv" data-i="' + i + '" data-d="1" aria-label="Sposta giù"' + (i < rows.length - 1 ? '' : ' disabled') + '>' + I.left + '</button></span></div>';
+      }).join('') + '</div>';
+    return exampleBanner() + gqBar() + (lyCan() ? '<div class="alt-top"><button type="button" class="alt-pen" data-act="alt-edit" aria-label="Riordina le voci" title="Riordina le voci">' + I.pencil + '</button></div>' : '') + '<div class="group" style="margin-top:' + (lyCan() ? 4 : 14) + 'px">' + rows.map(function (r) {
       if (r[0].slice(0, 3) === 'fb:') return '<button type="button" class="row" data-act="fb" data-k="' + esc(r[0].slice(3)) + '"><span class="ic-circle ' + r[2] + '">' + r[1] + '</span><span class="main"><span class="title">' + esc(r[3]) + '</span><span class="sub">' + esc(r[4]) + '</span></span>' +
         (r[5] ? '<span class="side">' + r[5] + '</span>' : '') + '<span style="color:var(--dim);width:18px;flex:none">' + I.right + '</span></button>';
       return '<button type="button" class="row" data-act="tab" data-tab="' + r[0] + '"><span class="ic-circle ' + r[2] + '">' + r[1] + '</span><span class="main"><span class="title">' + r[3] + '</span><span class="sub">' + r[4] + '</span></span>' +
@@ -8743,6 +8769,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'Sul computer, sopra la mappa, c’è l’elenco dei vostri posti con la barca o il cliente: tocchi un posto e la mappa ci va. La scheda del posto si apre a destra.'] },
     altro: { t: 'Altro', p: 'Qui trovi tutte le sezioni che non stanno nella barra in basso, e la ricerca unica.', li: [
       'La ricerca in alto trova barche, clienti, articoli, codici, lavori e scadenze in tutta l’app.',
+      'A|Con la piccola matita sopra l’elenco riordini le voci con le frecce; l’ordine è solo tuo e non cambia il menù del computer. «Come all’inizio» rimette l’ordine di partenza.',
       'Ogni voce mostra a destra se c’è qualcosa da guardare (per esempio «3 da riordinare»).',
       'In fondo ci sono «Il mio account» per cambiare password o uscire.',
       'A|Sempre in fondo trovi Utenti e permessi e il Cestino.'] },
@@ -10591,6 +10618,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'nt-off': ntDisattiva(); break;
       case 'nt-cfg': ntCfgSave(); break;
       case 'side-edit': V.sideEdit = true; renderTabs(); break;
+      case 'alt-edit': V.altroEdit = true; render(); break;
+      case 'alt-done': V.altroEdit = false; render(); toast('Altro sistemato'); break;
+      case 'alt-reset': lySave({ altro: null }); break;
+      case 'alt-mv': altroMove(+t.getAttribute('data-i'), +t.getAttribute('data-d')); break;
       case 'side-done': V.sideEdit = false; renderTabs(); toast('Menù sistemato'); break;
       case 'side-reset': lySave({ side: null }); break;
       case 'side-mv': sideMove(+t.getAttribute('data-g'), +t.getAttribute('data-k'), +t.getAttribute('data-d')); break;
