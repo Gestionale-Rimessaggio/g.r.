@@ -186,8 +186,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .top .icon-btn.help { width: 32px; color: var(--muted); }
 .top .r:has(.help + .icon-btn + .icon-btn) { gap: 0; }
 .top .icon-btn.help svg { width: 23px; height: 23px; }
-/* guida: niente si restringe, la finestra scorre fino in fondo (senza, l’elenco delle sezioni spariva sugli schermi bassi) */
-.sheet-body.gd > * { flex-shrink: 0; }
+/* finestre: niente si restringe, la finestra scorre fino in fondo (senza, gli elenchi lunghi come i tipi di rifiuto restavano tagliati e non scorrevano) */
+.sheet-body > * { flex-shrink: 0; }
 .gd-p { margin: 0; color: var(--ink); }
 .gd-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 9px; color: var(--muted); }
 .top h1 { margin: 0; text-align: center; font-size: 1.05rem; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
