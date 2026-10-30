@@ -339,6 +339,8 @@ button.row:active, .row .hit:active { opacity: .65; }
 .gq-bar { display: block; width: 100%; font: inherit; font-size: 16px; text-align: left; color: var(--muted); background: var(--card); border: 1px solid transparent; border-radius: 10px; padding: 10px 12px 10px 38px; cursor: pointer; }
 .gq-bar span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .search input:focus { outline: none; border-color: var(--accent); }
+.sub.nq { white-space: normal; overflow-wrap: anywhere; }
+.sub.nq mark { background: rgba(255, 200, 60, .35); color: inherit; border-radius: 3px; padding: 0 1px; }
 .month-h { display: flex; justify-content: space-between; align-items: baseline; margin: 22px 2px 8px; color: var(--muted); font-size: .85rem; font-weight: 600; }
 .month-h span:first-child { text-transform: capitalize; color: var(--ink); font-size: .95rem; }
 
@@ -1262,7 +1264,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (num(oreFallback) != null) return '<span class="' + cls + '"><b class="sm">' + fmtNum(oreFallback) + '</b><small>ore</small></span>';
     return '<span class="' + cls + '"><b>–</b></span>';
   }
-  function scadRow(x, showBoat, showOwner) {
+  function scadRow(x, showBoat, showOwner, noteHtml) {
     var s = x.s, i = x.i, done = !!s.fatta, lvl = done ? '' : i.level, sub = [];
     if (s.modello && !(V.tab === 'scadenze' && V.scadBy === 'modello')) sub.push(esc(s.modello));
     if (showBoat) sub.push(esc(boatLabel(i.boat)));
@@ -1276,7 +1278,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     return '<div class="row"><button type="button" class="hit" data-act="edit-scad" data-id="' + esc(s.id) + '">' +
       dateBlock(done ? s.fattaIl : s.data, lvl, s.oreScadenza) +
       '<span class="main"><span class="title">' + esc(s.tipo || 'Scadenza') + '</span>' +
-      (sub.length ? '<span class="sub">' + sub.join(' · ') + '</span>' : '') + status + '</span></button>' + btn + '</div>';
+      (sub.length ? '<span class="sub">' + sub.join(' · ') + '</span>' : '') + (noteHtml ? '<span class="sub nq">' + noteHtml + '</span>' : '') + status + '</span></button>' + btn + '</div>';
   }
   function lavBoatLabel(l) { return l.barcaId ? boatLabel(boatById(l.barcaId)) : 'Lavori di cantiere'; }
   function lavRow(l, showBoat) {
@@ -1658,8 +1660,36 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     list.forEach(function (x) { var k = scadKey(x.s, by); if (!gm[k[0]]) { gm[k[0]] = { k: k[0], label: k[1], items: [] }; gs.push(gm[k[0]]); } gm[k[0]].items.push(x); });
     return gs.sort(function (a, b) { return (a.k === '') - (b.k === '') || a.label.localeCompare(b.label, 'it', { sensitivity: 'base' }); });
   }
+  // ricerca nelle note delle scadenze (es. «Sn»): maiuscole/minuscole e accenti non contano
+  var SCAD_NQ_WORD = false; // true = solo parola intera
+  function nqFold(t) { return Array.prototype.map.call(String(t || ''), function (c) { var f = c.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); return f.length === 1 ? f : c.toLowerCase().charAt(0) || ' '; }).join(''); }
+  function nqFind(note, q) {
+    var n = nqFold(note), k = nqFold(q).trim(); if (!k) return -1;
+    if (!SCAD_NQ_WORD) return n.indexOf(k);
+    var isW = function (c) { return !!c && /[a-z0-9]/.test(c); }, i = -1;
+    while ((i = n.indexOf(k, i + 1)) >= 0) if (!isW(n.charAt(i - 1)) && !isW(n.charAt(i + k.length))) return i;
+    return -1;
+  }
+  function nqSnippet(note, q) {
+    var t = String(note || ''), i = nqFind(t, q), L = nqFold(q).trim().length; if (i < 0) return '';
+    var a = Math.max(0, i - 40), b = Math.min(t.length, i + L + 60);
+    return 'Note: ' + (a ? '…' : '') + esc(t.slice(a, i)) + '<mark>' + esc(t.slice(i, i + L)) + '</mark>' + esc(t.slice(i + L, b)) + (b < t.length ? '…' : '');
+  }
+  function scadNqHtml() {
+    var q = String(V.scadNq || ''); if (!q.trim()) return scadListHtml();
+    var open = openScad(null).filter(function (x) { return nqFind(x.s.note, q) >= 0; });
+    var done = S.scadenze.filter(function (s) { return s.fatta && nqFind(s.note, q) >= 0; }).sort(function (a, b) { return String(b.fattaIl || '').localeCompare(String(a.fattaIl || '')); });
+    if (!open.length && !done.length) return '<div class="notice" style="margin-top:14px">Nessuna scadenza ha “' + esc(q.trim()) + '” nelle note.</div>';
+    function row(x) { return scadRow(x, true, true, nqSnippet(x.s.note, q)); }
+    return (open.length ? secH('Aperte con “' + q.trim() + '” nelle note (' + open.length + ')') + '<div class="group">' + open.map(row).join('') + '</div>' : '') +
+      (done.length ? secH('Completate (' + done.length + ')') + '<div class="group">' + done.slice(0, 100).map(function (s) { return row({ s: s, i: scadInfo(s) }); }).join('') + '</div>' : '');
+  }
   function viewScadenze() {
     if (!S.boats.length) return '<div style="margin-top:14px">' + emptyCard(I.boat, 'Prima aggiungi una barca', 'Ogni scadenza è collegata a una barca.', ['new-boat', 'Aggiungi barca']) + '</div>';
+    return (S.scadenze.length ? '<div class="search">' + I.search + '<input id="scad-nq" type="search" placeholder="Cerca nelle note (es. Sn)" value="' + esc(V.scadNq || '') + '" autocomplete="off" aria-label="Cerca nelle note delle scadenze"></div>' : '') +
+      '<div id="scad-box">' + scadNqHtml() + '</div>';
+  }
+  function scadListHtml() {
     var by = V.scadBy || 'data', all = openScad(null), open = all, h = '';
     var doneAll = S.scadenze.filter(function (s) { return s.fatta; }).sort(function (a, b) { return String(b.fattaIl || '').localeCompare(String(a.fattaIl || '')); }), done = doneAll;
     if (all.length || doneAll.length) h += '<div class="chips" role="group" aria-label="Filtra le scadenze">' + [['data', 'Per data'], ['cliente', 'Per cliente'], ['articolo', 'Per articolo'], ['modello', 'Per modello']].map(function (o) {
@@ -8853,6 +8883,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     scadenze: { t: 'Scadenze', p: 'Tagliandi, antivegetativa, assicurazioni, contratti e dotazioni di sicurezza delle barche.', li: [
       'Una scadenza può essere a data, a ore motore o tutte e due, e può ripetersi.',
       'In alto scegli come vederle: «Per data» (scadute, entro 30 giorni, più avanti), «Per cliente» o «Per articolo» (tagliando, estintori, zattera…). Dall’elenco sotto prendi un solo cliente o articolo, oppure lascia «Tutti» per vederle raggruppate.',
+      'La barra «Cerca nelle note» in alto trova le scadenze, aperte e completate, che hanno quel testo nelle note (es. «Sn»): maiuscole e minuscole contano uguale. Svuotala per tornare all’elenco.',
       'Quando la segni fatta passa da sola alla prossima; puoi registrarla anche tra i lavori fatti.',
       'Sono divise in scadute (rosse), entro 30 giorni (arancioni) e più avanti.',
       'Con la fotocamera l’app legge la scadenza da un’etichetta o un documento: controlla prima di salvare.'] },
@@ -10861,6 +10892,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       V.asp[{ 'asp-nome': 'nome', 'asp-c1': 'colore1', 'asp-c2': 'colore2' }[e.target.id]] = e.target.value; aspPreview();
     }
     if (e.target && e.target.id === 'mq') { V.magQ = e.target.value; var mb = $('#mag-box'); if (mb) mb.innerHTML = magListHtml(); }
+    if (e.target && e.target.id === 'scad-nq') { V.scadNq = e.target.value; var sb = $('#scad-box'); if (sb) sb.innerHTML = scadNqHtml(); }
   });
   document.addEventListener('change', function (e) { if (e.target && e.target.classList && e.target.classList.contains('rc-kit')) kitApply(e.target); });
   document.addEventListener('change', function (e) { if (e.target && e.target.classList && e.target.classList.contains('inv-q')) invSaveCount(e.target); });
