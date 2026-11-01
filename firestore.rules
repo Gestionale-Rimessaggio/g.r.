@@ -43,6 +43,12 @@ service cloud.firestore {
     }
 
     // Messaggio del gestore a tutte le aziende: lo leggono tutti quelli che entrano, lo scrive solo il gestore
+    // Novità in app: le legge chi è entrato, le scrive solo il gestore (quelle di ogni pubblicazione stanno in novita.json)
+    match /novita/{id} {
+      allow read: if signedIn();
+      allow write: if creatore() && request.resource.data.keys().hasOnly(['titolo', 'righe', 'il', 'nascosta'])
+        && corto(request.resource.data, 'titolo', 60) && (!('righe' in request.resource.data) || (request.resource.data.righe is list && request.resource.data.righe.size() <= 12));
+    }
     match /messaggioServizio/{id} {
       allow read: if signedIn();
       allow write: if creatore();
@@ -191,7 +197,7 @@ service cloud.firestore {
           && azienda(resource.data.get('azienda', '-')).get('admin', '') == uid)
         || (adminA(resource.data.get('azienda', '-')) && request.resource.data.get('azienda', '') == resource.data.get('azienda', '')
           && request.resource.data.get('ruolo', '') in ['base', 'editor', 'admin', 'cliente'])
-        || (signedIn() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'modificato']) && corto(request.resource.data, 'nome', 60));
+        || (signedIn() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'modificato', 'novitaVista']) && corto(request.resource.data, 'nome', 60) && corto(request.resource.data, 'novitaVista', 40));
       allow delete: if creatore() || adminA(resource.data.get('azienda', '-'));
     }
 

@@ -116,7 +116,7 @@
     '#nmcr .pill{display:inline-block;font-size:.78rem;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.1);color:#c9ccd6;margin-left:6px;font-weight:500}#nmcr .note{color:#9a9daa;font-size:.9rem;margin:12px 4px}' +
     /* computer e tablet: il pannello lascia libero il menù a sinistra dell'app (largo 236px) */
     '@media (min-width:768px) and (min-height:500px){#nmpan{left:236px}}' +
-    '#nmmsg,#nmabb{position:fixed;top:calc(env(safe-area-inset-top) + 64px);left:10px;right:10px;z-index:100000;display:flex;justify-content:center}#nmmsg .it,#nmabb .it{max-width:520px;width:100%;box-sizing:border-box;background:#1e3a5f;color:#fff;border:1px solid #2f8ff0;border-radius:14px;padding:12px 14px;font:15px/1.45 -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.3)}#nmmsg .ok,#nmabb .ok{margin-top:8px;border:0;border-radius:10px;background:#2f8ff0;color:#fff;padding:8px 14px;font:inherit;cursor:pointer}#nmcr select.b{appearance:auto}#nmabb{top:auto;bottom:calc(env(safe-area-inset-bottom) + 84px)}#nmabb .it{background:#4a3a12;border-color:#ffb020}#nmabb .ok{background:#ffb020;color:#2a1f00}' +
+    '#nmmsg,#nmabb{position:fixed;top:calc(env(safe-area-inset-top) + 64px);left:10px;right:10px;z-index:100000;display:flex;justify-content:center}#nmmsg .it,#nmabb .it{max-width:520px;width:100%;box-sizing:border-box;background:#1e3a5f;color:#fff;border:1px solid #2f8ff0;border-radius:14px;padding:12px 14px;font:15px/1.45 -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.3)}#nmmsg .ok,#nmabb .ok{margin-top:8px;border:0;border-radius:10px;background:#2f8ff0;color:#fff;padding:8px 14px;font:inherit;cursor:pointer}#nmcr select.b{appearance:auto}#nmnov{position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px}#nmnov .it{max-width:520px;width:100%;max-height:85vh;overflow:auto;box-sizing:border-box;background:#18212c;color:#eef3f8;border:1px solid #2a3644;border-radius:18px;padding:18px 18px 16px;font:15px/1.5 -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.5)}#nmnov h3{margin:0 0 6px;font-size:1.2rem}#nmnov h4{margin:12px 0 4px;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:#9aabbd}#nmnov ul{margin:0;padding-left:20px}#nmnov li{margin:6px 0}#nmnov .ok{margin-top:14px;width:100%;border:0;border-radius:12px;background:#2ec4b6;color:#062a26;padding:12px;font:600 15px/1 -apple-system,BlinkMacSystemFont,sans-serif;cursor:pointer}#nmabb{top:auto;bottom:calc(env(safe-area-inset-bottom) + 84px)}#nmabb .it{background:#4a3a12;border-color:#ffb020}#nmabb .ok{background:#ffb020;color:#2a1f00}' +
     '#nmatt{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 76px);right:10px;left:10px;z-index:100001;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}' +
     '#nmatt .it{pointer-events:auto;position:relative;max-width:420px;width:100%;box-sizing:border-box;background:#2b2c33;color:#fff;border-radius:14px;padding:10px 40px 10px 14px;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.3)}#nmatt .x{position:absolute;top:4px;right:4px;width:32px;height:32px;border:0;background:none;color:#c9cbe0;font-size:20px;line-height:1;cursor:pointer}' +
     '#nmatt .it b{display:block}#nmatt .it span{color:#c9cbe0}#nmattv{width:100%;text-align:left}#nmattv .ar{display:block;padding:10px 0;border-top:1px solid #2a2d55}#nmattv .ar:first-child{border-top:0}#nmattv .ar b{display:block}#nmattv .ar div{color:#b7bad8;font-size:.9rem}' +
@@ -663,7 +663,7 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 
   function afterStart() {
-    msgServizio(); avvisoAbb();
+    msgServizio(); avvisoAbb(); setTimeout(novitaMostra, 2500);
     UT_UNSUB = fs.collection('utenti').where('azienda', '==', AZ).onSnapshot(function (s) {
       var m = {}; s.docs.forEach(function (d) { m[d.id] = d.data(); }); UT = m; if ($('#nmpan')) renderPanel(); schedulePortale();
     }, function () { });
@@ -1043,6 +1043,27 @@
   }
 
   /* ---------- messaggio a tutte le aziende (messaggioServizio/attuale) ---------- */
+  // Novità: quelle del file (scritte a ogni pubblicazione) e quelle del gestore; si correggono, si nascondono, se ne aggiungono
+  var TA = 'width:100%;box-sizing:border-box;margin-top:8px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#f4f5f7;padding:10px;font:inherit';
+  function crNovHtml() {
+    if (CR.nov === undefined) { CR.nov = null; novitaTutte(true).then(function (l) { CR.nov = l; crRender(); }); }
+    if (!CR.nov) return '<p class="note">Carico…</p>';
+    var ed = CR.novEd, form = function (x) {
+      return '<div class="u"><input id="cr-nov-t" maxlength="60" placeholder="Titolo, es. Novembre 2026" value="' + esc((x && x.titolo) || '') + '" style="' + TA + '">' +
+        '<textarea id="cr-nov-r" rows="6" maxlength="2000" placeholder="Una novità per riga" style="' + TA + '">' + esc(((x && x.righe) || []).join('\n')) + '</textarea>' +
+        '<div class="acts"><button class="b pri" data-cr="nov-salva" data-id="' + esc(x ? x.id : '') + '">' + (x ? 'Salva' : 'Pubblica la novità') + '</button><button class="b" data-cr="nov-annulla">Annulla</button></div>' +
+        '<div class="em">Compare una volta, al prossimo ingresso, a chi lavora nelle aziende (non ai clienti).</div></div>';
+    };
+    return '<div class="grp">' + (ed === 'nuova' ? form(null) : '') + (CR.nov.length ? CR.nov.slice(0, 6).map(function (x) {
+      if (ed === x.id) return form(x);
+      return '<div class="u"' + (x.nascosta ? ' style="opacity:.55"' : '') + '><div class="nm">' + esc(x.titolo || x.id) + (x.nascosta ? '<span class="pill">nascosta</span>' : '') + '</div><div class="em">' + (x.righe || []).map(esc).join('<br>') + '</div>' +
+        '<div class="acts"><button class="b" data-cr="nov-mod" data-id="' + esc(x.id) + '">Modifica</button>' + (x.nascosta ? '<button class="b" data-cr="nov-vedi" data-id="' + esc(x.id) + '">Rimetti</button>' : '<button class="b red" data-cr="nov-nascondi" data-id="' + esc(x.id) + '">Nascondi</button>') + '</div></div>';
+    }).join('') : '<div class="u"><div class="em">Ancora nessuna novità.</div></div>') +
+      (ed !== 'nuova' ? '<div class="u"><button class="b pri" data-cr="nov-nuova">+ Nuova novità</button></div>' : '') + '</div>';
+  }
+  function crNovScrivi(id, data, msg) {
+    fs.collection('novita').doc(id).set(Object.assign({ il: nowISO() }, data), { merge: true }).then(function () { CR.novEd = null; CR.nov = undefined; toast(msg); crRender(); }, function (er) { toast('Non riuscito: ' + errOf(er).code); });
+  }
   function crMsgHtml() {
     var m = CR.msg && CR.msg.attivo ? CR.msg : null;
     return '<div class="grp"><div class="u">' + (m ? '<div class="nm">In Home di tutte le aziende dal ' + esc(crQuando(m.il)) + '</div><div class="em">' + esc(m.testo) + '</div>' : '<div class="em">Nessun messaggio attivo.</div>') +
@@ -1073,7 +1094,7 @@
     if (!CR.on || started) return;
     var o = $('#nmcr'); if (!o) { hideOverlay(); o = document.createElement('div'); o.id = 'nmcr'; document.body.appendChild(o); }
     var ae = document.activeElement, fid = ae && o.contains(ae) && ae.id ? ae.id : '', sel = fid && ae.selectionStart != null ? [ae.selectionStart, ae.selectionEnd] : null, keep = {};
-    ['cr-msg', 'cr-nota'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
+    ['cr-msg', 'cr-nota', 'cr-nov-t', 'cr-nov-r'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
     var ids = Object.keys(CR.az).sort(function (a, b) { return String(CR.az[b].creato || '').localeCompare(String(CR.az[a].creato || '')); });
     var h = '<div class="in">';
     if (CR.vista && CR.vista.indexOf('rep:') === 0 && CR.az[CR.vista.slice(4)]) {
@@ -1148,6 +1169,7 @@
           '<div class="chips">' + [['nome', 'Nome'], ['spazio', 'Spazio'], ['accesso', 'Ultimo accesso'], ['errori', 'Errori']].map(function (c) { return '<button class="b' + (CR.ord === c[0] ? ' pri' : '') + '" data-cr="ord" data-id="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>' : '') +
         (att.length ? '<div class="grp" style="margin-top:10px">' + att.map(row).join('') + '</div>' : by('attiva').length ? '<p class="note">Nessuna azienda trovata.</p>' : '') +
         sec('Sospese', by('sospesa')) + sec('Rifiutate', by('rifiutata')) +
+        '<h4>Novità in app</h4>' + crNovHtml() +
         '<h4>Messaggio a tutte le aziende</h4>' + crMsgHtml() +
         (!ids.length && !CR.err ? '<p class="note">Ancora nessuna azienda. Quando un’azienda si registra dal sito, la sua richiesta compare qui.</p>' : '') +
         '<p class="note">Approvando un’azienda, chi l’ha registrata diventa il suo amministratore e l’azienda riceve il suo codice per far entrare colleghi e clienti. Nei dati di un’azienda entri solo se ha acceso «Permetti assistenza» in Altro › Utenti e permessi.</p>';
@@ -1234,6 +1256,16 @@
     else if (k === 'riatt') crStato(id, 'attiva', 'Azienda riattivata');
     else if (k === 'no') { if (confirm('Rifiutare la richiesta di ' + (a.nome || 'questa azienda') + '?')) crStato(id, 'rifiutata', 'Richiesta rifiutata'); }
     else if (k === 'sosp') { if (confirm('Sospendere ' + (a.nome || 'questa azienda') + '? Nessuno dell’azienda potrà entrare finché non la riattivi. I dati restano.')) crStato(id, 'sospesa', 'Azienda sospesa'); }
+    else if (k === 'nov-nuova') { CR.novEd = 'nuova'; crRender(); }
+    else if (k === 'nov-mod') { CR.novEd = id; crRender(); }
+    else if (k === 'nov-annulla') { CR.novEd = null; crRender(); }
+    else if (k === 'nov-nascondi') { if (confirm('Nascondere questa novità? Chi non l’ha ancora vista non la vedrà.')) crNovScrivi(id, { nascosta: true }, 'Novità nascosta'); }
+    else if (k === 'nov-vedi') crNovScrivi(id, { nascosta: false }, 'Novità rimessa');
+    else if (k === 'nov-salva') {
+      var tt = (($('#cr-nov-t') || {}).value || '').trim(), rr = (($('#cr-nov-r') || {}).value || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 12);
+      if (!rr.length) { toast('Scrivi almeno una novità'); return; }
+      crNovScrivi(id || new Date().toISOString(), { titolo: tt, righe: rr, nascosta: false }, id ? 'Novità salvata' : 'Novità pubblicata');
+    }
     else if (k === 'aimax') {
       var vm = prompt('Richieste all’AI al giorno per ' + (a.nome || 'questa azienda') + ' (oggi ' + aiMaxDi(a) + '; 0 = AI spenta). La quota gratuita del servizio è in comune tra tutte le aziende.', String(aiMaxDi(a)));
       if (vm == null) return; var nm = Math.round(parseFloat(String(vm).replace(',', '.')));
@@ -1275,6 +1307,34 @@
     }, function () { });
   }
   document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('#nmmsg .ok'); if (!b) return; try { localStorage.setItem('gr-msg-visto', b.getAttribute('data-il')); } catch (x) { } var el = $('#nmmsg'); if (el) el.remove(); });
+
+  /* ---------- Cosa c'è di nuovo: dopo una pubblicazione compare una volta a ogni persona (utenti/{uid}.novitaVista) ----------
+     Le righe le scrive chi pubblica, in novita.json; il gestore le corregge o ne aggiunge dal suo pannello
+     (raccolta «novita»: stesso id = sostituisce quella del file). Chi entra dopo una novità non la vede. */
+  function novitaTutte(anche) {
+    var file = fetch('novita.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; });
+    var db = fs.collection('novita').get().then(function (s) { var o = []; s.forEach(function (d) { o.push(Object.assign({ id: d.id, mia: true }, d.data())); }); return o; }).catch(function () { return []; });
+    return Promise.all([file, db]).then(function (r) {
+      var m = {}; (Array.isArray(r[0]) ? r[0] : []).forEach(function (x) { if (x && x.id) m[x.id] = Object.assign({ file: true }, x); });
+      r[1].forEach(function (x) { m[x.id] = Object.assign({}, m[x.id] || {}, x); });
+      return Object.keys(m).map(function (k) { return m[k]; }).filter(function (x) { return anche || (!x.nascosta && (x.righe || []).length); }).sort(function (a, b) { return String(b.id).localeCompare(String(a.id)); });
+    });
+  }
+  function novitaVista(id) { if (!ME) return; ME.novitaVista = id; fs.collection('utenti').doc(ME.uid).update({ novitaVista: id, modificato: nowISO() }).catch(function () { }); }
+  function novitaMostra() {
+    if (!ME || ME.ruolo === 'cliente' || ME.assist || $('#nmnov')) return;
+    novitaTutte().then(function (l) {
+      if (!l.length || !ME) return;
+      var vista = ME.novitaVista || '', ultima = String(l[0].id);
+      if (!vista && String(ME.creato || '').slice(0, 10) >= ultima.slice(0, 10)) { novitaVista(ultima); return; } // arrivato dopo: si parte da qui
+      var nuove = l.filter(function (x) { return String(x.id) > vista; }).slice(0, 3);
+      if (!nuove.length) return;
+      ensureCss(); var el = document.createElement('div'); el.id = 'nmnov'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Cosa c’è di nuovo');
+      el.innerHTML = '<div class="it"><h3>Cosa c’è di nuovo</h3>' + nuove.map(function (x) { return (x.titolo ? '<h4>' + esc(x.titolo) + '</h4>' : '') + '<ul>' + x.righe.map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('') + '</ul>'; }).join('') + '<button class="ok">Ho capito</button></div>';
+      document.body.appendChild(el);
+      el.querySelector('.ok').onclick = function () { el.remove(); novitaVista(ultima); };
+    });
+  }
 
   /* ---------- area cliente ---------- */
   var CL = { unsubs: [], docs: {}, all: {} };
