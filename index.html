@@ -4398,6 +4398,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     });
   })();
 
+  var DEF = BERTHS.slice(); // i posti del porto di esempio (quando il porto non è disegnato dall'azienda)
+
   var LIGHT = norm([-0.45, 0.82, 0.38]);
   function norm(v) { var l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; }
   function sub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
@@ -4791,6 +4793,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     function moving() { P.moving = true; clearTimeout(P.movT); P.movT = setTimeout(function () { P.moving = false; draw(); }, 140); }
     function frame() {
       P.queued = false; if (!P.mounted || !ctx) return;
+      if (MIO.cfg) { mioFrame(); return; }
       if (!GV || GV.length !== GROUPS.length) GV = new Uint8Array(GROUPS.length);
       basis(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
       var g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#05070D'); g.addColorStop(0.5, '#0B1424'); g.addColorStop(1, '#122238');
@@ -4890,21 +4893,24 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       })(st);
     }
     function fitDist() { var a = W / H, half = 236, halfW = 100; return Math.max(half / Math.tan(CAM.fov / 2), halfW / (Math.tan(CAM.fov / 2) * a)) * (P.mode === '2d' ? 1.02 : 0.95); }
-    function fitAll() { animateTo(P.mode === '2d' ? { tx: 60, tz: 180, yaw: 0, pitch: 1.5533, dist: fitDist() } : { tx: 62, tz: 175, yaw: -0.62, pitch: 0.62, dist: fitDist() * 0.8 }); }
+    function fitAll() { if (MIO.cfg) { mioFit(); draw(); return; } animateTo(P.mode === '2d' ? { tx: 60, tz: 180, yaw: 0, pitch: 1.5533, dist: fitDist() } : { tx: 62, tz: 175, yaw: -0.62, pitch: 0.62, dist: fitDist() * 0.8 }); }
     function aboveCard(x, z, dist, yaw, pitch) { var off = 0.42 * dist * Math.tan(CAM.fov / 2) / Math.max(0.5, Math.sin(pitch)); return { tx: x + Math.sin(yaw) * off, tz: z + Math.cos(yaw) * off }; }
     function flyTo(b) {
+      if (MIO.cfg) { mioFly(b); return; }
       var d = P.mode === '2d' ? Math.max(70, b.len * 5.5) : Math.max(48, b.len * 4.4), pitch = P.mode === '2d' ? 1.5533 : Math.max(0.5, Math.min(0.9, CAM.pitch)), yaw = P.mode === '2d' ? 0 : CAM.yaw;
       animateTo(Object.assign({ dist: d, pitch: pitch, yaw: yaw }, aboveCard(b.cx, b.cz, d, yaw, pitch)));
     }
     function pan(dx, dy) {
+      if (MIO.cfg) { MIO.v.x += dx; MIO.v.y += dy; return; }
       var mpp = CAM.dist * Math.tan(CAM.fov / 2) / (H / 2), sy = Math.sin(CAM.yaw), cy = Math.cos(CAM.yaw), k = 1 / Math.max(0.35, Math.sin(CAM.pitch));
       CAM.tx -= cy * dx * mpp; CAM.tz -= -sy * dx * mpp; CAM.tx -= sy * dy * mpp * k; CAM.tz -= cy * dy * mpp * k;
       CAM.tx = Math.max(-120, Math.min(260, CAM.tx)); CAM.tz = Math.max(-120, Math.min(460, CAM.tz));
     }
-    function zoom(f) { CAM.dist = Math.max(28, Math.min(900, CAM.dist * f)); }
+    function zoom(f, cx, cy) { if (MIO.cfg) { var rc = cv && cv.getBoundingClientRect(); mioZoom(f, cx != null && rc ? cx - rc.left : null, cy != null && rc ? cy - rc.top : null); return; } CAM.dist = Math.max(28, Math.min(900, CAM.dist * f)); }
     function inPoly(x, y, s) { var c = false; for (var i = 0, j = s.length - 1; i < s.length; j = i++) if (((s[i][1] > y) !== (s[j][1] > y)) && (x < (s[j][0] - s[i][0]) * (y - s[i][1]) / (s[j][1] - s[i][1]) + s[i][0])) c = !c; return c; }
     function tap(cx, cy) {
       var r = cv.getBoundingClientRect(), x = cx - r.left, y = cy - r.top, best = null, bd = Infinity;
+      if (MIO.cfg) { mioTap(x, y); return; }
       for (var li = 0; li < LABELS.length; li++) {
         var lb = LABELS[li].box;
         if (lb && LABELS[li].look && x >= lb[0] - 6 && x <= lb[0] + lb[2] + 6 && y >= lb[1] - 6 && y <= lb[1] + lb[3] + 6) { P.sel = null; card(); if (P.mode === '2d') setMode('3d', true); animateTo(Object.assign({}, LABELS[li].look), 900); return; }
@@ -4932,7 +4938,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         }
         var dx = e.clientX - prev[0], dy = e.clientY - prev[1]; ptrs[e.pointerId] = [e.clientX, e.clientY];
         if (gest) gest.moved += Math.abs(dx) + Math.abs(dy);
-        if (P.mode === '2d' || (gest && (gest.btn === 2 || gest.shift))) pan(dx, dy);
+        if (MIO.cfg || P.mode === '2d' || (gest && (gest.btn === 2 || gest.shift))) pan(dx, dy);
         else { CAM.yaw -= dx * 0.0065; CAM.pitch = Math.max(0.22, Math.min(1.5533, CAM.pitch + dy * 0.0045)); }
         moving(); draw();
       });
@@ -4943,7 +4949,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       }
       stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
       stage.addEventListener('contextmenu', function (e) { e.preventDefault(); });
-      stage.addEventListener('wheel', function (e) { e.preventDefault(); zoom(Math.exp(e.deltaY * 0.0012)); moving(); draw(); }, { passive: false });
+      stage.addEventListener('wheel', function (e) { e.preventDefault(); zoom(Math.exp(e.deltaY * 0.0012), e.clientX, e.clientY); moving(); draw(); }, { passive: false });
     }
     function resize() {
       if (!P.mounted || !stage) return;
@@ -4954,7 +4960,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     function setMode(m, quiet) {
       P.mode = m;
       Array.prototype.forEach.call(document.querySelectorAll('[data-act="pt-mode"]'), function (x) { x.setAttribute('aria-pressed', String(x.getAttribute('data-m') === m)); });
-      var hint = $('#pt-hint'); if (hint) { hint.textContent = m === '2d' ? 'Trascina per spostare · due dita per zoom · tocca un posto' : 'Un dito gira la vista, due dita spostano e ingrandiscono · tocca un posto o “Il Marinaio”'; showHint(); }
+      var hint = $('#pt-hint'); if (hint) { hint.textContent = MIO.cfg ? 'Trascina per spostare · due dita o rotella per zoom · tocca un posto' : m === '2d' ? 'Trascina per spostare · due dita per zoom · tocca un posto' : 'Un dito gira la vista, due dita spostano e ingrandiscono · tocca un posto o “Il Marinaio”'; showHint(); }
       if (quiet) return;
       if (P.sel && BY[P.sel]) { if (m === '3d') { CAM.pitch = 0.62; } flyTo(BY[P.sel]); } else fitAll();
     }
@@ -4962,11 +4968,11 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
 
     // ---------- Vista, chip e scheda del posto ----------
     function counts() {
-      var c = { libero: 0, occupato: 0, clienteMarina: 0, marina: 0, vendita: 0 };
+      mioSync(); var c = { libero: 0, occupato: 0, clienteMarina: 0, marina: 0, vendita: 0 };
       BERTHS.forEach(function (b) { c[statoOf(b)]++; if (inVendita(berthBoat(b))) c.vendita++; });
       return c;
     }
-    function dueList() { return BERTHS.filter(function (b) { var d = postoDoc(b.id); return d && d.fino && daysUntil(d.fino) != null && daysUntil(d.fino) <= 30 && statoOf(b) !== 'marina' && statoOf(b) !== 'libero'; }); }
+    function dueList() { mioSync(); return BERTHS.filter(function (b) { var d = postoDoc(b.id); return d && d.fino && daysUntil(d.fino) != null && daysUntil(d.fino) <= 30 && statoOf(b) !== 'marina' && statoOf(b) !== 'libero'; }); }
     function vendite() { return S.boats.filter(inVendita); }
     function chipsHtml() {
       var c = counts(), h = '';
@@ -4977,17 +4983,35 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       if (P.filter === 'fit') h += '<button type="button" class="chip-b pt-chip" data-act="pt-filter" data-f="fit" aria-pressed="true"><i style="background:var(--ok)"></i>Adatti alla barca <b>' + Object.keys(P.fit || {}).length + '</b> ✕</button>';
       return h;
     }
+    function misTxt(b) { return b.len ? fmtNum(b.len, 2) + ' × ' + (b.wid ? fmtNum(b.wid, 2) : '—') + ' m' : 'misure non scritte'; }
+    function listaView() {
+      var puoDis = S.isOwner && S.canWrite && sezOn('portomio'), due = dueList().length, ven = vendite().length;
+      var rows = BERTHS.filter(visible).map(function (b) {
+        var d = postoDoc(b.id) || {}, boat = berthBoat(b), st = STATI[statoOf(b)], tit = boat ? boat.nome || 'Barca' : d.cliente || (statoOf(b) === 'libero' ? 'Libero' : 'Della Marina');
+        var sc = d.fino && daysUntil(d.fino) != null && daysUntil(d.fino) <= 30 && statoOf(b) !== 'marina' ? ' <span class="pill ' + (daysUntil(d.fino) < 0 ? 'late' : 'soon') + '">' + (daysUntil(d.fino) < 0 ? 'Contratto scaduto' : 'Scade il ' + esc(fmtDate(d.fino))) + '</span>' : '';
+        return '<button type="button" class="pt-riga" data-act="pt-row" data-id="' + esc(b.id) + '" id="ptr-' + esc(b.id) + '"' + (P.sel === b.id ? ' aria-current="true"' : '') + '><span class="pt-code">' + esc(b.id) + '</span><span class="pt-rt"><b>' + esc(tit) + '</b><span class="cap">' + esc([boat && d.cliente ? d.cliente : '', b.zona, misTxt(b)].filter(Boolean).join(' · ')) + '</span></span><span><span class="pill ' + st.pill + '">' + esc(st.s) + '</span>' + sc + '</span></button>';
+      }).join('');
+      return '<div class="map-ctrl">' + (S.canWrite ? '<button type="button" class="chip-b" data-act="pt-add">+ Aggiungi posto</button>' : '') + (puoDis ? '<button type="button" class="chip-b" data-act="pt-draw">Disegna il vostro porto</button>' : '') +
+        '<button type="button" class="chip-b" data-act="pt-find">Trova posto</button><button type="button" class="chip-b" data-act="pt-broker">Brokeraggio <b>' + ven + '</b></button>' +
+        '<button type="button" class="chip-b" data-act="pt-contracts">Contratti <b style="color:var(--soon)">' + (due || '') + '</b></button><button type="button" class="chip-b" data-act="pt-search">Cerca</button></div>' +
+        '<div class="pt-chips" id="pt-chips">' + chipsHtml() + '</div>' +
+        '<style>.pt-riga{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:0 0 8px;color:inherit;font:inherit;cursor:pointer}.pt-riga[aria-current=true]{border-color:var(--accent)}.pt-riga .pt-rt{flex:1;min-width:0;display:flex;flex-direction:column}.pt-riga .pt-rt b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pt-riga>span:last-child{display:flex;flex-direction:column;align-items:flex-end;gap:4px}</style>' +
+        '<div id="pt-lista" style="margin-top:10px">' + (rows || '<div class="notice">' + (BERTHS.length ? 'Nessun posto con questo filtro.' : 'Nessun posto ancora.' + (S.canWrite ? ' Con «Aggiungi posto» scrivi il nome del posto e le misure, poi assegni barca, cliente e contratto.' : '')) + '</div>') + '</div>';
+    }
     function view() {
-      var due = dueList().length, ven = vendite().length;
-      return '<div class="map-ctrl"><div class="seg2" role="group" aria-label="Vista del porto"><button type="button" data-act="pt-mode" data-m="2d" aria-pressed="' + (P.mode === '2d') + '">Pianta</button><button type="button" data-act="pt-mode" data-m="3d" aria-pressed="' + (P.mode === '3d') + '">3D</button></div>' +
+      mioSync();
+      if (MIO.lista) return listaView();
+      var due = dueList().length, ven = vendite().length, mio = !!MIO.cfg, puoDis = S.isOwner && S.canWrite && sezOn('portomio');
+      return '<div class="map-ctrl">' + (mio ? '' : '<div class="seg2" role="group" aria-label="Vista del porto"><button type="button" data-act="pt-mode" data-m="2d" aria-pressed="' + (P.mode === '2d') + '">Pianta</button><button type="button" data-act="pt-mode" data-m="3d" aria-pressed="' + (P.mode === '3d') + '">3D</button></div>') +
+        (puoDis ? '<button type="button" class="chip-b" data-act="pt-draw">' + (mio ? 'Modifica il disegno' : 'Disegna il vostro porto') + '</button>' : '') +
         '<button type="button" class="chip-b" data-act="pt-find">Trova posto</button><button type="button" class="chip-b" data-act="pt-broker">Brokeraggio <b id="pt-nven">' + ven + '</b></button>' +
         '<button type="button" class="chip-b" data-act="pt-contracts">Contratti <b id="pt-ndue" style="color:var(--soon)">' + (due || '') + '</b></button><button type="button" class="chip-b" data-act="pt-search">Cerca</button></div>' +
         '<div class="pt-chips" id="pt-chips">' + chipsHtml() + '</div>' + mlStrip('Cerca posto, barca o cliente', listHtml()) +
         '<div class="map-box" id="porto-root" style="background:#070B14"><canvas id="pt-cv" style="display:block;width:100%;height:100%" aria-label="Porto: tocca un posto barca per aprirne la scheda"></canvas>' +
         '<div class="m3-hint" id="pt-hint" style="transition:opacity .4s"></div>' +
-        '<div class="map-tools"><button type="button" data-act="pt-zin" aria-label="Avvicina">+</button><button type="button" data-act="pt-zout" aria-label="Allontana">−</button><button type="button" data-act="pt-fit" aria-label="Tutto il porto">' + I.fit + '</button><button type="button" data-act="pt-north" aria-label="Nord in alto" style="color:var(--late);font-size:.8rem"><span id="pt-needle" style="display:inline-block">N</span></button></div>' +
+        '<div class="map-tools"><button type="button" data-act="pt-zin" aria-label="Avvicina">+</button><button type="button" data-act="pt-zout" aria-label="Allontana">−</button><button type="button" data-act="pt-fit" aria-label="Tutto il porto">' + I.fit + '</button>' + (MIO.cfg ? '' : '<button type="button" data-act="pt-north" aria-label="Nord in alto" style="color:var(--late);font-size:.8rem"><span id="pt-needle" style="display:inline-block">N</span></button>') + '</div>' +
         '<div class="map-card" id="pt-card" hidden></div></div>' +
-        '<p class="cap" style="margin:10px 2px 0">Porto disegnato dalla foto dall’alto: pontili, posti e misure sono stimati. Ogni posto parte come “della Marina”: toccalo per segnarlo come vostro, assegnare barca e cliente, contratto e scadenza.</p>';
+        '<p class="cap" style="margin:10px 2px 0">' + (mio ? 'Il vostro porto, disegnato sulla foto: le misure dei posti sono quelle scritte nel disegno.' : '') + ' Ogni posto parte come “della Marina”: toccalo per segnarlo come vostro, assegnare barca e cliente, contratto e scadenza.</p>';
     }
     function listHtml() {
       var list = BERTHS.filter(function (b) { var d = postoDoc(b.id), st = statoOf(b); return st !== 'marina' || (d && d.barcaId); });
@@ -5020,8 +5044,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       el.innerHTML = h; el.hidden = false;
     }
     function refresh() {
+      mioSync();
+      if (MIO.lista) { if ($('#pt-lista') && V.tab === 'mappa') render(); return; }
       if (!P.mounted) return;
-      buildBoats();
+      if (!MIO.cfg) buildBoats();
       var ch = $('#pt-chips'); if (ch) ch.innerHTML = chipsHtml();
       mlFill(listHtml());
       var nv = $('#pt-nven'), nd = $('#pt-ndue'); if (nv) nv.textContent = vendite().length; if (nd) { var dn = dueList().length; nd.textContent = dn || ''; }
@@ -5029,13 +5055,17 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       card(); draw();
     }
     function mount() {
+      mioSync();
+      if (MIO.lista) { if (P.flyOnMount && P.sel) { P.flyOnMount = false; var r = document.getElementById('ptr-' + P.sel); if (r) setTimeout(function () { r.scrollIntoView({ block: 'center' }); }, 60); } return; }
       stage = $('#porto-root'); cv = $('#pt-cv'); if (!stage || !cv) return;
       ctx = cv.getContext('2d');
-      if (!P.built) { buildScene(); P.built = true; }
-      P.mounted = true; boatsKey = ''; buildBoats();
+      mioSync(); P.kind = MIO.ref;
+      if (!P.built && !MIO.cfg) { buildScene(); P.built = true; }
+      P.mounted = true; boatsKey = ''; if (!MIO.cfg) buildBoats();
       bindStage();
       if (window.ResizeObserver) { if (P.ro) P.ro.disconnect(); P.ro = new ResizeObserver(resize); P.ro.observe(stage); }
       resize();
+      if (MIO.cfg) { MIO.fitted = false; setMode(P.mode, true); card(); draw(); if (P.flyOnMount && P.sel && BY[P.sel]) { P.flyOnMount = false; mioFit(); flyTo(BY[P.sel]); } return; }
       if (!P.camSet) { CAM.dist = fitDist() * (P.mode === '2d' ? 1 : 0.8); if (P.mode === '2d') { CAM.yaw = 0; CAM.pitch = 1.5533; CAM.tx = 60; CAM.tz = 180; } P.camSet = true; }
       setMode(P.mode, true); card(); draw();
       if (P.flyOnMount && P.sel && BY[P.sel]) { P.flyOnMount = false; flyTo(BY[P.sel]); }
@@ -5043,10 +5073,15 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     function unmount() { P.mounted = false; if (P.ro) { P.ro.disconnect(); P.ro = null; } if (P.anim) { cancelAnimationFrame(P.anim.raf); P.anim = null; } stage = cv = ctx = null; }
 
     // ---------- Fogli: posto, vendita, brokeraggio, richieste, contratti, trova posto, cerca ----------
-    function berthOfBoat(boatId) { for (var k in (S.posti || {})) { if (S.posti[k] && S.posti[k].barcaId === boatId && BY[k]) return BY[k]; } return null; }
+    function misDi(d) { var o = {}; ['len', 'wid', 'zona'].forEach(function (k) { if (d && d[k] != null && d[k] !== '') o[k] = d[k]; }); return o; } // le misure scritte a mano restano
+    function berthOfBoat(boatId) { mioSync(); for (var k in (S.posti || {})) { if (S.posti[k] && S.posti[k].barcaId === boatId && BY[k]) return BY[k]; } return null; }
     function postoSheet(b) {
-      var d = postoDoc(b.id) || {}, boats = S.boats.slice().sort(byName);
-      var body = '<p class="context">' + esc(b.id + ' · ' + b.zona) + ' · posto ' + fmtNum(b.len, 2) + ' × ' + fmtNum(b.wid, 2) + ' m</p>' +
+      var d = (!b.nuovo && postoDoc(b.id)) || {}, boats = S.boats.slice().sort(byName);
+      function f2(v) { return v ? String(r2(v)).replace('.', ',') : ''; }
+      var body = (b.lista ? (b.nuovo ? field(lab('f-pid', 'Nome del posto'), inp('f-pid', '', 'type="text" maxlength="20" autocapitalize="characters" placeholder="es. A12 o Banchina 3" required'), 'Come lo chiamate voi: compare nell’elenco e nella scheda della barca.') : '') +
+          '<div class="grid2">' + field(lab('f-pz', 'Zona'), inp('f-pz', b.zona, 'type="text" maxlength="40" placeholder="es. Pontile 2"')) + '<div></div></div>' +
+          '<div class="grid2">' + field(lab('f-pl', 'Lunghezza del posto (m)'), inp('f-pl', f2(b.len), 'type="text" inputmode="decimal" placeholder="es. 12"')) + field(lab('f-pw', 'Larghezza (m)'), inp('f-pw', f2(b.wid), 'type="text" inputmode="decimal" placeholder="es. 4"')) + '</div>'
+        : '<p class="context">' + esc(b.id + ' · ' + b.zona) + ' · posto ' + fmtNum(b.len, 2) + ' × ' + fmtNum(b.wid, 2) + ' m</p>') +
         field(lab('f-pg', 'Chi gestisce il posto'), '<select id="f-pg">' + opts([['marina', 'La Marina'], ['nostro', 'Noi (' + NOME() + ')']], d.gestione === 'nostro' ? 'nostro' : 'marina') + '</select>') +
         field(lab('f-pb', 'Barca'), '<select id="f-pb"><option value="">Nessuna barca</option>' + boats.map(function (x) { var o = berthOfBoat(x.id); return '<option value="' + esc(x.id) + '"' + (x.id === d.barcaId ? ' selected' : '') + '>' + esc((x.nome || 'Senza nome') + (num(x.lunghezza) ? ' · ' + fmtNum(x.lunghezza, 2) + ' m' : '') + (o && o.id !== b.id ? ' · ora in ' + o.id : '')) + '</option>'; }).join('') + '</select>', 'Le misure della barca vengono dalla sua scheda. Se la barca è già in un altro posto, viene spostata qui.') +
         '<p class="cap" id="f-pwarn" style="color:var(--soon);margin:-4px 2px 0" hidden></p>' +
@@ -5054,11 +5089,12 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         '<div class="grid2">' + field(lab('f-pk', 'Contratto'), '<select id="f-pk">' + opts([['', '—'], 'Annuale', 'Stagionale estivo', 'Invernale', 'Mensile', 'Transito'], d.contratto || '') + '</select>') + field(lab('f-pf', 'Fino al'), inp('f-pf', d.fino, 'type="date"')) + '</div>' +
         field(lab('f-pn', 'Note'), '<textarea id="f-pn" placeholder="es. corrente 32 A, chiavi in ufficio, cime nuove a poppa">' + esc(d.note || '') + '</textarea>');
       openSheet({
-        title: 'Posto ' + b.id, body: body, submitLabel: 'Salva',
-        deleteLabel: d.gestione === 'nostro' ? 'Libera il posto' : 'Riporta alla Marina', deleteText: d.gestione === 'nostro' ? 'Tolgo barca, cliente e contratto: il posto resta vostro e torna libero.' : 'Tolgo barca e cliente: il posto torna della Marina.',
-        ownDel: true, onDelete: postoDoc(b.id) ? async function () {
+        title: b.nuovo ? 'Nuovo posto' : 'Posto ' + b.id, body: body, submitLabel: 'Salva',
+        deleteLabel: b.lista ? 'Togli il posto' : d.gestione === 'nostro' ? 'Libera il posto' : 'Riporta alla Marina', deleteText: b.lista ? 'Tolgo il posto dall’elenco, con barca, cliente e contratto.' : d.gestione === 'nostro' ? 'Tolgo barca, cliente e contratto: il posto resta vostro e torna libero.' : 'Tolgo barca e cliente: il posto torna della Marina.',
+        ownDel: true, onDelete: !b.nuovo && postoDoc(b.id) ? async function () {
           var ref = S.db.collection('posti').doc(b.id), ok;
-          if (d.gestione === 'nostro') ok = await w(function () { return ref.set({ gestione: 'nostro', barcaId: '', cliente: '', telefono: '', contratto: '', fino: '', note: '', modificato: new Date().toISOString() }); });
+          if (b.lista) { ok = await delSeq([ref]); if (ok) { closeSheet(); toast('Posto tolto'); } return; }
+          if (d.gestione === 'nostro') ok = await w(function () { return ref.set(Object.assign(misDi(d), { gestione: 'nostro', barcaId: '', cliente: '', telefono: '', contratto: '', fino: '', note: '', modificato: new Date().toISOString() })); });
           else ok = await delSeq([ref]);
           if (ok) { closeSheet(); toast(d.gestione === 'nostro' ? 'Posto libero' : 'Posto della Marina'); }
         } : null,
@@ -5066,15 +5102,27 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
           var sb = f.querySelector('#f-pb'), cl = f.querySelector('#f-pc'), tl = f.querySelector('#f-pt');
           function chk() {
             var x = boatById(sb.value), wv = $('#f-pwarn'), m = [];
-            if (x) { var L = num(x.lunghezza), Bm = num(x.larghezza) || (L ? beamOf(x).B : null); if (L && L > b.len) m.push('la barca è lunga ' + fmtNum(L, 2) + ' m e il posto ' + fmtNum(b.len, 2) + ' m'); if (Bm && Bm > b.wid - 0.3) m.push('larga ' + fmtNum(Bm, 2) + ' m per un posto di ' + fmtNum(b.wid, 2) + ' m'); if (!L) m.push('la barca non ha la lunghezza in scheda: non la disegno'); }
+            if (x) { var L = num(x.lunghezza), Bm = num(x.larghezza) || (L ? beamOf(x).B : null); if (L && b.len && L > b.len) m.push('la barca è lunga ' + fmtNum(L, 2) + ' m e il posto ' + fmtNum(b.len, 2) + ' m'); if (Bm && b.wid && Bm > b.wid - 0.3) m.push('larga ' + fmtNum(Bm, 2) + ' m per un posto di ' + fmtNum(b.wid, 2) + ' m'); if (!L && !b.lista) m.push('la barca non ha la lunghezza in scheda: non la disegno'); }
             if (wv) { wv.hidden = !m.length; wv.textContent = m.length ? 'Attenzione: ' + m.join(', ') + '.' : ''; }
           }
           sb.addEventListener('change', function () { var x = boatById(sb.value); if (x && !cl.value.trim()) cl.value = x.proprietario || ''; if (x && !tl.value.trim()) tl.value = x.telefono || ''; chk(); });
           chk();
         },
         onSubmit: async function (f) {
-          var data = { gestione: val(f, 'f-pg'), barcaId: val(f, 'f-pb'), cliente: val(f, 'f-pc'), telefono: val(f, 'f-pt'), contratto: val(f, 'f-pk'), fino: val(f, 'f-pf'), note: val(f, 'f-pn'), modificato: new Date().toISOString() };
+          var data = Object.assign(misDi(d), { gestione: val(f, 'f-pg'), barcaId: val(f, 'f-pb'), cliente: val(f, 'f-pc'), telefono: val(f, 'f-pt'), contratto: val(f, 'f-pk'), fino: val(f, 'f-pf'), note: val(f, 'f-pn'), modificato: new Date().toISOString() });
           if (data.fino && !data.contratto) data.contratto = 'Annuale';
+          if (b.lista) {
+            var Lp = parseDec(val(f, 'f-pl')), Wp = parseDec(val(f, 'f-pw'));
+            if ((val(f, 'f-pl') && !(Lp > 0 && Lp <= 150)) || (val(f, 'f-pw') && !(Wp > 0 && Wp <= 50))) { formErr('Controlla le misure del posto, in metri.'); return false; }
+            data.zona = val(f, 'f-pz'); data.len = Lp ? r2(Lp) : null; data.wid = Wp ? r2(Wp) : null;
+            if (b.nuovo) {
+              var nid = val(f, 'f-pid').replace(/\s+/g, ' ');
+              if (!nid) { formErr('Scrivi il nome del posto.'); return false; }
+              if (/[\/]/.test(nid) || nid === '.' || nid === '..' || /^__.*__$/.test(nid)) { formErr('Il nome del posto non può contenere la barra /.'); return false; }
+              if (postoDoc(nid)) { formErr('C’è già un posto «' + nid + '».'); return false; }
+              b = { id: nid, lista: true };
+            }
+          }
           var old = data.barcaId ? berthOfBoat(data.barcaId) : null;
           if (old && old.id !== b.id) { var od = postoDoc(old.id) || {}, oref = S.db.collection('posti').doc(old.id); await w(function () { return oref.update({ barcaId: '', modificato: data.modificato }); }); }
           var ref = S.db.collection('posti').doc(b.id), ok = await w(function () { return ref.set(data); });
@@ -5187,15 +5235,18 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         }
       });
     }
-    function goto(id) { var b = BY[id]; if (!b) return; closeSheet(); P.sel = id; card(); draw(); flyTo(b); }
+    function goto(id) { var b = BY[id]; if (!b) return; if (MIO.lista) { P.sel = id; postoSheet(b); return; } closeSheet(); P.sel = id; card(); draw(); flyTo(b); }
     function click(act, t) {
       var id = t.getAttribute('data-id');
       switch (act) {
         case 'pt-mode': setMode(t.getAttribute('data-m')); return true;
-        case 'pt-zin': animateTo({ dist: Math.max(28, CAM.dist / 1.6) }, 300); return true;
-        case 'pt-zout': animateTo({ dist: Math.min(900, CAM.dist * 1.6) }, 300); return true;
+        case 'pt-draw': disegnoSheet(); return true;
+        case 'pt-row': if (BY[id]) { P.sel = id; postoSheet(BY[id]); } return true;
+        case 'pt-add': postoSheet({ id: '', zona: '', len: 0, wid: 0, lista: true, nuovo: true }); return true;
+        case 'pt-zin': if (MIO.cfg) { mioZoom(1 / 1.6); draw(); return true; } animateTo({ dist: Math.max(28, CAM.dist / 1.6) }, 300); return true;
+        case 'pt-zout': if (MIO.cfg) { mioZoom(1.6); draw(); return true; } animateTo({ dist: Math.min(900, CAM.dist * 1.6) }, 300); return true;
         case 'pt-fit': fitAll(); return true;
-        case 'pt-north': animateTo({ yaw: 0 }); return true;
+        case 'pt-north': if (MIO.cfg) return true; animateTo({ yaw: 0 }); return true;
         case 'pt-close': P.sel = null; card(); draw(); return true;
         case 'pt-filter': var f = t.getAttribute('data-f'); if (f === 'fit') { P.filter = null; P.fit = null; } else P.filter = P.filter === f ? null : f; refresh(); return true;
         case 'pt-edit': if (P.sel && BY[P.sel]) postoSheet(BY[P.sel]); return true;
@@ -5214,6 +5265,276 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       }
       return false;
     }
+    // ---------- Porto disegnato da voi (sezione «portomio»): file di posti sopra la foto dall'alto ----------
+    // impostazioni/porto: foto, pxW, pxH, A, B (frazioni dell'immagine), d (metri tra A e B), k (metri per pixel),
+    // file: [{ id: lettera, a, b (inizio e fine della fila, in frazioni), n posti per lato, len (metri), lati: '1' | 'b' | '2' }]
+    var MIO = { ref: undefined, cfg: null, img: null, imgId: '', tries: 0, v: { s: 1, x: 0, y: 0 }, fitted: false };
+    function mioCfg() {
+      var c = S.portoMio;
+      return sezOn('portomio') && c && c.foto && num(c.pxW) > 0 && num(c.pxH) > 0 && num(c.k) > 0 && Array.isArray(c.file) && c.file.length ? c : null;
+    }
+    // senza il porto disegnato (sezione spenta o disegno non fatto) il Porto è un elenco: i posti sono quelli salvati in «posti»
+    function listaPosti() {
+      return Object.keys(S.posti || {}).map(function (id) {
+        var d = S.posti[id] || {}; // le misure sono solo quelle scritte per il posto (niente dal porto di esempio)
+        return { id: id, pon: '', zona: d.zona || '', len: num(d.len) || 0, wid: num(d.wid) || 0, lista: true };
+      }).sort(function (a, b) { return a.id.localeCompare(b.id, 'it', { numeric: true }); });
+    }
+    function mioSync() {
+      var c = mioCfg(), ref = c ? S.portoMio : (S.posti || null);
+      if (ref === MIO.ref && MIO.lista === !c) return; MIO.ref = ref; MIO.lista = !c; MIO.cfg = c; MIO.fitted = false;
+      BERTHS.length = 0; Object.keys(BY).forEach(function (k) { delete BY[k]; });
+      (c ? mioPosti(c) : listaPosti()).forEach(function (o) { o.i = BERTHS.length; BERTHS.push(o); BY[o.id] = o; });
+      boatsKey = '';
+      if (P.sel && !BY[P.sel]) P.sel = null;
+    }
+    function mioImg() {
+      var c = MIO.cfg; if (!c) return null;
+      if (MIO.imgId !== c.foto) { MIO.imgId = c.foto; MIO.img = null; MIO.tries = 0; }
+      if (MIO.img && MIO.img.complete && MIO.img.naturalWidth > 2) return MIO.img;
+      if (!MIO.img || MIO.img.complete) {
+        var src = blobSrc(c.foto);
+        if (/^data:image\/gif/.test(src) && MIO.tries < 40) { MIO.tries++; setTimeout(draw, 350); return null; } // la foto si sta ancora scaricando
+        var im = new Image(); im.onload = draw; im.src = src; MIO.img = im;
+      }
+      return null;
+    }
+    function mioFit() {
+      var c = MIO.cfg; if (!c) return;
+      var x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; // si inquadrano le file di posti, non tutta la foto
+      BERTHS.forEach(function (b) { mioCorners(b).forEach(function (q) { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); z0 = Math.min(z0, q[1]); z1 = Math.max(z1, q[1]); }); });
+      if (!isFinite(x0)) { x0 = 0; z0 = 0; x1 = c.pxW * c.k; z1 = c.pxH * c.k; }
+      var mx = (x1 - x0) * 0.08 + 4, mz = (z1 - z0) * 0.08 + 4; x0 -= mx; x1 += mx; z0 -= mz; z1 += mz;
+      var s = Math.min(W / (x1 - x0), H / (z1 - z0));
+      MIO.v = { s: s, x: W / 2 - (x0 + x1) / 2 * s, y: H / 2 - (z0 + z1) / 2 * s }; MIO.fitted = true;
+    }
+    function mioZoom(f, cx, cy) {
+      var v = MIO.v, s2 = Math.max(0.2, Math.min(80, v.s / f)), r = s2 / v.s;
+      cx = cx == null ? W / 2 : cx; cy = cy == null ? H / 2 : cy;
+      MIO.v = { s: s2, x: cx - (cx - v.x) * r, y: cy - (cy - v.y) * r };
+    }
+    function mioScr(x, z) { return [MIO.v.x + x * MIO.v.s, MIO.v.y + z * MIO.v.s]; }
+    function mioCorners(b) { // i 4 angoli del posto in metri: dal pontile (base) verso il mare per la lunghezza
+      var ux = b.ux, uz = b.uz, hw = b.wid / 2, bx = b.base[0], bz = b.base[1], ex = bx + b.hx * b.len, ez = bz + b.hz * b.len;
+      return [[bx - ux * hw, bz - uz * hw], [bx + ux * hw, bz + uz * hw], [ex + ux * hw, ez + uz * hw], [ex - ux * hw, ez - uz * hw]];
+    }
+    function mioFrame() {
+      var c = MIO.cfg, v = MIO.v; ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      ctx.fillStyle = '#0B1424'; ctx.fillRect(0, 0, W, H);
+      if (!MIO.fitted) mioFit();
+      var im = mioImg();
+      if (im) ctx.drawImage(im, v.x, v.y, c.pxW * c.k * v.s, c.pxH * c.k * v.s);
+      else { ctx.fillStyle = '#a0a3ac'; ctx.font = '600 13px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Carico la foto del porto…', W / 2, H / 2); }
+      BERTHS.forEach(function (b) {
+        var vis = visible(b), st = STATI[statoOf(b)], sel = P.sel === b.id, q = mioCorners(b).map(function (p) { return mioScr(p[0], p[1]); });
+        ctx.beginPath(); ctx.moveTo(q[0][0], q[0][1]); for (var i = 1; i < 4; i++) ctx.lineTo(q[i][0], q[i][1]); ctx.closePath();
+        ctx.fillStyle = 'rgba(' + st.c.join(',') + ',' + (vis ? (sel ? 0.75 : 0.55) : 0.08) + ')'; ctx.fill();
+        ctx.lineWidth = sel ? 2.5 : 1; ctx.strokeStyle = sel ? '#FFD34D' : 'rgba(255,255,255,' + (vis ? 0.85 : 0.2) + ')'; ctx.stroke();
+        var boat = berthBoat(b), L = boat ? num(boat.lunghezza) : null;
+        if (boat && L && vis) { // la barca: scafo con la prua verso il mare
+          var Bm = Math.min(b.wid * 0.9, num(boat.larghezza) || beamOf(boat).B), Lb = Math.min(L, b.len + 2), o = 0.4, hx = b.hx, hz = b.hz, ux = b.ux, uz = b.uz, bx = b.base[0], bz = b.base[1];
+          var pts = [[-Bm / 2, o], [Bm / 2, o], [Bm / 2, o + Lb * 0.7], [0, o + Lb], [-Bm / 2, o + Lb * 0.7]].map(function (p) { return mioScr(bx + ux * p[0] + hx * p[1], bz + uz * p[0] + hz * p[1]); });
+          ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (var j = 1; j < pts.length; j++) ctx.lineTo(pts[j][0], pts[j][1]); ctx.closePath();
+          ctx.fillStyle = 'rgba(241,242,241,.92)'; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.stroke();
+        }
+        if (b.wid * v.s >= 15 && vis) {
+          var m = mioScr(b.base[0] + b.hx * b.len * 0.82, b.base[1] + b.hz * b.len * 0.82), fs = Math.max(9, Math.min(13, b.wid * v.s * 0.36));
+          ctx.font = '800 ' + fs + 'px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.strokeText(b.id.replace('-', ''), m[0], m[1]); ctx.fillStyle = '#fff'; ctx.fillText(b.id.replace('-', ''), m[0], m[1]);
+        }
+      });
+    }
+    function mioTap(x, y) {
+      var mx = (x - MIO.v.x) / MIO.v.s, mz = (y - MIO.v.y) / MIO.v.s, best = null;
+      BERTHS.forEach(function (b) {
+        var dx = mx - b.base[0], dz = mz - b.base[1], along = dx * b.ux + dz * b.uz, out = dx * b.hx + dz * b.hz;
+        if (Math.abs(along) <= b.wid / 2 && out >= -0.3 && out <= b.len + 0.3) best = b;
+      });
+      P.sel = best ? best.id : null; card(); draw();
+    }
+    function mioFly(b) {
+      var s = Math.max(MIO.v.s, Math.min(W, H) / (b.len * 4)), m = [b.base[0] + b.hx * b.len / 2, b.base[1] + b.hz * b.len / 2];
+      MIO.v = { s: s, x: W / 2 - m[0] * s, y: H * 0.38 - m[1] * s }; draw();
+    }
+    // posti di ogni fila: larghezza = lunghezza della fila diviso il numero dei posti; numeri dal primo lato e poi dall'altro
+    function mioPosti(c) {
+      var out = [], k = num(c.k);
+      (c.file || []).forEach(function (f) {
+        if (!f || !f.a || !f.b || !/^[A-Z]$/.test(f.id || '')) return;
+        var ax = f.a[0] * c.pxW * k, az = f.a[1] * c.pxH * k, bx = f.b[0] * c.pxW * k, bz = f.b[1] * c.pxH * k, dx = bx - ax, dz = bz - az, l = Math.hypot(dx, dz), n = Math.round(num(f.n) || 0), L = num(f.len) || 10;
+        if (!(l > 0.5) || !(n > 0) || n > 200) return;
+        var ux = dx / l, uz = dz / l, wid = l / n, kk = 0;
+        (f.lati === '2' ? [1, -1] : f.lati === 'b' ? [-1] : [1]).forEach(function (s) {
+          for (var i = 0; i < n; i++) {
+            var t = wid * (i + 0.5), mx = ax + ux * t, mz = az + uz * t, hx = -uz * s, hz = ux * s;
+            out.push({ id: f.id + '-' + pad(++kk), pon: f.id, zona: 'Fila ' + f.id, cx: mx + hx * L / 2, cz: mz + hz * L / 2, hx: hx, hz: hz, ux: ux, uz: uz, len: L, wid: wid, base: [mx, mz], mio: true });
+          }
+        });
+      });
+      return out;
+    }
+    function disegnoSheet() {
+      var c0 = S.portoMio || null;
+      var E = c0 && c0.foto ? { foto: c0.foto, src: blobSrc(c0.foto), w: +c0.pxW, h: +c0.pxH, A: c0.A || null, B: c0.B || null, d: num(c0.d), file: (c0.file || []).map(function (f) { return Object.assign({}, f); }) } : { file: [] };
+      var T = { modo: E.foto && E.A && E.B && E.d ? 'fila' : 'scala', a: null, b: null, edit: null, avviso: '', zoom: 1 };
+      function f2(v) { return v == null ? '' : String(r2(v)).replace('.', ','); }
+      function scala() { if (!E.w || !E.A || !E.B || !(E.d > 0)) return null; var dp = Math.hypot((E.B[0] - E.A[0]) * E.w, (E.B[1] - E.A[1]) * E.h); return dp > 4 ? E.d / dp : null; }
+      function prossima() { var us = E.file.map(function (f) { return f.id; }); for (var i = 0; i < 26; i++) { var L = String.fromCharCode(65 + i); if (us.indexOf(L) < 0) return L; } return ''; }
+      function svgPosti() {
+        var k = scala(); if (!k) return '';
+        var cfg = { pxW: E.w, pxH: E.h, k: k, file: E.file.slice() }, h = '', sw = (E.w / 500).toFixed(1);
+        if (T.a && T.b) cfg.file.push({ id: 'Z', a: T.a, b: T.b, n: parseIntS((($('#f-dn') || {}).value) || '') || 1, len: parseDec((($('#f-dl') || {}).value) || '') || 10, lati: ($('#f-dt') || {}).value || '1', nuova: true });
+        mioPosti(cfg).forEach(function (b) {
+          var ux = b.ux, uz = b.uz, hw = b.wid / 2, bx = b.base[0], bz = b.base[1], ex = bx + b.hx * b.len, ez = bz + b.hz * b.len;
+          var q = [[bx - ux * hw, bz - uz * hw], [bx + ux * hw, bz + uz * hw], [ex + ux * hw, ez + uz * hw], [ex - ux * hw, ez - uz * hw]].map(function (p) { return (p[0] / k).toFixed(1) + ',' + (p[1] / k).toFixed(1); }).join(' ');
+          var nuova = b.pon === 'Z' && T.a;
+          h += '<polygon points="' + q + '" fill="' + (nuova ? 'rgba(255,211,77,.45)' : 'rgba(47,143,240,.4)') + '" stroke="#fff" stroke-width="' + sw + '"/>';
+        });
+        E.file.forEach(function (f) { var x = f.a[0] * E.w, y = f.a[1] * E.h; h += '<text x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" font-size="' + (E.w / 45).toFixed(1) + '" font-weight="800" fill="#fff" stroke="#000" stroke-width="' + (E.w / 400).toFixed(1) + '" paint-order="stroke" text-anchor="middle" dy="-0.4em">' + esc(f.id) + '</text>'; });
+        return h;
+      }
+      function boxHtml() {
+        if (!E.w) return '<div class="notice">Scegli una foto dall’alto del porto (anche una schermata della mappa satellitare va bene) o una pianta.</div>';
+        var r = (E.w / 70).toFixed(1), pt = function (q, n, col) { return q ? '<circle cx="' + (q[0] * E.w).toFixed(1) + '" cy="' + (q[1] * E.h).toFixed(1) + '" r="' + r + '" fill="' + col + '" stroke="#000" stroke-width="' + (E.w / 400).toFixed(1) + '"/><text x="' + (q[0] * E.w + E.w / 40).toFixed(1) + '" y="' + (q[1] * E.h - E.w / 50).toFixed(1) + '" font-size="' + (E.w / 24).toFixed(1) + '" font-weight="800" fill="' + col + '" stroke="#000" stroke-width="' + (E.w / 500).toFixed(1) + '" paint-order="stroke">' + n + '</text>' : ''; };
+        var line = function (a, b, col) { return a && b ? '<line x1="' + (a[0] * E.w).toFixed(1) + '" y1="' + (a[1] * E.h).toFixed(1) + '" x2="' + (b[0] * E.w).toFixed(1) + '" y2="' + (b[1] * E.h).toFixed(1) + '" stroke="' + col + '" stroke-width="' + (E.w / 250).toFixed(1) + '" stroke-dasharray="' + (E.w / 80).toFixed(1) + ' ' + (E.w / 120).toFixed(1) + '"/>' : ''; };
+        return '<div id="pd-sc" style="overflow:auto;border-radius:12px;background:#0B1424;max-height:70vh"><div style="position:relative;width:' + (T.zoom * 100) + '%;touch-action:manipulation;cursor:crosshair">' +
+          '<img id="pd-img" alt="Foto del porto" src="' + esc(E.src) + '"' + (E.foto && !E.blob ? ' data-blob="' + esc(E.foto) + '"' : '') + ' style="display:block;width:100%;height:auto">' +
+          '<svg viewBox="0 0 ' + E.w + ' ' + E.h + '" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">' + svgPosti() +
+          (T.modo === 'scala' ? line(E.A, E.B, '#FFD34D') + pt(E.A, 'A', '#FFD34D') + pt(E.B, 'B', '#FFD34D') : line(T.a, T.b, '#FFD34D') + pt(T.a, 'Inizio', '#FFD34D') + pt(T.b, 'Fine', '#FFD34D')) + '</svg></div></div>' +
+          '<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><button type="button" class="chip-b" data-pd="zoom" data-z="-1" aria-label="Rimpicciolisci la foto">−</button><button type="button" class="chip-b" data-pd="zoom" data-z="1" aria-label="Ingrandisci la foto">+</button><span class="cap">Ingrandisci per toccare i punti con più precisione</span></div>';
+      }
+      function guida() {
+        if (!E.w) return '';
+        if (T.modo === 'scala') return !E.A ? 'Tocca sulla foto il <b>primo punto</b> di una misura che conosci (per esempio le due teste di un pontile, o un pontile lungo 50 m).' : !E.B ? 'Ora tocca il <b>secondo punto</b>, poi scrivi qui sotto quanti metri ci sono.' : 'Se un punto non è giusto, tocca di nuovo la foto e si ricomincia da A.';
+        if (!scala()) return 'Prima metti la foto in scala.';
+        return !T.a ? 'Tocca dove <b>inizia</b> una fila di posti (lungo il pontile o la banchina, dove si lega la barca).' : !T.b ? 'Ora tocca dove <b>finisce</b> la fila.' : 'Controlla i posti in giallo: se sono dal lato sbagliato cambia «Lato». Poi «Aggiungi la fila».';
+      }
+      function filaForm() {
+        if (T.modo !== 'fila' || !T.a || !T.b) return '';
+        var e = T.edit || {}, k = scala(), lm = k ? Math.hypot((T.b[0] - T.a[0]) * E.w, (T.b[1] - T.a[1]) * E.h) * k : 0;
+        return '<div class="card" style="padding:12px;margin-top:10px"><p class="cap" style="margin:0 0 8px">Fila lunga circa ' + fmtNum(lm, 1) + ' m.</p><div class="grid2">' +
+          field(lab('f-dlt', 'Lettera'), inp('f-dlt', e.id || prossima(), 'type="text" maxlength="1" autocapitalize="characters" style="text-transform:uppercase"')) +
+          field(lab('f-dn', 'Posti per lato'), inp('f-dn', e.n ? String(e.n) : '', 'type="text" inputmode="numeric" placeholder="es. 12"')) + '</div><div class="grid2">' +
+          field(lab('f-dl', 'Lunghezza dei posti (m)'), inp('f-dl', e.len ? f2(e.len) : '', 'type="text" inputmode="decimal" placeholder="es. 10"')) +
+          field(lab('f-dt', 'Lato'), '<select id="f-dt">' + opts([['1', 'Da un lato'], ['b', 'Dall’altro lato'], ['2', 'Da tutti e due i lati']], e.lati || '1') + '</select>') + '</div>' +
+          '<p class="cap" id="pd-larg" style="margin:0 2px 8px"></p><div class="m-acts"><button type="button" class="btn" id="pd-add">' + (T.edit ? 'Salva la fila' : 'Aggiungi la fila') + '</button><button type="button" class="btn sec" id="pd-annulla">Annulla</button></div></div>';
+      }
+      function elenco() {
+        if (T.modo !== 'fila' || !E.file.length) return '';
+        var k = scala();
+        return '<div class="lbl" style="margin-top:12px">File di posti</div>' + E.file.map(function (f, i) {
+          var lm = k ? Math.hypot((f.b[0] - f.a[0]) * E.w, (f.b[1] - f.a[1]) * E.h) * k : 0, tot = f.n * (f.lati === '2' ? 2 : 1);
+          return '<div class="row" style="display:flex;align-items:center;gap:8px;padding:6px 2px;border-bottom:1px solid var(--line)"><b style="width:22px">' + esc(f.id) + '</b><span style="flex:1">' + tot + ' posti da ' + fmtNum(f.len, 1) + ' × ' + fmtNum(f.n ? lm / f.n : 0, 1) + ' m · ' + (f.lati === '2' ? 'tutti e due i lati' : 'un lato') + '</span>' +
+            '<button type="button" class="link" data-pd="mod" data-i="' + i + '">Modifica</button><button type="button" class="link" style="color:var(--late)" data-pd="via" data-i="' + i + '">Togli</button></div>';
+        }).join('');
+      }
+      function seg() {
+        if (!E.w) return '';
+        return '<div class="seg2" role="group" aria-label="Cosa disegni" style="margin:10px 0"><button type="button" data-pd="modo" data-m="scala" aria-pressed="' + (T.modo === 'scala') + '">1 · Scala</button><button type="button" data-pd="modo" data-m="fila" aria-pressed="' + (T.modo === 'fila') + '">2 · File di posti</button></div>';
+      }
+      function scalaForm() {
+        if (T.modo !== 'scala' || !E.w) return '';
+        var k = scala();
+        return '<div class="grid2" style="margin-top:10px">' + field(lab('f-dd', 'Distanza tra A e B (metri)'), inp('f-dd', f2(E.d), 'type="text" inputmode="decimal" placeholder="es. 50"')) + '<div></div></div>' +
+          '<p class="cap" id="pd-esito" style="margin:0 2px 8px">' + (k ? 'In scala: la foto copre ' + fmtNum(E.w * k, 0) + ' × ' + fmtNum(E.h * k, 0) + ' m.' : '') + '</p>';
+      }
+      function ridisegna() {
+        var w0 = $('#pd-wrap'); if (!w0) return;
+        var x = $('#pd-sc'), sl = x ? x.scrollLeft : 0, st = x ? x.scrollTop : 0;
+        w0.innerHTML = seg() + '<p class="cap" style="margin:0 2px 8px">' + guida() + '</p>' + boxHtml() + scalaForm() + filaForm() + elenco();
+        var y = $('#pd-sc'); if (y) { y.scrollLeft = sl; y.scrollTop = st; }
+        var lb = $('#pd-lab'); if (lb) lb.textContent = E.w ? 'Cambia foto' : 'Scegli la foto';
+        larg();
+      }
+      function soloBox() { var x = $('#pd-sc'); if (!x) return ridisegna(); var sl = x.scrollLeft, st = x.scrollTop, ctl = x.nextElementSibling; if (ctl) ctl.remove(); x.outerHTML = boxHtml(); var y = $('#pd-sc'); if (y) { y.scrollLeft = sl; y.scrollTop = st; } }
+      function larg() {
+        var o = $('#pd-larg'), k = scala(); if (!o || !k || !T.a || !T.b) return;
+        var n = parseIntS((($('#f-dn') || {}).value) || ''), lm = Math.hypot((T.b[0] - T.a[0]) * E.w, (T.b[1] - T.a[1]) * E.h) * k;
+        o.textContent = n > 0 ? 'Ogni posto viene largo ' + fmtNum(lm / n, 2) + ' m.' : '';
+      }
+      openSheet({
+        title: 'Disegna il porto', submitLabel: 'Salva',
+        body: '<p class="context">Carica una foto dall’alto del porto, mettila in scala con una misura che conosci, poi segna le file di posti: tocca dove inizia e dove finisce ogni fila, scrivi la lettera, quanti posti e quanto sono lunghi.</p>' +
+          '<label class="btn sec self-start">' + I.photo + '<span id="pd-lab">' + (E.w ? 'Cambia foto' : 'Scegli la foto') + '</span><input type="file" accept="image/*,application/pdf,.pdf" id="f-pd-file" class="vh"></label>' +
+          '<div id="pd-wrap" style="margin-top:10px"></div>' +
+          '<span class="hint">I posti si chiamano con la lettera della fila e il numero, per esempio C-03. I posti che non sono nel disegno non si vedono nel Porto, ma restano salvati.</span>',
+        deleteLabel: 'Togli il disegno', deleteText: 'Tolgo la foto e le file: il porto torna quello di esempio. I posti segnati restano salvati e ricompaiono se ridisegni le stesse file.',
+        onDelete: c0 ? async function () { var ref = S.db.collection('impostazioni').doc('porto'); if (await w(function () { return ref.delete(); })) { closeSheet(); toast('Disegno del porto tolto'); } } : null,
+        onOpen: function (form) {
+          ridisegna();
+          form.addEventListener('change', async function (e) {
+            var t = e.target; if (!t) return;
+            if (t.id === 'f-dt') { soloBox(); return; }
+            if (t.id !== 'f-pd-file') return;
+            var file = t.files && t.files[0]; t.value = ''; if (!file) return;
+            toast('Preparo la foto…');
+            try {
+              var r = await piantaBlob(await piantaCanvas(file));
+              E.blob = r.blob; E.src = URL.createObjectURL(r.blob); E.w = r.w; E.h = r.h; E.foto = null;
+              if (E.file.length || E.A) { E.A = null; E.B = null; E.file = []; toast('Foto nuova: rimetti la scala e le file.'); }
+              T = { modo: 'scala', a: null, b: null, edit: null, avviso: '', zoom: 1 }; ridisegna();
+            } catch (er) { toast(er && er.message === 'tipo' ? 'Questo file non è un’immagine né un PDF.' : er && er.message === 'grande' ? 'Foto troppo pesante: prova con un file più piccolo.' : 'Non riesco ad aprire il file.', true); }
+          });
+          form.addEventListener('input', function (e) {
+            var t = e.target; if (!t) return;
+            if (t.id === 'f-dd') { E.d = parseDec(t.value); var k = scala(), o = $('#pd-esito'); if (o) o.textContent = k ? 'In scala: la foto copre ' + fmtNum(E.w * k, 0) + ' × ' + fmtNum(E.h * k, 0) + ' m.' : ''; return; }
+            if (t.id === 'f-dn' || t.id === 'f-dl') { larg(); soloBox(); }
+          });
+          form.addEventListener('click', function (e) {
+            var t = e.target, pd = t && t.closest ? t.closest('[data-pd]') : null;
+            if (pd) {
+              var a = pd.getAttribute('data-pd'), i = +pd.getAttribute('data-i');
+              if (a === 'modo') { var m = pd.getAttribute('data-m'); if (m === 'fila' && !scala()) { toast('Prima tocca A e B e scrivi la distanza.', true); return; } T.modo = m; T.a = T.b = null; T.edit = null; ridisegna(); }
+              if (a === 'via') { E.file.splice(i, 1); ridisegna(); }
+              if (a === 'zoom') {
+                var o = $('#pd-sc'), z0 = T.zoom, cx = o ? o.scrollLeft + o.clientWidth / 2 : 0, cy = o ? o.scrollTop + o.clientHeight / 2 : 0;
+                T.zoom = Math.max(1, Math.min(4, T.zoom + (+pd.getAttribute('data-z'))));
+                if (T.zoom !== z0) { soloBox(); var o2 = $('#pd-sc'), r = T.zoom / z0; if (o2) { o2.scrollLeft = cx * r - o2.clientWidth / 2; o2.scrollTop = cy * r - o2.clientHeight / 2; } }
+              }
+              if (a === 'mod') { var f = E.file.splice(i, 1)[0]; T.edit = f; T.a = f.a; T.b = f.b; ridisegna(); }
+              return;
+            }
+            if (t && t.id === 'pd-annulla') { if (T.edit) E.file.push(T.edit); T.a = T.b = null; T.edit = null; E.file.sort(function (x, y) { return x.id.localeCompare(y.id); }); ridisegna(); return; }
+            if (t && t.id === 'pd-add') {
+              var id = val(form, 'f-dlt').toUpperCase(), n = parseIntS(val(form, 'f-dn')), len = parseDec(val(form, 'f-dl'));
+              if (!/^[A-Z]$/.test(id)) { toast('La lettera della fila è una sola, da A a Z.', true); return; }
+              if (E.file.some(function (x) { return x.id === id; })) { toast('C’è già una fila ' + id + '.', true); return; }
+              if (!(n > 0 && n <= 200)) { toast('Scrivi quanti posti ci sono (da 1 a 200).', true); return; }
+              if (!(len >= 2 && len <= 120)) { toast('Scrivi la lunghezza dei posti in metri (da 2 a 120).', true); return; }
+              E.file.push({ id: id, a: T.a, b: T.b, n: n, len: r2(len), lati: val(form, 'f-dt') || '1' });
+              E.file.sort(function (x, y) { return x.id.localeCompare(y.id); });
+              T.a = T.b = null; T.edit = null; ridisegna(); return;
+            }
+            var img = t && t.id === 'pd-img' ? t : null; if (!img || !E.w) return;
+            var rc = img.getBoundingClientRect(), q = [Math.max(0, Math.min(1, (e.clientX - rc.left) / rc.width)), Math.max(0, Math.min(1, (e.clientY - rc.top) / rc.height))].map(function (v) { return Math.round(v * 1e5) / 1e5; });
+            if (T.modo === 'scala') { if (!E.A || E.B) { E.A = q; E.B = null; } else E.B = q; ridisegna(); return; }
+            if (!scala()) return;
+            if (T.a && T.b) return; // la fila è già segnata: prima aggiungila o annulla
+            if (!T.a) { T.a = q; ridisegna(); } else { T.b = q; ridisegna(); var fn = $('#f-dn'); if (fn) try { fn.focus(); } catch (er) { } }
+          });
+        },
+        onSubmit: async function (f) {
+          var k = scala();
+          if (!E.w) { formErr('Scegli la foto del porto.'); return false; }
+          if (!k) { formErr('Metti la foto in scala: tocca A e B e scrivi quanti metri ci sono.'); return false; }
+          if (E.w * k > 5000 || E.h * k > 5000) { formErr('Misure troppo grandi: controlla la distanza tra A e B.'); return false; }
+          if (T.a && T.b) { formErr('C’è una fila segnata ma non aggiunta: premi «Aggiungi la fila» o «Annulla».'); return false; }
+          if (!E.file.length) { formErr('Segna almeno una fila di posti.'); return false; }
+          var cfg = { pxW: E.w, pxH: E.h, k: k, file: E.file }, nuovi = {}; mioPosti(cfg).forEach(function (b) { nuovi[b.id] = 1; });
+          var persi = Object.keys(S.posti || {}).filter(function (id) { var d = S.posti[id]; return d && !nuovi[id] && (d.barcaId || d.cliente) && (!MIO.cfg || BY[id]); });
+          if (persi.length && T.avviso !== persi.join()) { T.avviso = persi.join(); formErr((persi.length === 1 ? 'Un posto con barca o cliente non è nel disegno' : persi.length + ' posti con barca o cliente non sono nel disegno') + ': ' + persi.slice(0, 8).join(', ') + (persi.length > 8 ? '…' : '') + '. Non si vedranno nel Porto (restano salvati e tornano se spegni il disegno). Premi di nuovo Salva per confermare.'); return false; }
+          var id = E.foto;
+          if (E.blob) {
+            if (!S.assets) { formErr('Caricamento non disponibile.'); return false; }
+            try { id = (await S.assets.upload(E.blob)).id; } catch (er) { formErr(er && er.code === 'quota_or_state' ? 'Spazio per le foto esaurito.' : 'Foto non caricata. Riprova.'); return false; }
+          }
+          var data = { foto: id, pxW: E.w, pxH: E.h, A: E.A, B: E.B, d: r2(E.d), k: k, file: E.file.map(function (x) { return { id: x.id, a: x.a, b: x.b, n: x.n, len: x.len, lati: x.lati }; }), modificato: new Date().toISOString() };
+          var ref = S.db.collection('impostazioni').doc('porto'), ok = await w(function () { return ref.set(data); });
+          if (ok) toast('Porto salvato: ' + Object.keys(nuovi).length + ' posti');
+          return ok;
+        }
+      });
+    }
     function berthLabel(boatId) { var o = berthOfBoat(boatId); return o ? o.id : ''; }
     function fitsBoat(b, boat) { var L = num(boat.lunghezza), B = num(boat.larghezza) || (L ? beamOf(boat).B : null); return (!L || b.len >= L + 0.3 - 1e-9) && (!B || b.wid >= B + 0.4 - 1e-9); }
     function suggest(boatId) {
@@ -5221,7 +5542,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       var free = BERTHS.filter(function (b) { return statoOf(b) === 'libero' && (!boat || fitsBoat(b, boat)); }).sort(function (a, c) { return a.len * a.wid - c.len * c.wid; });
       return { own: own ? { id: own.id, zona: own.zona, len: own.len, wid: own.wid } : null, free: free.slice(0, 12).map(function (b) { return { id: b.id, zona: b.zona, len: b.len, wid: b.wid }; }) };
     }
-    function exists(id) { return !!BY[id]; }
+    function exists(id) { mioSync(); return !!BY[id]; }
     async function assign(berthId, boatId) {
       var b = BY[berthId], boat = boatById(boatId); if (!b || !boat) return false;
       var now = new Date().toISOString(), old = berthOfBoat(boatId);
@@ -5234,13 +5555,14 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       var b = berthOfBoat(boatId); if (!b) return true;
       var d = postoDoc(b.id) || {}, ref = S.db.collection('posti').doc(b.id), now = new Date().toISOString();
       if (keepClient) return w(function () { return ref.update({ barcaId: '', modificato: now }); });
-      if (d.gestione === 'nostro') return w(function () { return ref.set({ gestione: 'nostro', barcaId: '', cliente: '', telefono: '', contratto: '', fino: '', note: '', modificato: now }); });
+      if (d.gestione === 'nostro') return w(function () { return ref.set(Object.assign(misDi(d), { gestione: 'nostro', barcaId: '', cliente: '', telefono: '', contratto: '', fino: '', note: '', modificato: now })); });
+      if (MIO.lista) return w(function () { return ref.update({ barcaId: '', cliente: '', telefono: '', contratto: '', fino: '', modificato: now }); }); // nell'elenco il posto resta
       return delSeq([ref]);
     }
-    function gotoBerth(id) { if (BY[id]) { P.sel = id; P.flyOnMount = true; } }
+    function gotoBerth(id) { mioSync(); if (BY[id]) { P.sel = id; P.flyOnMount = true; } }
     function dueCount() { return dueList().length; }
-    return { view: view, mount: mount, unmount: unmount, refresh: refresh, click: click, resize: resize, isMounted: function () { return P.mounted && !!$('#porto-root'); }, berthLabel: berthLabel, suggest: suggest, assign: assign, release: release, exists: exists, stats: function () { var c = counts(); c.due = dueList().length; c.richieste = (S.richieste || []).length; return c; }, postoOf: function (id) { return postoDoc(id); }, gotoBerth: gotoBerth, dueCount: dueCount, zone: function () { var z = {}, o = []; BERTHS.forEach(function (b) { var st = statoOf(b); if (st !== 'libero' && st !== 'occupato') return; if (!z[b.zona]) { z[b.zona] = { zona: b.zona, nostri: 0, occupati: 0 }; o.push(z[b.zona]); } z[b.zona].nostri++; if (st === 'occupato') z[b.zona].occupati++; }); return o; },
-      contratti: function (gg) { return BERTHS.filter(function (b) { var d = postoDoc(b.id), n = d && d.fino ? daysUntil(d.fino) : null; return n != null && n <= gg && statoOf(b) !== 'marina' && statoOf(b) !== 'libero'; }).map(function (b) { return { id: b.id, d: postoDoc(b.id), boat: berthBoat(b) }; }).sort(function (a, c) { return String(a.d.fino).localeCompare(String(c.d.fino)); }); }, dueList: function () { return dueList().map(function (b) { return { id: b.id, d: postoDoc(b.id), boat: berthBoat(b) }; }); } };
+    return { view: view, mount: mount, unmount: unmount, refresh: refresh, click: click, resize: resize, isMounted: function () { mioSync(); return P.mounted && P.kind === MIO.ref && !!$('#porto-root'); }, berthLabel: berthLabel, suggest: suggest, assign: assign, release: release, exists: exists, stats: function () { var c = counts(); c.due = dueList().length; c.richieste = (S.richieste || []).length; return c; }, postoOf: function (id) { return postoDoc(id); }, gotoBerth: gotoBerth, dueCount: dueCount, zone: function () { mioSync(); var z = {}, o = []; BERTHS.forEach(function (b) { var st = statoOf(b); if (st !== 'libero' && st !== 'occupato') return; if (!z[b.zona]) { z[b.zona] = { zona: b.zona, nostri: 0, occupati: 0 }; o.push(z[b.zona]); } z[b.zona].nostri++; if (st === 'occupato') z[b.zona].occupati++; }); return o; },
+      contratti: function (gg) { mioSync(); return BERTHS.filter(function (b) { var d = postoDoc(b.id), n = d && d.fino ? daysUntil(d.fino) : null; return n != null && n <= gg && statoOf(b) !== 'marina' && statoOf(b) !== 'libero'; }).map(function (b) { return { id: b.id, d: postoDoc(b.id), boat: berthBoat(b) }; }).sort(function (a, c) { return String(a.d.fino).localeCompare(String(c.d.fino)); }); }, dueList: function () { return dueList().map(function (b) { return { id: b.id, d: postoDoc(b.id), boat: berthBoat(b) }; }); } };
   })();
 
   /* ---------- Pannello: tutta l'azienda in una pagina ---------- */
@@ -7428,8 +7750,9 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['controllo', 'Controllo dei mezzi', 'prima dell’uso: gomme, freni, perdite; i mezzi che non vanno restano fermi (spento di base)'],
     ['tablet', 'Tablet condiviso con PIN', 'un tablet in officina per tutti: nome, PIN di 4 cifre, si richiude dopo 5 minuti (spento di base)'],
     ['deposito', 'Roba del cliente in deposito', 'tender, cuscini, tendalini con foto e riconsegna; il cliente li vede nel portale (spento di base)'],
-    ['novita', 'Cosa c’è di nuovo', 'dopo un aggiornamento dell’app, una finestra con le novità, una volta a ognuno']];
-  var SEZ_OFF = ['tablet', 'controllo', 'deposito']; // sezioni spente finché l'amministratore non le accende
+    ['novita', 'Cosa c’è di nuovo', 'dopo un aggiornamento dell’app, una finestra con le novità, una volta a ognuno'],
+    ['portomio', 'Porto disegnato da voi', 'la mappa del porto: i vostri pontili e posti sopra la foto, con Porto e posti barca (spento di base: senza, il Porto è l’elenco dei posti)']];
+  var SEZ_OFF = ['tablet', 'controllo', 'deposito', 'portomio']; // sezioni spente finché l'amministratore non le accende
   // riquadri di Home e Pannello che appartengono a una sezione (spariscono se le loro sezioni sono tutte spente)
   var SEZ_BLOCCHI = { w_mag: ['magazzino'], w_porto: ['porto'], w_rif: ['rifiuti'], w_batt: ['batterie'], vari: ['vari'], prog: ['programma'], meteo: ['meteo'],
     contr: ['porto'], riord: ['magazzino', 'batterie'], serv: ['operazioni'], magb: ['magazzino', 'batterie'] };
@@ -8871,12 +9194,16 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'L|Senza planimetria la mappa è un rettangolo vuoto: scrivi larghezza e lunghezza dal righello e puoi già sistemare le barche.',
       'L|Il tasto con la foto, sotto + e −, nasconde o mostra la planimetria sotto le barche.',
       'Sul computer, sopra la mappa, c’è l’elenco delle barche già sistemate con una casella per cercarle: tocchi un nome e la mappa ci va. La scheda della barca si apre a destra.'] },
-    porto: { t: 'Porto', p: 'I pontili della Marina con i posti barca.', li: [
+    porto: { t: 'Porto', p: 'I vostri posti barca al porto: l’elenco, o la mappa se il porto è disegnato da voi.', li: [
       'Tocca un posto per segnarlo come vostro o della Marina e assegnare barca, cliente, contratto e scadenza.',
       '«Contratti» elenca i posti in ordine di scadenza, con quelli vicini in alto.',
       '«Trova posto»: scrivi le misure di una barca e si accendono i vostri posti liberi in cui entra.',
       '«Brokeraggio»: barche in vendita e persone che cercano una barca, con quelle adatte già abbinate.',
-      'Sul computer, sopra la mappa, c’è l’elenco dei vostri posti con la barca o il cliente: tocchi un posto e la mappa ci va. La scheda del posto si apre a destra.'] },
+      'Sul computer, sopra la mappa, c’è l’elenco dei vostri posti con la barca o il cliente: tocchi un posto e la mappa ci va. La scheda del posto si apre a destra.',
+      'Senza il porto disegnato, il Porto è l’elenco dei vostri posti: «Aggiungi posto» chiede nome, zona e misure; toccando un posto assegni barca, cliente, contratto e scadenza. I tasti colorati in alto filtrano l’elenco.',
+      'Se il porto è disegnato da voi, al posto dell’elenco c’è la foto del vostro porto con i posti colorati sopra: trascini per spostarti, due dita o la rotella per ingrandire.',
+      'A|«Disegna il vostro porto» (da accendere in Altro › Aspetto dell’app, tra le sezioni): carichi una foto dall’alto del porto (o una pianta), la metti in scala toccando due punti di cui sai la distanza, poi per ogni fila di posti tocchi dove inizia e dove finisce e scrivi lettera, quanti posti e quanto sono lunghi. I posti si chiamano con la lettera e il numero, per esempio C-03.',
+      'A|Spegnendo «Porto disegnato da voi» torna l’elenco dei posti; il disegno resta salvato e ricompare se lo riaccendi.'] },
     altro: { t: 'Altro', p: 'Qui trovi tutte le sezioni che non stanno nella barra in basso, e la ricerca unica.', li: [
       'La ricerca in alto trova barche, clienti, articoli, codici, lavori e scadenze in tutta l’app.',
       'A|Con la piccola matita sopra l’elenco riordini le voci con le frecce; l’ordine è solo tuo e non cambia il menù del computer. «Come all’inizio» rimette l’ordine di partenza.',
@@ -11072,10 +11399,11 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     sub('conferme', function (x) { S.conf = toMap(x); });
     db.collection('impostazioni').onSnapshot(function (snap) {
       var m = null, b = null, ly = {}, asp = null;
-      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
+      var pm0 = S.portoMio; S.portoMio = null;
+      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'porto') S.portoMio = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
       var mc = m !== S.mapCfg; S.mapCfg = m; S.bkInfo = b; S.layouts = ly; S.aspetto = asp;
       if (NM_MARCA.dalDatabase(asp) && V.asp) NM_MARCA.prova(V.asp); // l'aspetto scelto vale subito per tutti
-      if ((V.tab === 'mappa' && mc) || V.tab === 'aspetto' || V.tab === 'backup' || V.tab === 'batterie' || V.tab === 'rifiuti' || V.tab === 'notifiche' || V.tab === 'categorie' || V.tab === 'home' || V.tab === 'barche' || V.tab === 'pannello' || V.tab === 'riepiloghi') { if (!LY.drag) render(); }
+      if ((V.tab === 'mappa' && (mc || pm0 !== S.portoMio)) || V.tab === 'aspetto' || V.tab === 'backup' || V.tab === 'batterie' || V.tab === 'rifiuti' || V.tab === 'notifiche' || V.tab === 'categorie' || V.tab === 'home' || V.tab === 'barche' || V.tab === 'pannello' || V.tab === 'riepiloghi') { if (!LY.drag) render(); }
     }, function () { });
     sub('magazzino', function (x) { S.mag = x; });
     sub('movimenti', function (x) { S.mov = x; });

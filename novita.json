@@ -1,5 +1,13 @@
 [
   {
+    "id": "2026-11-01-porto",
+    "titolo": "Novembre 2026",
+    "righe": [
+      "Porto: ora è l’elenco dei vostri posti. Con «Aggiungi posto» scrivete nome, zona e misure, poi assegnate barca, cliente e contratto come prima. I posti già segnati restano.",
+      "Porto disegnato da voi (da accendere in Altro › Aspetto dell’app, tra le sezioni): l’amministratore carica la foto dall’alto del porto e segna le file di posti; da lì il Porto mostra la vostra mappa invece dell’elenco."
+    ]
+  },
+  {
     "id": "2026-11-01",
     "titolo": "Novembre 2026",
     "righe": [
