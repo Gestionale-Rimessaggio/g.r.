@@ -60,7 +60,7 @@ service cloud.firestore {
     function raccolteCantiere() {
       return ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
         'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'deposito', 'programma', 'cariche', 'posti', 'richieste',
-        'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente'];
+        'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente', 'verbali'];
     }
 
     match /aziende/{a} {

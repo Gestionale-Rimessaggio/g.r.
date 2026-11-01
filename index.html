@@ -2148,6 +2148,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       h += '<div class="sec-h" style="margin-top:10px"><span class="cap">' + tots.join(' · ') + '</span>' +
         (lv.length > 5 ? '<button type="button" class="link" data-act="boat-lav-all">' + (V.boatLavAll ? 'Mostra meno' : 'Vedi tutti (' + lv.length + ')') + '</button>' : '') + '</div>';
     } else h += '<div class="notice">Nessun lavoro registrato.</div>';
+    if (vbOn()) h += '<button type="button" class="btn sec" data-act="vb-list" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">' + I.camera + 'Verbale di presa in carico' + (vbOf(b.id).length ? ' · ' + vbOf(b.id).length : '') + '</button>';
     if (sezOn('qrbarca')) h += '<button type="button" class="btn sec" data-act="boat-qr" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">' + I.doc + 'Etichetta QR da attaccare alla barca</button>';
     if (S.canWrite) h += '<button type="button" class="btn sec" data-act="boat-sold" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">Barca venduta: cambia proprietario</button>' + (b.proprietari && b.proprietari.length ? '<p class="cap" style="margin:6px 4px 0">Proprietari di prima: ' + esc(b.proprietari.map(function (x) { return x.nome + (x.fino ? ' (fino al ' + fmtDate(x.fino) + ')' : ''); }).join(', ')) + '</p>' : '');
     if (S.isOwner && S.canWrite && S.boats.length > 1) h += '<button type="button" class="btn sec" data-act="boat-merge" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">Unisci con un’altra barca</button><p class="cap" style="margin:6px 4px 0">Solo per l’amministratore: se questa barca ha una scheda doppia.</p>';
@@ -8028,13 +8029,14 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['deposito', 'Roba del cliente in deposito', 'tender, cuscini, tendalini con foto e riconsegna; il cliente li vede nel portale (spento di base)'],
     ['postogiusto', 'Trova il posto giusto', 'propone i posti liberi dove la barca entra; nel posto si scrive la barca più grande che ci sta (spento di base)'],
     ['qrbarca', 'Etichetta QR sulla barca', 'nella scheda della barca: stampa l’etichetta col QR che apre la sua scheda (spento di base)'],
+    ['verbale', 'Verbale di presa in carico', 'nella scheda della barca: foto, danni, ore motore e cosa resta a bordo all’alaggio e al varo, da stampare (spento di base)'],
     ['schede', 'Schede di sicurezza dei prodotti', 'nell’articolo del magazzino: link o foto della scheda, revisione e pericoli; in Magazzino quelle che mancano (spento di base)'],
     ['vernice', 'Vernice per le carene', 'quanta antivegetativa serve per le carene in programma, confrontata col magazzino (spento di base)'],
     ['avanzamento', 'Avanzamento lavori al cliente', 'per i preventivi accettati: lavori fatti e da fare nel portale del cliente e testo da mandargli (spento di base)'],
     ['richieste', 'Richieste dei clienti dal portale', 'il cliente chiede il varo per un giorno o segnala un problema con le foto; voi rispondete (spento di base)'],
     ['novita', 'Cosa c’è di nuovo', 'dopo un aggiornamento dell’app, una finestra con le novità, una volta a ognuno'],
     ['portomio', 'Porto disegnato da voi', 'la mappa del porto: i vostri pontili e posti sopra la foto, con Porto e posti barca (spento di base: senza, il Porto è l’elenco dei posti)']];
-  var SEZ_OFF = ['tablet', 'controllo', 'deposito', 'portomio', 'postogiusto', 'qrbarca', 'schede', 'vernice', 'avanzamento', 'richieste']; // sezioni spente finché l'amministratore non le accende
+  var SEZ_OFF = ['tablet', 'controllo', 'deposito', 'portomio', 'postogiusto', 'qrbarca', 'schede', 'vernice', 'avanzamento', 'richieste', 'verbale']; // sezioni spente finché l'amministratore non le accende
   // riquadri di Home e Pannello che appartengono a una sezione (spariscono se le loro sezioni sono tutte spente)
   var SEZ_BLOCCHI = { w_mag: ['magazzino'], w_porto: ['porto'], w_rif: ['rifiuti'], w_batt: ['batterie'], vari: ['vari'], prog: ['programma'], meteo: ['meteo'],
     contr: ['porto'], riord: ['magazzino', 'batterie'], serv: ['operazioni'], magb: ['magazzino', 'batterie'] };
@@ -8986,6 +8988,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     });
     Object.keys(scar).forEach(function (d) { add('ric', d, 'Ricambi dal magazzino', scar[d].join(', '), '', '', I.box); });
     S.vari.forEach(function (v) { if (v.barcaId === b.id && v.fatto) add('vari', v.fattoIl || v.data, TIPI_V[v.tipo] || 'Movimento', v.note || '', 'edit-vari', v.id, I.updown); });
+    if (vbOn()) vbOf(b.id).forEach(function (v) { add('vari', v.data, v.tipo === 'uscita' ? 'Verbale di uscita' : 'Verbale di presa in carico', [(v.foto || []).length ? v.foto.length + ' foto' : '', v.danni ? 'danni: ' + v.danni : ''].filter(Boolean).join(' · '), 'vb-open', v.id, I.camera); });
     (S.cariche || []).forEach(function (c) { if (c.barcaId === b.id) add('batt', c.data, 'Batterie caricate', c.utente ? 'da ' + nameOf(c.utente) : '', '', '', I.batt); });
     S.scadenze.forEach(function (x) { if (x.barcaId === b.id && x.fatta) add('altro', x.fattaIl, 'Scadenza fatta: ' + (x.tipo || ''), x.note || '', '', '', I.alarm); });
     if (opsOn()) S.ops.forEach(function (o) { if (o.barcaId === b.id && opDone(o)) add('altro', o.completataIl || o.data, 'Servizio: ' + opTitle(o), num(opHours(o)) ? fmtDur(opHours(o)) : '', 'open-op', o.id, I.list); });
@@ -9478,7 +9481,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'I tasti mappa e porto mostrano dove si trova la barca.',
       'In fondo, «Barca venduta: cambia proprietario» scrive il nuovo proprietario: lavori e storia restano alla barca, quello di prima resta nella storia. Chiede cosa fare del posto, delle scadenze aperte e (all’amministratore) del portale del cliente di prima.',
       'Se è accesa l’etichetta QR, «Etichetta QR» stampa l’adesivo da attaccare alla barca: inquadrato con il telefono apre questa scheda.',
-      'A|In fondo, «Unisci con un’altra barca» serve quando la stessa barca è stata registrata due volte: scegli cosa tenere campo per campo e tutto passa sulla scheda che resta. Il doppione va nel cestino e da lì si può annullare l’unione.'] },
+      'A|In fondo, «Unisci con un’altra barca» serve quando la stessa barca è stata registrata due volte: scegli cosa tenere campo per campo e tutto passa sulla scheda che resta. Il doppione va nel cestino e da lì si può annullare l’unione.',
+      '«Verbale di presa in carico» (se acceso in Aspetto dell’app): all’alaggio e al varo foto, danni già presenti, ore motore e cosa resta a bordo. All’uscita vedi l’ingresso per confrontare; si stampa o si salva in PDF.'] },
     mappa: { t: 'Mappa del cantiere', p: 'Il piazzale e il capannone in scala, con le barche disegnate con le loro misure.', pL: 'La pianta del vostro cantiere in scala, con le barche disegnate con le loro misure.', li: [
       'Trascina una barca dove si trova davvero: la posizione si salva da sola e la vedono tutti.',
       'L’app segnala barche sovrapposte o fuori dal perimetro e mostra le distanze dalle vicine.',
@@ -10170,6 +10174,76 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   function qrEtichetta(b, svg) {
     return '<div class="et"><div class="qr">' + svg + '</div><div class="tx"><b>' + esc(b.nome || 'Barca') + '</b><span>' + esc([b.modello, (PORTO_ON() && Porto.berthLabel(b.id)) || b.posto].filter(Boolean).join(' · ')) + '</span><small>Inquadra con il telefono per aprire la scheda</small></div></div>';
+  }
+  /* ---------- Verbale di presa in carico (idea 1, Aspetto dell’app › sezioni) ----------
+     All'alaggio (ingresso) e al varo (uscita): foto, danni già presenti, ore motore e cosa resta a bordo, con data e chi l'ha fatto.
+     All'uscita si vede il verbale d'ingresso per confrontare. Raccolta «verbali». Niente firma (scelta di Torcio 1/11/2026). */
+  var VB_BORDO = ['Tender', 'Fuoribordo', 'Cuscini', 'Tendalino', 'Telo di copertura', 'Ancora', 'Giubbotti e dotazioni', 'Chiavi', 'Batterie'];
+  function vbOn() { return sezOn('verbale'); }
+  function vbOf(bid) { return (S.verbali || []).filter(function (v) { return v.barcaId === bid && !v._del; }).sort(function (a, c) { return String(c.data || '').localeCompare(String(a.data || '')) || String(c.creato || '').localeCompare(String(a.creato || '')); }); }
+  function vbTit(v) { return (v.tipo === 'uscita' ? 'Uscita (varo)' : 'Ingresso (alaggio)') + ' del ' + fmtDate(v.data); }
+  function vbLista(b) {
+    var l = vbOf(b.id);
+    openSheet({ title: 'Verbali di presa in carico', menu: true,
+      body: '<p class="context">' + esc(boatLabel(b)) + ' · com’era la barca quando è arrivata e quando è ripartita: foto, danni già presenti, ore motore e cosa resta a bordo.</p>' +
+        (S.canWrite ? '<div class="grid2"><button type="button" class="btn" data-act="vb-new" data-id="' + esc(b.id) + '" data-t="ingresso">Ingresso (alaggio)</button><button type="button" class="btn sec" data-act="vb-new" data-id="' + esc(b.id) + '" data-t="uscita">Uscita (varo)</button></div>' : '') +
+        (l.length ? '<div class="group" style="margin-top:12px">' + l.map(function (v) {
+          return '<button type="button" class="row" data-act="vb-open" data-id="' + esc(v.id) + '"><span class="main"><span class="title">' + esc(vbTit(v)) + '</span><span class="sub">' +
+            esc([(v.foto || []).length ? v.foto.length + ' foto' : '', v.danni ? 'danni: ' + String(v.danni).slice(0, 50) : 'nessun danno segnato', v.utente ? nameOf(v.utente) : ''].filter(Boolean).join(' · ')) + '</span></span></button>'; }).join('') + '</div>'
+          : '<div class="notice" style="margin-top:12px">Nessun verbale per questa barca.</div>') });
+  }
+  function vbSheet(v, b, tipo) {
+    var isNew = !v; v = v || { tipo: tipo || 'ingresso', data: todayISO(), oreMotore: b.oreMotore != null ? b.oreMotore : '', bordo: [], foto: [] };
+    var ing = v.tipo === 'uscita' ? vbOf(b.id).filter(function (x) { return x.tipo === 'ingresso' && x.id !== v.id && String(x.data || '') <= String(v.data || '9999'); })[0] : null;
+    var puo = S.canWrite && (isNew || S.isOwner || v.creatoDa === S.myId);
+    var body = '<p class="context">' + esc(boatLabel(b)) + (b.proprietario ? ' · ' + esc(b.proprietario) : '') + '</p>' +
+      (ing ? '<div class="group pan" style="margin-bottom:12px"><div class="kv-row"><span class="k"><b>All’ingresso del ' + esc(fmtDate(ing.data)) + '</b></span><span class="v"><button type="button" class="link" data-act="vb-open" data-id="' + esc(ing.id) + '">Apri</button></span></div>' +
+        '<div class="kv-row"><span class="k">Danni</span><span class="v">' + esc(ing.danni || 'nessuno') + '</span></div>' +
+        '<div class="kv-row"><span class="k">A bordo</span><span class="v">' + esc((ing.bordo || []).concat(ing.bordoAltro ? [ing.bordoAltro] : []).join(', ') || '—') + '</span></div>' +
+        (ing.oreMotore != null && ing.oreMotore !== '' ? '<div class="kv-row"><span class="k">Ore motore</span><span class="v">' + esc(String(ing.oreMotore)) + '</span></div>' : '') + '</div>' +
+        ((ing.foto || []).length ? '<div class="thumbs" style="margin-bottom:12px">' + ing.foto.map(function (id) { return '<span class="thumb-w"><img class="thumb" alt="" src="' + esc(blobSrc(id)) + '" data-blob="' + esc(id) + '" data-act="photo" data-id="' + esc(id) + '"></span>'; }).join('') + '</div>' : '') : '') +
+      '<div class="grid2">' + field(lab('f-vbt', 'Verbale di'), '<select id="f-vbt"' + (puo ? '' : ' disabled') + '>' + opts([['ingresso', 'Ingresso (alaggio)'], ['uscita', 'Uscita (varo)']], v.tipo) + '</select>') +
+      field(lab('f-vbd', 'Giorno'), inp('f-vbd', v.data, 'type="date" required' + (puo ? '' : ' disabled'))) + '</div>' +
+      field(lab('f-vbo', 'Ore motore'), inp('f-vbo', v.oreMotore, 'type="text" inputmode="numeric" placeholder="es. 420"' + (puo ? '' : ' disabled'))) +
+      '<div class="lbl">Cosa resta a bordo o in deposito</div><div class="chips" style="flex-wrap:wrap;margin-bottom:6px">' + VB_BORDO.map(function (x, i) {
+        return '<label class="check" style="margin:0 10px 6px 0"><input type="checkbox" class="f-vbb" value="' + i + '"' + ((v.bordo || []).indexOf(x) >= 0 ? ' checked' : '') + (puo ? '' : ' disabled') + '> ' + esc(x) + '</label>'; }).join('') + '</div>' +
+      field(lab('f-vba', 'Altro a bordo'), inp('f-vba', v.bordoAltro, 'placeholder="es. canna da pesca, radio portatile"' + (puo ? '' : ' disabled'))) +
+      field(lab('f-vbn', v.tipo === 'uscita' ? 'Danni o differenze rispetto all’ingresso' : 'Danni o graffi già presenti'), '<textarea id="f-vbn" placeholder="es. graffio a dritta a poppa, parabordo rotto"' + (puo ? '' : ' disabled') + '>' + esc(v.danni || '') + '</textarea>') +
+      field(lab('f-vbx', 'Note'), '<textarea id="f-vbx"' + (puo ? '' : ' disabled') + '>' + esc(v.note || '') + '</textarea>') +
+      (puo ? photoBlock(v.foto).replace('Foto (facoltative)', 'Foto: i quattro lati, la coperta, il motore e i danni') : ((v.foto || []).length ? '<div class="lbl">Foto</div><div class="thumbs">' + v.foto.map(function (id) { return '<span class="thumb-w"><img class="thumb" alt="" src="' + esc(blobSrc(id)) + '" data-blob="' + esc(id) + '" data-act="photo" data-id="' + esc(id) + '"></span>'; }).join('') + '</div>' : '')) +
+      (!isNew ? '<p class="cap" style="margin-top:8px">Fatto da ' + esc(nameOf(v.utente || v.creatoDa)) + ' il ' + esc(fmtDate(String(v.creato || '').slice(0, 10))) + '.</p><button type="button" class="btn sec self-start" data-act="vb-print" data-id="' + esc(v.id) + '">' + I.doc + 'Stampa o salva in PDF</button>' : '');
+    openSheet({ title: isNew ? (v.tipo === 'uscita' ? 'Verbale di uscita' : 'Verbale di ingresso') : vbTit(v), menu: !puo, foto: v.foto || [], item: v,
+      deleteLabel: 'Elimina il verbale', onDelete: isNew || !puo ? null : async function () { if (await delSeq([S.db.collection('verbali').doc(v.id)])) { closeSheet(); toast('Verbale eliminato'); } },
+      body: body,
+      onSubmit: puo ? async function (f) {
+        var now = new Date().toISOString(), ore = val(f, 'f-vbo');
+        var d = { barcaId: b.id, tipo: val(f, 'f-vbt'), data: val(f, 'f-vbd') || todayISO(), oreMotore: ore === '' ? null : parseIntS(ore),
+          bordo: Array.prototype.filter.call(f.querySelectorAll('.f-vbb'), function (c) { return c.checked; }).map(function (c) { return VB_BORDO[+c.value]; }),
+          bordoAltro: val(f, 'f-vba'), danni: val(f, 'f-vbn'), note: val(f, 'f-vbx'), foto: SHEET.foto.slice(), modificato: now };
+        if (!d.foto.length && !d.danni && !d.bordo.length) { formErr('Aggiungi almeno le foto della barca.'); return false; }
+        var ok;
+        if (isNew) { d.creato = now; d.creatoDa = S.myId || ''; d.utente = S.myId || ''; var rf = S.db.collection('verbali').doc(); ok = await w(function () { return rf.set(d); }); }
+        else { var r2 = S.db.collection('verbali').doc(v.id); ok = await w(function () { return r2.update(d); }); }
+        if (ok && d.oreMotore != null && !(num(b.oreMotore) >= d.oreMotore)) { var rb = S.db.collection('barche').doc(b.id); await w(function () { return rb.update({ oreMotore: d.oreMotore, modificato: now }); }); }
+        if (ok) toast(isNew ? 'Verbale salvato' : 'Verbale aggiornato');
+        return ok;
+      } : null });
+  }
+  async function vbStampa(v) {
+    var b = boatById(v.barcaId) || {}, win = window.open('', '_blank'); if (!win) { toast('Il telefono ha bloccato la finestra di stampa: permetti i popup per questo sito.', true); return; }
+    win.document.write('<p style="font:16px sans-serif;padding:20px">Preparo il verbale…</p>');
+    var ids = v.foto || [], vuota = /^data:image\/gif/;
+    for (var t = 0; t < 16 && ids.some(function (id) { return vuota.test(blobSrc(id)); }); t++) await wait(500);
+    var r = function (k, x) { return x ? '<tr><th>' + esc(k) + '</th><td>' + esc(x) + '</td></tr>' : ''; };
+    win.document.open();
+    win.document.write('<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Verbale ' + esc(b.nome || '') + '</title><style>@page{size:A4;margin:12mm}body{font-family:Arial,sans-serif;color:#000;margin:0}h1{font-size:18pt;margin:0 0 2mm}p{margin:0 0 4mm;color:#444}' +
+      'table{border-collapse:collapse;width:100%;margin-bottom:5mm}th,td{border:1px solid #bbb;padding:2mm 3mm;text-align:left;vertical-align:top;font-size:11pt}th{width:38mm;background:#f2f2f2}.fg{display:grid;grid-template-columns:1fr 1fr;gap:4mm}.fg img{width:100%;height:62mm;object-fit:cover;border:1px solid #ccc;break-inside:avoid}</style></head><body>' +
+      '<h1>Verbale di ' + (v.tipo === 'uscita' ? 'uscita (varo)' : 'presa in carico (alaggio)') + '</h1><p>' + esc(NOME()) + ' · ' + esc(fmtDate(v.data)) + ' · fatto da ' + esc(nameOf(v.utente || v.creatoDa)) + '</p><table>' +
+      r('Barca', [b.nome, b.modello, b.immatricolazione].filter(Boolean).join(' · ')) + r('Proprietario', [b.proprietario, b.telefono].filter(Boolean).join(' · ')) + r('Ore motore', v.oreMotore != null ? String(v.oreMotore) : '') +
+      r('A bordo', (v.bordo || []).concat(v.bordoAltro ? [v.bordoAltro] : []).join(', ') || '—') + r(v.tipo === 'uscita' ? 'Danni o differenze' : 'Danni già presenti', v.danni || 'nessuno') + r('Note', v.note) + '</table>' +
+      (ids.length ? '<div class="fg">' + ids.map(function (id) { var s = blobSrc(id); return vuota.test(s) ? '' : '<img src="' + s + '" alt="">'; }).join('') + '</div>' : '') +
+      '<script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script></body></html>');
+    win.document.close();
   }
   async function qrStampa(list) {
     var win = window.open('', '_blank'); if (!win) { toast('Il telefono ha bloccato la finestra di stampa: permetti i popup per questo sito.', true); return; }
@@ -11453,6 +11527,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'kit-list': kitListSheet(); break;
       case 'sds-list': sdsLista(); break;
       case 'xl-import': xlSheet(); break;
+      case 'vb-list': var bvl = boatById(id); if (bvl) vbLista(bvl); break;
+      case 'vb-new': var bvn = boatById(id); if (bvn && S.canWrite) { closeSheet(); vbSheet(null, bvn, t.getAttribute('data-t')); } break;
+      case 'vb-open': var vbx = (S.verbali || []).find(function (x) { return x.id === id; }); if (vbx && boatById(vbx.barcaId)) { closeSheet(); vbSheet(vbx, boatById(vbx.barcaId)); } break;
+      case 'vb-print': var vbp = (S.verbali || []).find(function (x) { return x.id === id; }); if (vbp) vbStampa(vbp); break;
       case 'prev-avanz': var pa = (S.prev || []).find(function (x) { return x.id === id; }); if (pa) { closeSheet(); avSheet(pa); } break;
       case 'av-copia': var at = $('#av-t'); if (at) { var fatto = function () { toast('Testo copiato'); }, vecchio = function () { at.select(); document.execCommand('copy'); fatto(); }; try { navigator.clipboard.writeText(at.value).then(fatto, vecchio); } catch (e) { vecchio(); } } break;
       case 'vn-salva': vnSalva(); break;
@@ -11874,6 +11952,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     sub('posti', function (x) { S.posti = toMap(x); });
     sub('richieste', function (x) { S.richieste = x; });
     sub('richiesteCliente', function (x) { S.rqc = x; });
+    sub('verbali', function (x) { S.verbali = x; });
     sub('rifiuti', function (x) { S.rif = x; });
     sub('ritiri', function (x) { S.ritiri = x; });
     sub('scadCantiere', function (x) { S.scadC = x; });
