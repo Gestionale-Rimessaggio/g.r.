@@ -10225,6 +10225,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var hd = { 'Content-Type': 'application/json', 'x-goog-api-key': c.apiKey, 'X-Firebase-AppId': c.appId || '' };
     var tk = window.__NM_FB.appCheckToken ? await window.__NM_FB.appCheckToken() : ''; // App Check: dal 2/11/2026 senza gettone l'AI risponde «non autorizzato»
     if (tk) hd['X-Firebase-AppCheck'] = tk;
+    if (window.__NM_FB.aiConta) await window.__NM_FB.aiConta(); // tetto dell'azienda: 30 richieste al giorno, se non deciso diverso
     for (var i = 0; i < AI_MODELS.length; i++) {
       var r = await fetch('https://firebasevertexai.googleapis.com/v1beta/projects/' + encodeURIComponent(c.projectId) + '/models/' + AI_MODELS[i] + ':generateContent', {
         method: 'POST', headers: hd,
@@ -10244,6 +10245,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function aiErrMsg(e) {
     var c = e && e.code;
     return c === 'ai_off' ? 'Il riconoscimento con l’AI non è ancora attivo: va acceso una volta nella console di Firebase (AI Logic). Intanto scrivi a mano.'
+      : c === 'ai_finita' ? 'AI finita per oggi, riprova domani. Intanto scrivi a mano.'
       : c === 'rete' ? 'Serve internet per il riconoscimento con l’AI.' : c === 'troppe' ? 'Troppe richieste in poco tempo: riprova tra un minuto.' : 'Non sono riuscito a riconoscerlo: scrivilo a mano.';
   }
   var AI_PEZZO = 'Sei in un cantiere nautico italiano. Nella foto c’è un ricambio, un prodotto o un materiale (anche la sua scatola o etichetta). ' +

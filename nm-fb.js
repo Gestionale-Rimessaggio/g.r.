@@ -938,7 +938,7 @@
      Chi gestisce il servizio (utenti/{uid} con ruolo «creatore», messo da GitHub: vedi .github/workflows/creatore.yml)
      approva le aziende nuove, le sospende, vede di ognuna accessi, azioni ed errori. Nei dati di un'azienda
      (barche, clienti, lavori…) entra solo se l'azienda ha acceso «Permetti assistenza». */
-  var CR = { on: false, az: {}, ut: {}, att: {}, vista: null, filtro: 'tutto', q: '', ord: 'nome', avv: [], cons: null, giorni: 7, metr: 'fotoMb', chi: '', msg: null, note: {}, scarico: '' };
+  var CR = { ai: {}, on: false, az: {}, ut: {}, att: {}, vista: null, filtro: 'tutto', q: '', ord: 'nome', avv: [], cons: null, giorni: 7, metr: 'fotoMb', chi: '', msg: null, note: {}, scarico: '' };
   function avviaCreatore(x) {
     var as = ''; try { as = sessionStorage.getItem('nm-assist') || ''; } catch (e) { }
     if (started) return;
@@ -1091,11 +1091,11 @@
       var k = CR.vista.slice(3), A = CR.az[k], last = crUltimo(k), e7 = crErr7(k), nota = CR.note[k];
       var ult = {}; ((CR.att[k] || {}).list || []).forEach(function (x) { if (crTipo(x) === 'accessi' && !ult[x.uid]) ult[x.uid] = x.il; });
       h += '<div class="top"><button class="back" data-cr="home">‹ Aziende</button><h3>' + esc(A.nome || 'Azienda') + '</h3><span style="min-width:64px"></span></div>' +
-        '<div class="grp"><div class="u"><div class="nm">' + esc(A.adminNome || 'Amministratore') + '</div><div class="em">' + esc((A.stato || '') + ' · codice ' + (codBello(A.codice) || '—') + ' · ' + (A.assistenza ? 'assistenza permessa' : 'assistenza non permessa')) + '<br>' + crAbb(A) + '<br>' + crSpazio(A) +
+        '<div class="grp"><div class="u"><div class="nm">' + esc(A.adminNome || 'Amministratore') + '</div><div class="em">' + esc((A.stato || '') + ' · codice ' + (codBello(A.codice) || '—') + ' · ' + (A.assistenza ? 'assistenza permessa' : 'assistenza non permessa')) + '<br>' + crAbb(A) + '<br>' + crSpazio(A) + '<br>' + crAi(k, A) +
         '<br>Ultimo accesso: ' + esc(last ? (last.nome || '') + ', ' + crQuando(last.il) : 'nessuno') + (e7 ? ' · <span style="color:#ff8a80">' + e7 + (e7 === 1 ? ' errore' : ' errori') + ' in 7 giorni</span>' : '') + '</div>' +
         '<div class="acts">' + (A.telefono ? '<a class="b" style="text-decoration:none;color:inherit;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:9px 12px" href="tel:' + esc(String(A.telefono).replace(/[^\d+]/g, '')) + '">Chiama</a>' : '') +
         (A.email ? '<a class="b" style="text-decoration:none;color:inherit;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:9px 12px" href="mailto:' + esc(A.email) + '">Email</a>' : '') +
-        '<button class="b pri" data-cr="rep" data-id="' + k + '">Report</button><button class="b" data-cr="pagato" data-id="' + k + '">Segna pagato</button>' + (!A.abbonata ? '<button class="b" data-cr="prova" data-id="' + k + '">Giorni di prova</button>' : '') + '<button class="b" data-cr="quota" data-id="' + k + '">Quota spazio</button>' +
+        '<button class="b pri" data-cr="rep" data-id="' + k + '">Report</button><button class="b" data-cr="pagato" data-id="' + k + '">Segna pagato</button>' + (!A.abbonata ? '<button class="b" data-cr="prova" data-id="' + k + '">Giorni di prova</button>' : '') + '<button class="b" data-cr="quota" data-id="' + k + '">Quota spazio</button><button class="b" data-cr="aimax" data-id="' + k + '">Limite AI</button>' +
         (A.assistenza ? '<button class="b" data-cr="entra" data-id="' + k + '">Entra per assistenza</button>' : '') +
         '<button class="b" data-cr="scarica" data-id="' + k + '"' + (CR.scarico ? ' disabled' : '') + '>Scarica i dati</button><button class="b red" data-cr="sosp" data-id="' + k + '">Sospendi</button></div>' +
         (CR.scarico ? '<div class="em" style="margin-top:8px">' + esc(CR.scarico) + '</div>' : '') + '</div></div>' +
@@ -1177,6 +1177,12 @@
     if (azScaduta(a)) return '<span style="color:#ff8a80">' + (a.abbonata ? 'Abbonamento scaduto' : 'Prova finita') + ' il ' + esc(dataIt(a.scade)) + ': app bloccata</span>';
     return '<span' + (d <= 7 ? ' style="color:#ffb020"' : '') + '>' + esc(t + (d <= 7 ? ' (' + (d === 0 ? 'oggi' : d === 1 ? 'domani' : 'tra ' + d + ' giorni') + ')' : '')) + '</span>';
   }
+  // AI di oggi: quante richieste su quante (si legge quando si apre la scheda dell'azienda)
+  function crAi(k, a) {
+    var max = aiMaxDi(a), u = CR.ai[k];
+    if (u === undefined) { CR.ai[k] = null; fs.collection('aziende').doc(k).collection('aiUso').doc(oggiISO()).get().then(function (d) { CR.ai[k] = d.exists ? d.data().n || 0 : 0; crRender(); }, function () { CR.ai[k] = -1; crRender(); }); }
+    return esc('AI oggi: ' + (u == null ? '…' : u < 0 ? '?' : u) + ' richieste su ' + max);
+  }
   function crScade(k, g, abb, msg) {
     var up = g ? { scade: g, scadeMs: fineGiorno(g), abbonata: abb, modificato: nowISO() } : { scade: FV.delete(), scadeMs: FV.delete(), abbonata: abb, modificato: nowISO() };
     fs.collection('aziende').doc(k).update(up).then(function () { toast(msg); }, function (e) { toast('Non riuscito: ' + errOf(e).code); });
@@ -1228,6 +1234,12 @@
     else if (k === 'riatt') crStato(id, 'attiva', 'Azienda riattivata');
     else if (k === 'no') { if (confirm('Rifiutare la richiesta di ' + (a.nome || 'questa azienda') + '?')) crStato(id, 'rifiutata', 'Richiesta rifiutata'); }
     else if (k === 'sosp') { if (confirm('Sospendere ' + (a.nome || 'questa azienda') + '? Nessuno dell’azienda potrà entrare finché non la riattivi. I dati restano.')) crStato(id, 'sospesa', 'Azienda sospesa'); }
+    else if (k === 'aimax') {
+      var vm = prompt('Richieste all’AI al giorno per ' + (a.nome || 'questa azienda') + ' (oggi ' + aiMaxDi(a) + '; 0 = AI spenta). La quota gratuita del servizio è in comune tra tutte le aziende.', String(aiMaxDi(a)));
+      if (vm == null) return; var nm = Math.round(parseFloat(String(vm).replace(',', '.')));
+      if (!(nm >= 0 && nm <= 500)) { toast('Scrivi un numero tra 0 e 500'); return; }
+      fs.collection('aziende').doc(id).update({ aiMax: nm, modificato: nowISO() }).then(function () { toast('AI: ' + nm + ' richieste al giorno'); }, function (er) { toast('Non riuscito: ' + errOf(er).code); });
+    }
     else if (k === 'prova') {
       var base = String(a.approvata || nowISO()).slice(0, 10), gg0 = a.scade ? giorniA(a.scade) - giorniA(base) : PROVA_GG;
       var v = prompt('Giorni di prova per ' + (a.nome || 'questa azienda') + ', contati dall’approvazione del ' + dataIt(base) + ' (oggi ' + gg0 + ').', String(gg0));
@@ -1779,8 +1791,28 @@
     pulizia: function () { var L = live('impostazioni'); return L.map.pulizia || null; }
   };
 
+  /* ---------- tetto dell'AI: ogni azienda ha AI_MAX richieste al giorno (aziende/{az}.aiMax, lo cambia il gestore),
+     contate in aziende/{az}/aiUso/{giorno}. Le regole fanno salire il conto solo di uno alla volta e non oltre il tetto. ---------- */
+  var AI_MAX = 30;
+  function aiMaxDi(a) { return a && typeof a.aiMax === 'number' && a.aiMax >= 0 ? a.aiMax : AI_MAX; }
+  function aiConta() {
+    var max = aiMaxDi(AZD), r = AC('aiUso').doc(oggiISO());
+    return fs.runTransaction(function (t) {
+      return t.get(r).then(function (d) {
+        var n = d.exists ? (d.data().n || 0) : 0;
+        if (n >= max) throw { code: 'ai_finita' };
+        if (d.exists) t.update(r, { n: n + 1, il: nowISO() }); else t.set(r, { n: 1, il: nowISO() });
+      });
+    }).catch(function (e) {
+      if (e && e.code === 'ai_finita') throw e;
+      if (e && /permission/.test(e.code || '')) throw { code: 'ai_finita' }; // oltre il tetto le regole rifiutano
+      throw { code: 'rete' };
+    });
+  }
+
   /* ---------- quello che vede l'app ---------- */
   window.__NM_FB = {
+    aiConta: aiConta,
     use: function (name) {
       return READY.then(function () { return name === 'db' ? DB : name === 'user' ? USER : name === 'assets' ? ASSETS : name === 'downloads' ? DL : null; });
     },

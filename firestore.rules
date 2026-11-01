@@ -70,7 +70,7 @@ service cloud.firestore {
         && corto(request.resource.data, 'adminNome', 60) && corto(request.resource.data, 'email', 254) && corto(request.resource.data, 'telefono', 30)
         && getAfter(profilo()).data.azienda == a;
       // il gestore approva, sospende o rifiuta, dà il codice e la quota; il permesso di assistenza e l'amministratore non li tocca
-      allow update: if (creatore() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stato', 'codice', 'approvata', 'quotaMb', 'modificato', 'scade', 'scadeMs', 'abbonata'])
+      allow update: if (creatore() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stato', 'codice', 'approvata', 'quotaMb', 'modificato', 'scade', 'scadeMs', 'abbonata', 'aiMax'])
           && (!('scadeMs' in request.resource.data) || request.resource.data.scadeMs is int)
           && (!('codice' in request.resource.data) || getAfter(/databases/$(database)/documents/codici/$(request.resource.data.codice)).data.azienda == a))
         || (admin(a) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['codice', 'assistenza', 'modificato'])
@@ -80,6 +80,14 @@ service cloud.firestore {
       match /portale/{barcaId} {
         allow read: if staffA(a) || (cliente(a) && barcaId in me().get('barche', []));
         allow write: if staffA(a);
+      }
+      // Tetto dell'AI: il conto delle richieste del giorno sale solo di uno alla volta e non oltre aiMax (30 se non scritto).
+      // Lo leggono l'azienda e il gestore; nessuno lo abbassa o lo cancella.
+      match /aiUso/{giorno} {
+        allow read: if staffA(a) || creatore();
+        allow create: if staffA(a) && request.resource.data.keys().hasOnly(['n', 'il']) && request.resource.data.n == 1;
+        allow update: if staffA(a) && request.resource.data.keys().hasOnly(['n', 'il'])
+          && request.resource.data.n == resource.data.n + 1 && request.resource.data.n <= azienda(a).get('aiMax', 30);
       }
       // Le foto della roba in deposito che compaiono nel portale (foto.portale = la barca): le apre solo il cliente di quella barca
       match /foto/{id} {
@@ -136,7 +144,7 @@ service cloud.firestore {
         }
         function autoreOk(d) { return d.get('creatoDa', request.auth.uid) == request.auth.uid || (tablet(a) && d.get('via', '') == request.auth.uid); }
         function autoreUguale() { return cancellato(resource.data) || nuovo().get('creatoDa', '') == resource.data.get('creatoDa', ''); }
-        function datiCantiere() { return !(coll in ['portale', 'cestino', 'attivita']); }
+        function datiCantiere() { return !(coll in ['portale', 'cestino', 'attivita', 'aiUso']); }
         // l'aspetto dell'app (nome dell'azienda, colori, loghi, luogo) e le sezioni accese li cambia solo l'amministratore
         function soloAdmin() { return coll == 'impostazioni' && id in ['aspetto', 'sezioni']; }
 
