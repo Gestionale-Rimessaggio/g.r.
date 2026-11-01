@@ -238,7 +238,7 @@
   }
   function emit(L) {
     var s = snapOf(L); L.subs.slice().forEach(function (x) { try { x.next(s); } catch (e) { console.error(e); errScrivi(e); } });
-    if (L.name === 'barche' || L.name === 'lavori' || L.name === 'posti' || L.name === 'deposito') schedulePortale();
+    if (L.name === 'barche' || L.name === 'lavori' || L.name === 'posti' || L.name === 'deposito' || L.name === 'impostazioni') schedulePortale();
   }
   function docSnap(id, d) { return { id: id, exists: !!d, data: function () { return d ? clone(d) : undefined; } }; }
 
@@ -1324,8 +1324,9 @@
   function novitaVista(id) { if (!ME) return; ME.novitaVista = id; fs.collection('utenti').doc(ME.uid).update({ novitaVista: id, modificato: nowISO() }).catch(function () { }); }
   function novitaMostra() {
     if (!ME || ME.ruolo === 'cliente' || ME.assist || $('#nmnov')) return;
-    novitaTutte().then(function (l) {
-      if (!l.length || !ME) return;
+    var LI = live('impostazioni');
+    LI.start.then(function () { return whenReady(LI, 15000); }).then(novitaTutte).then(function (l) {
+      if (!l.length || !ME || !sezAccesa('novita', true)) return; // spenta in Aspetto dell'app
       var vista = ME.novitaVista || '', ultima = String(l[0].id);
       if (!vista && String(ME.creato || '').slice(0, 10) >= ultima.slice(0, 10)) { novitaVista(ultima); return; } // arrivato dopo: si parte da qui
       var nuove = l.filter(function (x) { return String(x.id) > vista; }).slice(0, 3);
@@ -1418,7 +1419,15 @@
       porto: p ? { posto: pid, contratto: p.contratto || '', fino: p.fino || '' } : null, lavori: lav, deposito: depoPortale(bid) };
   }
   // roba del cliente in deposito: cosa, quanti e foto (dove è riposta e le note restano al cantiere)
+  // sezioni accese in Aspetto dell'app (impostazioni/sezioni): «deposito» è spenta di base, «novita» accesa
+  function sezAccesa(k, base) {
+    var I = LIVE.impostazioni ? LIVE.impostazioni.map : {}, c = I.sezioni;
+    if (!c || c._del || !Array.isArray(c.spente)) return base;
+    if (c.spente.indexOf(k) >= 0) return false;
+    return base || (c.conosce || []).indexOf(k) >= 0;
+  }
   function depoPortale(bid) {
+    if (!sezAccesa('deposito', false)) return [];
     var D = LIVE.deposito ? LIVE.deposito.map : {};
     return Object.keys(D).map(function (k) { return D[k]; }).filter(function (x) { return x.barcaId === bid && x.stato !== 'restituito'; })
       .sort(function (a, c) { return String(a.cosa || '').localeCompare(String(c.cosa || ''), 'it'); })
@@ -1427,7 +1436,7 @@
   function fotoDi(s) { var o = []; (s && s.deposito || []).forEach(function (x) { (x.foto || []).forEach(function (f) { o.push(f); }); }); return o; }
   async function syncPortale() {
     var ids = linkedBoats(); if (!ids.length) return;
-    var need = ['barche', 'lavori', 'posti', 'deposito', 'portale'];
+    var need = ['barche', 'lavori', 'posti', 'deposito', 'impostazioni', 'portale'];
     for (var i = 0; i < need.length; i++) { var L = live(need[i]); await L.start; await whenReady(L, 15000); }
     var cur = LIVE.portale.map;
     ids.forEach(function (bid) {

@@ -1337,7 +1337,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var sub = [];
     if (showBoat && b && b.posto) sub.push(b.posto);
     if (v.note) sub.push(v.note);
-    if (!v.fatto && v.tipo === 'varo') { var ndp = depoOf(v.barcaId).length; if (ndp) sub.push(ndp + (ndp === 1 ? ' cosa in deposito' : ' cose in deposito') + ' da restituire'); }
+    if (!v.fatto && v.tipo === 'varo' && depoOn()) { var ndp = depoOf(v.barcaId).length; if (ndp) sub.push(ndp + (ndp === 1 ? ' cosa in deposito' : ' cose in deposito') + ' da restituire'); }
     var status = v.fatto ? '<span class="status ok">Fatto il ' + esc(fmtDate(v.fattoIl)) + '</span>' : '<span class="status" style="color:var(--' + (late ? 'late' : 'vio') + ')">' + esc(cap(variWhen(v))) + '</span>';
     var btn = (!v.fatto && S.canWrite) ? '<button type="button" class="chk" data-act="done-vari" data-id="' + esc(v.id) + '">' + I.check + 'Fatto</button>' : '';
     return '<div class="row"><button type="button" class="hit" data-act="edit-vari" data-id="' + esc(v.id) + '">' + dateBlock(v.data, lv) +
@@ -1967,11 +1967,13 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     h += secH('Attrezzatura di bordo', S.canWrite ? 'new-attr' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
     h += atb.length ? '<div class="group">' + atb.map(attrRow).join('') + '</div>' : '<div class="notice">Niente segnato. Aggiungi salpancora, verricelli, cuscineria, tendalino, teli e coperture: marca, misure e colori restano qui per la prossima volta.</div>';
 
+    if (depoOn()) {
     var dpb = depoOf(b.id), dpr = depoOf(b.id, true).filter(function (x) { return x.stato === 'restituito'; });
     h += secH('Roba in deposito' + (dpb.length ? ' (' + dpb.length + ')' : ''), S.canWrite ? 'new-depo' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
     h += dpb.length ? '<div class="group">' + dpb.map(depoRow).join('') + '</div>' + (S.canWrite ? '<button type="button" class="btn sec" data-act="depo-ric" data-id="' + esc(b.id) + '" style="width:100%;margin-top:10px">' + I.check + 'Riconsegna: spunta cosa restituisci</button>' : '')
       : '<div class="notice">Niente in deposito. Segna qui tender, fuoribordo, cuscini e tendalini del cliente: cosa, dove sono riposti e una foto.</div>';
     if (dpr.length) h += '<div class="sec-h" style="margin-top:14px"><span class="cap">Restituite</span></div><div class="group">' + dpr.slice(0, 10).map(depoRow).join('') + '</div>';
+    }
 
     var ricB = ricOfBoat(b);
     h += secH('Ricambi montati' + (ricB.length ? ' (' + ricB.length + ')' : ''));
@@ -6817,6 +6819,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   /* ---------- Roba del cliente in deposito: tender, fuoribordo, cuscini, tendalini… Cosa, dove è riposta, foto.
      Alla riconsegna si spunta ciò che torna al cliente. Il cliente la vede nel portale (cosa, quanti, foto: non dove né le note). ---------- */
+  function depoOn() { return sezOn('deposito'); } // si accende da Altro › Aspetto dell'app, tra le sezioni (spenta di base)
   var DEPO_TIPI = ['Tender', 'Fuoribordo', 'Cuscini', 'Tendalino', 'Bimini', 'Cappottina', 'Teli e coperture', 'Parabordi', 'Cime', 'Salvagenti e giubbotti', 'Zattera', 'Batterie', 'Carrello', 'Remi', 'Passerella'];
   function depoOf(bid, tutti) { return (S.depo || []).filter(function (x) { return x.barcaId === bid && (tutti || x.stato !== 'restituito'); }).sort(function (a, c) { return String(a.cosa || '').localeCompare(String(c.cosa || ''), 'it'); }); }
   function depoRow(x) {
@@ -7423,8 +7426,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['scadcantiere', 'Scadenze del cantiere', 'mezzi, attrezzature, sicurezza'], ['magazzino', 'Magazzino', 'ricambi e scorte'], ['rifiuti', 'Rifiuti', 'deposito, ritiri e registro'],
     ['misure', 'Misure e unità', 'convertitore, unità e filetti'], ['clienti', 'Clienti da sentire', 'barche ferme, contratti e scadenze dimenticate (solo amministratore)'],
     ['controllo', 'Controllo dei mezzi', 'prima dell’uso: gomme, freni, perdite; i mezzi che non vanno restano fermi (spento di base)'],
-    ['tablet', 'Tablet condiviso con PIN', 'un tablet in officina per tutti: nome, PIN di 4 cifre, si richiude dopo 5 minuti (spento di base)']];
-  var SEZ_OFF = ['tablet', 'controllo']; // sezioni spente finché l'amministratore non le accende
+    ['tablet', 'Tablet condiviso con PIN', 'un tablet in officina per tutti: nome, PIN di 4 cifre, si richiude dopo 5 minuti (spento di base)'],
+    ['deposito', 'Roba del cliente in deposito', 'tender, cuscini, tendalini con foto e riconsegna; il cliente li vede nel portale (spento di base)'],
+    ['novita', 'Cosa c’è di nuovo', 'dopo un aggiornamento dell’app, una finestra con le novità, una volta a ognuno']];
+  var SEZ_OFF = ['tablet', 'controllo', 'deposito']; // sezioni spente finché l'amministratore non le accende
   // riquadri di Home e Pannello che appartengono a una sezione (spariscono se le loro sezioni sono tutte spente)
   var SEZ_BLOCCHI = { w_mag: ['magazzino'], w_porto: ['porto'], w_rif: ['rifiuti'], w_batt: ['batterie'], vari: ['vari'], prog: ['programma'], meteo: ['meteo'],
     contr: ['porto'], riord: ['magazzino', 'batterie'], serv: ['operazioni'], magb: ['magazzino', 'batterie'] };
@@ -8749,7 +8754,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       var b = boatById(a.barcaId);
       return { s: gqScore(words, attrLabel(a), [a.tipo, a.marca, a.modello, a.misure, a.colore, b && b.nome]), h: gqRow('attr', a.id, attrLabel(a), [a.tipo !== attrLabel(a) ? a.tipo : '', a.marca, b ? b.nome : ''].filter(Boolean).join(' · '), '') };
     }));
-    grp('Roba in deposito', (S.depo || []).map(function (x) {
+    grp('Roba in deposito', (depoOn() ? S.depo || [] : []).map(function (x) {
       var b = boatById(x.barcaId);
       return { s: gqScore(words, x.cosa, [x.dove, x.note, b && b.nome, b && b.proprietario]), h: gqRow('depo', x.id, x.cosa || 'Roba in deposito', [b ? b.nome : '', x.stato === 'restituito' ? 'restituita' : x.dove].filter(Boolean).join(' · '), '') };
     }));
