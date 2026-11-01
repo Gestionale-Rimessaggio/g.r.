@@ -1065,7 +1065,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     brush: svg('<path d="M14.5 4.5l5 5-8.5 8.5h-5v-5z"/><path d="M12.5 6.5l5 5"/><path d="M4 20.5h6"/>'),
     help: svg('<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.6"/><path d="M12 16.6v.4"/>')
   };
-  var ALTRO = ['altro', 'programma', 'pannello', 'riepiloghi', 'batterie', 'scadenze', 'vari', 'giro', 'ditte', 'magazzino', 'preventivi', 'rifiuti', 'scadcantiere', 'assenze', 'misure', 'ore', 'operazioni', 'backup', 'notifiche', 'categorie', 'aspetto', 'controllo'];
+  var ALTRO = ['altro', 'richiestecl', 'vernice', 'programma', 'pannello', 'riepiloghi', 'batterie', 'scadenze', 'vari', 'giro', 'ditte', 'magazzino', 'preventivi', 'rifiuti', 'scadcantiere', 'assenze', 'misure', 'ore', 'operazioni', 'backup', 'notifiche', 'categorie', 'aspetto', 'controllo'];
   function NOME() { return NM_MARCA.nome(); } // il nome dell'azienda (Altro › Aspetto)
   var LOGO_IMG = document.createElement('img'); LOGO_IMG.className = 'logo';
   function logoHome() { LOGO_IMG.alt = NOME(); LOGO_IMG.src = document.getElementById('scritta-src').getAttribute('src'); }
@@ -1558,6 +1558,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         (S.canWrite ? '<button type="button" class="btn" data-act="done-scad" data-id="' + esc(x.s.id) + '">Segna come fatta</button>' : '') +
         (x.i.boat ? '<button type="button" class="btn sec" data-act="open-boat" data-id="' + esc(x.i.boat.id) + '">Apri scheda</button>' : '')));
     });
+    if (sezOn('richieste') && S.canWrite && rqcAperte().length) { var rqa = rqcAperte();
+      push('ferie', featCard('soon', I.bell, rqa.length === 1 ? 'Una richiesta da un cliente' : rqa.length + ' richieste dai clienti', rqa.slice(0, 3).map(function (r) { var bb = boatById(r.barcaId); return (bb ? bb.nome : 'Barca') + ' · ' + rqcTitolo(r); }).join(', '), '', '<button type="button" class="btn" data-act="tab" data-tab="richiestecl">Vedi e rispondi</button>')); }
     if (assAdmin() && assPending().length) { var ap = assPending();
       push('ferie', featCard('soon', I.cal, ap.length === 1 ? 'Una richiesta di ferie o permesso' : ap.length + ' richieste di ferie o permessi', ap.slice(0, 3).map(function (a) { return nameOf(a.utente) + ' · ' + assWhen(a); }).join(', '), '', '<button type="button" class="btn" data-act="tab" data-tab="assenze">Vedi e approva</button>')); }
     (S.assenze || []).filter(function (a) { return a.utente === S.myId && a.stato !== 'richiesta' && a.decisaDa && a.decisaDa !== S.myId && a.decisaIl && a.decisaIl >= addDays(t0, -3); }).slice(0, 2).forEach(function (a) {
@@ -6181,6 +6183,102 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     });
     return out;
   }
+  /* ---------- Vernice per le carene (idea 54, Aspetto dell’app › sezioni) ----------
+     Superficie della carena dalle misure della barca (rettangolo L × B per 0,85 a motore, 0,75 a vela e gommone), litri = superficie × mani / resa
+     + 10% di scarto. Carene in programma: lavorazioni da fare di carena/antivegetativa e scadenze «Antivegetativa» entro 6 mesi. */
+  function vnCfg() { var c = S.vnCfg && !S.vnCfg._del ? S.vnCfg : {}; return { resa: num(c.verniceResa) || 8, mani: num(c.verniceMani) || 2 }; }
+  function vnArea(b) { var d = boatDims(b); if (!d) return null; return Math.round(d.L * d.B * (b.tipo === 'Vela' || b.tipo === 'Gommone' ? 0.75 : 0.85) * 10) / 10; }
+  function vnLitri(b) { var a = vnArea(b), c = vnCfg(); return a ? Math.ceil(a * c.mani / c.resa * 1.1 * 10) / 10 : null; }
+  function vnCarene() {
+    var o = {}, lim = addDays(todayISO(), 183);
+    S.lavori.forEach(function (l) { if (l.barcaId && l.stato !== 'fatto' && (l.categoria === 'Carena e antivegetativa' || /antivegetativ|carena/i.test(l.titolo || ''))) o[l.barcaId] = o[l.barcaId] || { perche: l.titolo || 'Lavorazione di carena' }; });
+    S.scadenze.forEach(function (x) { if (x.barcaId && !x.fatta && /antivegetativ/i.test(x.tipo || '') && (!x.data || x.data <= lim)) o[x.barcaId] = o[x.barcaId] || { perche: 'Scadenza antivegetativa' + (x.data ? ' ' + fmtDate(x.data) : '') }; });
+    return Object.keys(o).map(function (id) { var b = boatById(id); return b ? { b: b, perche: o[id].perche, l: vnLitri(b), a: vnArea(b) } : null; }).filter(Boolean).sort(function (x, y) { return (y.l || 0) - (x.l || 0); });
+  }
+  function vnMag() { // antivegetativa in magazzino, in litri
+    var st = stockMap(), lit = 0, ignoti = [];
+    S.mag.forEach(function (m) {
+      if (!/antivegetativ/i.test(m.nome || '')) return; var q = st[m.id] || 0; if (q <= 0) return;
+      if (m.um === 'l') { lit += q; return; }
+      var mm = /(\d+(?:[.,]\d+)?)\s*(?:l|lt|litri)\b/i.exec(m.nome || ''); if (mm) lit += q * parseFloat(mm[1].replace(',', '.')); else ignoti.push(m.nome);
+    });
+    return { litri: Math.round(lit * 10) / 10, ignoti: ignoti };
+  }
+  function viewVernice() {
+    if (!sezOn('vernice')) return sezSpentaMsg('Vernice per le carene è spenta');
+    var c = vnCfg(), car = vnCarene(), tot = 0, senza = 0, mg = vnMag();
+    car.forEach(function (x) { if (x.l) tot += x.l; else senza++; }); tot = Math.round(tot * 10) / 10;
+    var manca = Math.max(0, Math.round((tot - mg.litri) * 10) / 10);
+    var h = '<p class="context" style="margin-top:12px">Stima per ' + c.mani + (c.mani === 1 ? ' mano' : ' mani') + ' di antivegetativa, con una resa di ' + fmtNum(c.resa, 1) + ' m² al litro e il 10% di scarto.</p>';
+    h += '<div class="grid2" style="margin-top:12px"><div class="preview"><b style="font-size:22px">' + fmtNum(tot, 1) + ' l</b><br>per ' + car.length + (car.length === 1 ? ' carena in programma' : ' carene in programma') + '</div>' +
+      '<div class="preview"><b style="font-size:22px">' + fmtNum(mg.litri, 1) + ' l</b><br>in magazzino</div></div>';
+    h += '<div class="notice" style="margin-top:10px">' + (manca > 0 ? 'Da ordinare: <b>circa ' + fmtNum(manca, 1) + ' litri</b> (' + Math.ceil(manca / 2.5) + ' latte da 2,5 l o ' + Math.ceil(manca / 0.75) + ' da 0,75 l).' : 'In magazzino ce n’è abbastanza per le carene in programma.') +
+      (senza ? ' ' + senza + (senza === 1 ? ' barca non ha' : ' barche non hanno') + ' la lunghezza in scheda: non sono nel conto.' : '') + (mg.ignoti.length ? ' Non so quanti litri ci sono in: ' + esc(mg.ignoti.join(', ')) + ' (scrivi la misura nel nome, es. «2,5 l»).' : '') + '</div>';
+    h += secH('Carene in programma') + (car.length ? '<div class="group">' + car.map(function (x) {
+      return '<button type="button" class="row" data-act="open-boat" data-id="' + esc(x.b.id) + '"><span class="main"><span class="title">' + esc(x.b.nome || 'Barca') + '</span><span class="sub">' + esc([x.perche, x.a ? 'carena ≈ ' + fmtNum(x.a, 1) + ' m²' : 'manca la lunghezza'].join(' · ')) + '</span></span><span class="side"><b>' + (x.l ? fmtNum(x.l, 1) + ' l' : '—') + '</b></span></button>';
+    }).join('') + '</div>' : '<div class="notice">Nessuna carena in programma: aggiungi una lavorazione di antivegetativa o la scadenza «Antivegetativa» alle barche.</div>');
+    h += secH('Una barca qualsiasi') + '<div class="group" style="padding:12px 14px"><select id="vn-b" data-act-change="vn-b"><option value="">Scegli la barca…</option>' + S.boats.slice().sort(byName).map(function (b) { return '<option value="' + esc(b.id) + '">' + esc(b.nome || 'Barca') + '</option>'; }).join('') + '</select><p class="cap" id="vn-r" style="margin:8px 2px 0"></p></div>';
+    if (S.isOwner && S.canWrite) h += secH('Resa e mani (amministratore)') + '<div class="group" style="padding:12px 14px"><div class="grid2">' + field(lab('vn-resa', 'Resa (m² al litro, per mano)'), '<input id="vn-resa" type="text" inputmode="decimal" value="' + esc(String(c.resa).replace('.', ',')) + '">') +
+      field(lab('vn-mani', 'Mani'), '<input id="vn-mani" type="text" inputmode="numeric" value="' + esc(String(c.mani)) + '">') + '</div><span class="hint">Sulla latta c’è la resa (di solito 8-10 m² al litro).</span><button type="button" class="btn self-start" data-act="vn-salva" style="margin-top:8px">Salva</button></div>';
+    return h;
+  }
+  async function vnSalva() {
+    var r = parseDec(($('#vn-resa') || {}).value), m = parseIntS(($('#vn-mani') || {}).value);
+    if (!(r > 0 && r < 50) || !(m > 0 && m < 10)) { toast('Controlla resa e mani', true); return; }
+    var d = { verniceResa: r, verniceMani: m, modificato: new Date().toISOString() };
+    var ref = S.db.collection('impostazioni').doc('vernice'); if (await w(function () { return ref.set(d); })) { S.vnCfg = d; toast('Salvato'); render(); }
+  }
+  document.addEventListener('change', function (e) {
+    if (!e.target || e.target.id !== 'vn-b') return; var b = boatById(e.target.value), out = $('#vn-r'); if (!out) return;
+    if (!b) { out.textContent = ''; return; } var a = vnArea(b), l = vnLitri(b);
+    out.textContent = a ? (b.nome || 'La barca') + ': carena ≈ ' + fmtNum(a, 1) + ' m², servono circa ' + fmtNum(l, 1) + ' litri (' + vnCfg().mani + ' mani).' : 'Scrivi la lunghezza nella scheda della barca per fare il conto.';
+  });
+  /* Richieste dei clienti dal portale (idea 4, Aspetto dell’app › sezioni): varo e problemi, con risposta */
+  var RQC_ST = { inviata: ['Nuova', 'soon'], vista: ['Ricevuta', 'acc'], confermata: ['Confermata', 'ok'], no: ['Non possibile', 'late'] };
+  function rqcList() { return (S.rqc || []).filter(function (r) { return !r._del; }).sort(function (a, b) { return String(b.creato || '').localeCompare(String(a.creato || '')); }); }
+  function rqcAperte() { return rqcList().filter(function (r) { return r.stato === 'inviata' || r.stato === 'vista'; }); }
+  function rqcTitolo(r) { return r.tipo === 'varo' ? 'Varo il ' + fmtDate(r.data) : 'Problema'; }
+  function rqcRow(r) {
+    var b = boatById(r.barcaId), st = RQC_ST[r.stato] || RQC_ST.inviata;
+    return '<button type="button" class="row" data-act="rqc-open" data-id="' + esc(r.id) + '"><span class="main"><span class="title">' + esc(rqcTitolo(r) + ' · ' + (b ? b.nome || 'Barca' : 'Barca eliminata')) + '</span><span class="sub">' +
+      esc([r.nome, String(r.testo || '').slice(0, 80), fmtDate(String(r.creato || '').slice(0, 10))].filter(Boolean).join(' · ')) + '</span></span><span class="side"><span class="pill ' + st[1] + '">' + st[0] + '</span></span></button>';
+  }
+  function viewRichiesteCl() {
+    if (!sezOn('richieste')) return sezSpentaMsg('Le richieste dei clienti sono spente');
+    var ap = rqcAperte(), alt = rqcList().filter(function (r) { return ap.indexOf(r) < 0; }).slice(0, 30);
+    var h = '<p class="context" style="margin-top:12px">I clienti con il portale chiedono il varo per un giorno o segnalano un problema, anche con le foto. Rispondi qui: il cliente vede la risposta e lo stato nel portale.</p>';
+    h += secH('Da rispondere (' + ap.length + ')') + (ap.length ? '<div class="group">' + ap.map(rqcRow).join('') + '</div>' : '<div class="notice">Nessuna richiesta da rispondere.</div>');
+    if (alt.length) h += secH('Già risposte') + '<div class="group">' + alt.map(rqcRow).join('') + '</div>';
+    return h;
+  }
+  function rqcSheet(r) {
+    var b = boatById(r.barcaId), puo = S.canWrite, st = RQC_ST[puo && r.stato === 'inviata' ? 'vista' : r.stato] || RQC_ST.inviata;
+    if (puo && r.stato === 'inviata') S.db.collection('richiesteCliente').doc(r.id).update({ stato: 'vista', vistaIl: new Date().toISOString(), modificato: new Date().toISOString() }).catch(function () { });
+    var body = '<div class="group pan"><div class="kv-row"><span class="k">Barca</span><span class="v">' + esc(b ? b.nome || 'Barca' : 'Barca eliminata') + '</span></div>' +
+      '<div class="kv-row"><span class="k">Cliente</span><span class="v">' + esc(r.nome || '') + '</span></div>' +
+      '<div class="kv-row"><span class="k">Chiede</span><span class="v"><b>' + esc(rqcTitolo(r)) + '</b></span></div>' +
+      '<div class="kv-row"><span class="k">Inviata il</span><span class="v">' + esc(fmtDate(String(r.creato || '').slice(0, 10))) + '</span></div>' +
+      '<div class="kv-row"><span class="k">Stato</span><span class="v"><span class="pill ' + st[1] + '">' + st[0] + '</span></span></div></div>' +
+      (r.testo ? '<p style="white-space:pre-wrap;margin:10px 2px">' + esc(r.testo) + '</p>' : '') +
+      ((r.foto || []).length ? '<div class="thumbs">' + r.foto.map(function (id) { return '<span class="thumb-w"><img class="thumb" alt="" src="' + esc(blobSrc(id)) + '" data-blob="' + esc(id) + '" data-act="photo" data-id="' + esc(id) + '"></span>'; }).join('') + '</div>' : '');
+    if (puo) body += field(lab('f-rqr', 'Risposta al cliente'), '<textarea id="f-rqr" maxlength="1000" placeholder="' + (r.tipo === 'varo' ? 'es. va bene, alle 9 in banchina' : 'es. passiamo a vederla giovedì') + '">' + esc(r.risposta || '') + '</textarea>') +
+      field(lab('f-rqs', 'Esito'), '<select id="f-rqs">' + opts([['vista', 'Ricevuta (ci stiamo lavorando)'], ['confermata', 'Confermata'], ['no', 'Non possibile']], r.stato === 'inviata' ? 'vista' : r.stato) + '</select>') +
+      (r.tipo === 'varo' && !r.varoId ? '<label class="chk"><input type="checkbox" id="f-rqv" checked> Se confermata, metti il varo in Vari e alaggi</label>' : '') +
+      (r.risposta && r.rispostoDa ? '<p class="cap">Ultima risposta di ' + esc(nameOf(r.rispostoDa)) + ' il ' + esc(fmtDate(String(r.rispostoIl || '').slice(0, 10))) + '.</p>' : '');
+    openSheet({ title: r.tipo === 'varo' ? 'Richiesta di varo' : 'Problema segnalato', menu: !puo, submitLabel: 'Rispondi', item: r, body: body,
+      onSubmit: puo ? async function () {
+        var stt = $('#f-rqs').value, now = new Date().toISOString(), d = { risposta: String($('#f-rqr').value || '').trim().slice(0, 1000), stato: stt, rispostoDa: S.myId, rispostoIl: now, modificato: now };
+        var vref = null;
+        if (stt === 'confermata' && r.tipo === 'varo' && !r.varoId && $('#f-rqv') && $('#f-rqv').checked && b) {
+          vref = S.db.collection('vari').doc(); d.varoId = vref.id;
+        }
+        var ok = true;
+        if (vref) ok = await w(function () { return vref.set({ tipo: 'varo', barcaId: b.id, data: r.data, ora: '', note: 'Chiesto dal cliente dal portale' + (r.testo ? ': ' + r.testo.slice(0, 200) : ''), fatto: false, creato: now, creatoDa: S.myId || '', utente: S.myId || '', modificato: now }); });
+        if (ok) ok = await w(function () { return S.db.collection('richiesteCliente').doc(r.id).update(d); });
+        if (ok) toast(vref ? 'Risposto e varo messo in programma' : 'Risposto al cliente');
+        return ok;
+      } : null });
+  }
   function viewMisure() {
     var tab = V.misTab || 'converti', h = '<div class="chips" role="group" aria-label="Strumento">' + [['converti', 'mm e pollici'], ['unita', 'Altre unità'], ['chiavi', 'Chiavi'], ['filetti', 'Filetti']].map(function (c) {
       return '<button type="button" data-act="mis-tab" data-v="' + c[0] + '" aria-pressed="' + (tab === c[0]) + '">' + c[1] + '</button>'; }).join('') + '</div><div id="mis" data-tab="' + tab + '">';
@@ -6381,6 +6479,24 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (c && c.tot) st += ' <span class="pill' + (c.fatti === c.tot ? ' ok' : '') + '">' + c.fatti + '/' + c.tot + ' lavori fatti</span>' + (c.fatti ? ' <span class="pill ' + (c.vere > c.prev * 1.1 ? 'late' : 'ok') + '">' + esc(fmtH(c.vere)) + ' su ' + esc(fmtH(c.prev)) + ' previste</span>' : '');
     return '<button type="button" class="row" data-act="prev-edit" data-id="' + esc(p.id) + '">' + dateBlock(p.data, '') + '<span class="main"><span class="title">' + esc(p.titolo || 'Preventivo') + '</span><span class="sub">' + esc(sub.join(' · ')) + '</span><span class="status">' + st + '</span></span></button>';
   }
+  /* Avanzamento lavori al cliente (idea P5, spento di base): quante voci del preventivo accettato sono fatte.
+     Il cliente lo vede nel suo portale (nm-fb.js, portaleOf) e qui si prepara il testo da mandare a chi non usa il portale. */
+  function avTesto(p) {
+    var b = boatById(p.barcaId) || {}, ls = prevLavori(p).filter(function (l) { return !l.annullata; }), f = ls.filter(function (l) { return l.stato === 'fatto'; }).length;
+    var L = ['Buongiorno' + (b.proprietario ? ' ' + String(b.proprietario).split(' ')[0] : '') + ', a che punto sono i lavori su ' + (b.nome || 'la sua barca') + (p.numero ? ' (preventivo n. ' + p.numero + ')' : '') + ':', ''];
+    ls.forEach(function (l) { L.push((l.stato === 'fatto' ? '✅ ' : l.stato === 'in_corso' ? '🔧 ' : '⬜ ') + (l.titolo || 'Lavoro') + (l.stato === 'in_corso' ? ' (in corso)' : '')); });
+    L.push('', 'Fatti ' + f + ' su ' + ls.length + ' (' + Math.round(f / Math.max(1, ls.length) * 100) + '%).', NOME());
+    return L.join('\n');
+  }
+  function avSheet(p) {
+    var b = boatById(p.barcaId) || {}, t = avTesto(p), tel = String(b.telefono || '').replace(/[^\d+]/g, ''), wa = tel ? (tel.charAt(0) === '+' ? tel.slice(1) : (tel.length <= 10 ? '39' + tel : tel)) : '';
+    openSheet({ title: 'Avanzamento lavori', menu: true,
+      body: '<p class="context">Il testo è pronto: mandalo per WhatsApp o email, oppure copialo. Se il cliente ha il portale, lo vede già lì.</p>' +
+        '<textarea id="av-t" rows="10" style="width:100%">' + esc(t) + '</textarea>' +
+        '<div class="grid2" style="margin-top:10px">' + (wa ? '<a class="btn" href="https://wa.me/' + esc(wa) + '?text=' + encodeURIComponent(t) + '" target="_blank" rel="noopener">WhatsApp</a>' : '<button type="button" class="btn" data-act="av-copia">Copia</button>') +
+        (b.email ? '<a class="btn sec" href="mailto:' + esc(b.email) + '?subject=' + encodeURIComponent('Lavori su ' + (b.nome || 'la barca')) + '&body=' + encodeURIComponent(t) + '">Email</a>' : '<button type="button" class="btn sec" data-act="av-copia">Copia</button>') + '</div>' +
+        (wa || b.email ? '<button type="button" class="link" data-act="av-copia" style="margin-top:10px">Copia il testo</button>' : '') });
+  }
   function prevOfBoat(bid) { return (S.prev || []).filter(function (p) { return p.barcaId === bid; }).sort(function (a, c) { return String(c.data || '').localeCompare(String(a.data || '')); }); }
   function viewPreventivi() {
     if (!prevOn()) return sezSpentaMsg('I preventivi sono spenti');
@@ -6417,7 +6533,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         field(lab('f-pvno', 'Note'), '<textarea id="f-pvno" placeholder="es. il cliente vuole anche il preventivo per la lucidatura">' + esc(p.note || '') + '</textarea>') +
         (c && c.tot ? '<div class="lbl">Ore previste e ore vere</div><div class="group pan">' + lavs.map(function (l) {
           return '<div class="kv-row"><span class="k">' + esc(l.titolo || 'Lavoro') + '</span><span class="v">' + (l.stato === 'fatto' ? esc(fmtH(num(l.oreLavoro) || 0) + ' su ' + fmtH(num(l.oreStima) || 0)) : esc(l.stato === 'in_corso' ? 'in corso' : 'da fare')) + '</span></div>';
-        }).join('') + (c.fatti ? '<div class="kv-row"><span class="k"><b>Totale lavori fatti</b></span><span class="v ' + (c.vere > c.prev * 1.1 ? 't-late' : 't-ok') + '">' + esc(fmtH(c.vere) + ' su ' + fmtH(c.prev) + ' previste') + '</span></div>' : '') + '</div>' : ''),
+        }).join('') + (c.fatti ? '<div class="kv-row"><span class="k"><b>Totale lavori fatti</b></span><span class="v ' + (c.vere > c.prev * 1.1 ? 't-late' : 't-ok') + '">' + esc(fmtH(c.vere) + ' su ' + fmtH(c.prev) + ' previste') + '</span></div>' : '') + '</div>' : '') +
+        (avOn() && c && c.tot ? '<button type="button" class="btn sec self-start" data-act="prev-avanz" data-id="' + esc(p.id) + '" style="margin-top:10px">Manda l’avanzamento al cliente (' + c.fatti + ' di ' + c.tot + ')</button>' : ''),
       onOpen: function (f) {
         function tot() { var t = 0; Array.prototype.forEach.call(f.querySelectorAll('.pv-o'), function (x) { t += parseDec(x.value) || 0; }); $('#pv-tot').textContent = t ? 'Totale previsto: ' + fmtH(t) : ''; }
         f.addEventListener('input', function (e) { if (e.target.classList && e.target.classList.contains('pv-o')) tot(); });
@@ -7782,9 +7899,13 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['deposito', 'Roba del cliente in deposito', 'tender, cuscini, tendalini con foto e riconsegna; il cliente li vede nel portale (spento di base)'],
     ['postogiusto', 'Trova il posto giusto', 'propone i posti liberi dove la barca entra; nel posto si scrive la barca più grande che ci sta (spento di base)'],
     ['qrbarca', 'Etichetta QR sulla barca', 'nella scheda della barca: stampa l’etichetta col QR che apre la sua scheda (spento di base)'],
+    ['schede', 'Schede di sicurezza dei prodotti', 'nell’articolo del magazzino: link o foto della scheda, revisione e pericoli; in Magazzino quelle che mancano (spento di base)'],
+    ['vernice', 'Vernice per le carene', 'quanta antivegetativa serve per le carene in programma, confrontata col magazzino (spento di base)'],
+    ['avanzamento', 'Avanzamento lavori al cliente', 'per i preventivi accettati: lavori fatti e da fare nel portale del cliente e testo da mandargli (spento di base)'],
+    ['richieste', 'Richieste dei clienti dal portale', 'il cliente chiede il varo per un giorno o segnala un problema con le foto; voi rispondete (spento di base)'],
     ['novita', 'Cosa c’è di nuovo', 'dopo un aggiornamento dell’app, una finestra con le novità, una volta a ognuno'],
     ['portomio', 'Porto disegnato da voi', 'la mappa del porto: i vostri pontili e posti sopra la foto, con Porto e posti barca (spento di base: senza, il Porto è l’elenco dei posti)']];
-  var SEZ_OFF = ['tablet', 'controllo', 'deposito', 'portomio', 'postogiusto', 'qrbarca']; // sezioni spente finché l'amministratore non le accende
+  var SEZ_OFF = ['tablet', 'controllo', 'deposito', 'portomio', 'postogiusto', 'qrbarca', 'schede', 'vernice', 'avanzamento', 'richieste']; // sezioni spente finché l'amministratore non le accende
   // riquadri di Home e Pannello che appartengono a una sezione (spariscono se le loro sezioni sono tutte spente)
   var SEZ_BLOCCHI = { w_mag: ['magazzino'], w_porto: ['porto'], w_rif: ['rifiuti'], w_batt: ['batterie'], vari: ['vari'], prog: ['programma'], meteo: ['meteo'],
     contr: ['porto'], riord: ['magazzino', 'batterie'], serv: ['operazioni'], magb: ['magazzino', 'batterie'] };
@@ -8062,13 +8183,15 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       ['operazioni', I.list, '', 'Servizi di cantiere', 'Trasporti, alaggi, movimentazioni, vari, lavaggi: passaggi e tempi', runs ? '<span class="pill acc">' + runs + ' in corso</span>' : ''],
       ['scadenze', I.alarm, 'late', 'Scadenze', 'Tagliandi, assicurazioni, contratti', late ? '<span class="pill late">' + late + ' scadute</span>' : ''],
       ['scadcantiere', I.alarm, 'soon', 'Scadenze del cantiere', 'Mezzi, attrezzature e sicurezza: revisioni, verifiche, estintori', scCounts().late ? '<span class="pill late">' + scCounts().late + (scCounts().late === 1 ? ' scaduta' : ' scadute') + '</span>' : scCounts().soon ? '<span class="pill soon">' + scCounts().soon + ' entro 30 giorni</span>' : ''],
+      ['richiestecl', I.bell, 'soon', 'Richieste dei clienti', 'Vari chiesti e problemi segnalati dal portale, con la risposta', rqcAperte().length ? '<span class="pill soon">' + rqcAperte().length + ' da rispondere</span>' : ''],
+      ['vernice', I.box, 'acc', 'Vernice per le carene', 'Quanta antivegetativa serve per le carene in programma e quanta ordinarne', ''],
       ['notifiche', I.bell, 'acc', 'Notifiche', 'Avvisi sul telefono per le scadenze e il cronometro', ''],
       ['categorie', I.list, '', 'Categorie dei lavori', 'Motore, carena, coperta…: aggiungi, rinomina o togli', ''],
       ['controllo', I.truck, 'soon', 'Controllo dei mezzi', 'Prima di usarli: gomme, freni, perdite… e i mezzi fermi', (function () { var f = ctrlList().filter(function (m) { return m.fermo; }).length, n = ctrlDaFare().length; return f ? '<span class="pill late">' + f + (f === 1 ? ' fermo' : ' fermi') + '</span>' : n ? '<span class="pill soon">' + n + ' da controllare</span>' : ''; })()],
       S.isOwner ? ['aspetto', I.brush, 'vio', 'Aspetto dell’app', 'Nome dell’azienda, colori dello sfondo e loghi', ''] : null,
       ['backup', I.dl, 'ok', 'Copia dei dati', 'Scarica una copia di tutto o recupera ciò che è stato cancellato', '']
     ];
-    rows = rows.filter(function (r) { return r && sezOn(r[0]); });
+    rows = rows.filter(function (r) { return r && sezOn(r[0]) && (r[0] !== 'richiestecl' || sezOn('richieste')); });
     if (!sezOn('porto')) rows.forEach(function (r) { if (r[0] === 'mappa') { r[3] = 'Mappa del cantiere'; r[4] = mapLibera() ? 'La pianta del cantiere in scala' : 'Piazzale e capannone in scala'; r[5] = ''; } });
     var fbRows = window.__NM_FB && window.__NM_FB.altroRows ? window.__NM_FB.altroRows() : [];
     fbRows.forEach(function (r) { rows.push(['fb:' + r[0], I[r[1]] || I.list, r[2] || '', r[3], r[4], r[5] || '']); });
@@ -8417,6 +8540,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       (S.mag.length ? '<div class="grid2" style="margin-top:10px"><button type="button" class="btn sec" data-act="kit-list">' + I.list + 'Kit ricambi' + ((S.kit || []).length ? ' · ' + S.kit.length : '') + '</button><button type="button" class="btn sec" data-act="tab" data-tab="inventario">' + I.check + 'Inventario' + (invOpen() ? ' · in corso' : '') + '</button></div>' : '') +
       (S.mag.length ? '<button type="button" class="btn sec" data-act="mag-shop" style="width:100%;margin-top:10px">' + I.cart + 'Lista della spesa' + (shopList().length ? ' · ' + shopList().length + (shopList().length === 1 ? ' articolo' : ' articoli') : '') + '</button>' : '') +
       (S.mag.length ? '<div class="chips" role="group" aria-label="Raggruppa gli articoli" style="margin-top:10px"><button type="button" data-act="mag-group" data-g="tipo" aria-pressed="' + (V.magGroup !== 'cat') + '">Per tipo</button><button type="button" data-act="mag-group" data-g="cat" aria-pressed="' + (V.magGroup === 'cat') + '">Per categoria</button><button type="button" data-act="mag-group" data-g="forn" aria-pressed="' + (V.magGroup === 'forn') + '">Per fornitore</button></div>' : '') +
+      (S.mag.length && sdsOn() ? '<button type="button" class="btn sec" data-act="sds-list" style="width:100%;margin-top:10px">' + I.doc + 'Schede di sicurezza · ' + S.mag.filter(sdsHa).length + ' di ' + S.mag.filter(function (m) { return sdsHa(m) || sdsServe(m); }).length + '</button>' : '') +
       '<div id="mag-box">' + magListHtml() + '</div>';
   }
 
@@ -8783,7 +8907,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
 
   /* ---------- Barre ---------- */
-  var TITOLI = { controllo: 'Controllo dei mezzi', aspetto: 'Aspetto dell’app', riepiloghi: 'Riepiloghi', scheda: 'Scheda lavoro', scadenze: 'Scadenze', calendario: 'Calendario', barche: 'Barche', lavori: 'Lavorazioni da fare', altro: 'Altro', vari: 'Vari e alaggi', magazzino: 'Magazzino', preventivi: 'Preventivi', assenze: 'Ferie e permessi', misure: 'Misure e unità', rifiuti: 'Rifiuti', scadcantiere: 'Scadenze del cantiere', ore: 'Ore del mese', checklist: 'Checklist', operazioni: 'Servizi di cantiere', backup: 'Copia dei dati', programma: 'Programma', pannello: 'Pannello', batterie: 'Batterie', notifiche: 'Notifiche', categorie: 'Categorie', inventario: 'Inventario', giro: 'Giro di controllo', ditte: 'Ditte esterne' };
+  var TITOLI = { richiestecl: 'Richieste dei clienti', vernice: 'Vernice per le carene', controllo: 'Controllo dei mezzi', aspetto: 'Aspetto dell’app', riepiloghi: 'Riepiloghi', scheda: 'Scheda lavoro', scadenze: 'Scadenze', calendario: 'Calendario', barche: 'Barche', lavori: 'Lavorazioni da fare', altro: 'Altro', vari: 'Vari e alaggi', magazzino: 'Magazzino', preventivi: 'Preventivi', assenze: 'Ferie e permessi', misure: 'Misure e unità', rifiuti: 'Rifiuti', scadcantiere: 'Scadenze del cantiere', ore: 'Ore del mese', checklist: 'Checklist', operazioni: 'Servizi di cantiere', backup: 'Copia dei dati', programma: 'Programma', pannello: 'Pannello', batterie: 'Batterie', notifiche: 'Notifiche', categorie: 'Categorie', inventario: 'Inventario', giro: 'Giro di controllo', ditte: 'Ditte esterne' };
   // per l'amministratore: quale sezione apre ciascuno (lo registra nm-fb.js)
   function vistaNome() {
     if (V.tab === 'barche' && V.boatId && boatById(V.boatId)) return 'la barca ' + (boatById(V.boatId).nome || 'senza nome');
@@ -8826,8 +8950,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     }).join('') + '</div>' + sideMenu(cur);
   }
   /* menù completo a sinistra, solo su computer e tablet (sul telefono resta nascosto) */
-  var SIDE_GRUPPI = [['Officina', ['scheda', 'lavori', 'programma', 'calendario', 'assenze', 'misure']], ['Barche e clienti', ['barche', 'mappa', 'vari', 'scadenze', 'batterie', 'preventivi']],
-    ['Cantiere', ['operazioni', 'controllo', 'giro', 'scadcantiere', 'magazzino', 'ditte', 'rifiuti']], ['Amministrazione', ['pannello', 'riepiloghi', 'ore', 'notifiche', 'categorie', 'aspetto', 'backup']]];
+  var SIDE_GRUPPI = [['Officina', ['scheda', 'lavori', 'programma', 'calendario', 'assenze', 'misure']], ['Barche e clienti', ['barche', 'mappa', 'vari', 'scadenze', 'batterie', 'preventivi', 'richiestecl']],
+    ['Cantiere', ['operazioni', 'controllo', 'giro', 'scadcantiere', 'magazzino', 'vernice', 'ditte', 'rifiuti']], ['Amministrazione', ['pannello', 'riepiloghi', 'ore', 'notifiche', 'categorie', 'aspetto', 'backup']]];
   // ordine del menù: ogni amministratore può riordinare gruppi e voci con la matita in alto (si salva con i riquadri, in impostazioni/layout_<uid>)
   function sideGruppi() {
     var saved = lyCan() && lyCfg().side, def = {}, out = [], seen = {};
@@ -8909,7 +9033,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (S.status === 'absent') html = '<div class="notice" style="margin-top:14px">I dati del registro si aprono solo da Claude, con il tuo account. Apri il link della pagina da claude.ai o dall’app Claude per vedere e salvare barche, lavori e scadenze.</div>';
     else if (S.status === 'loading') html = '<div class="notice" style="margin-top:14px">Carico barche, lavori e scadenze…</div>';
     else if (wizOn()) html = viewWizard();
-    else html = ({ controllo: viewControllo, programma: viewProgramma, pannello: viewPannello, riepiloghi: viewRiepiloghi, batterie: viewBatterie, mappa: viewMappa, altro: viewAltro, backup: viewBackup, vari: viewVari, magazzino: viewMagazzino, preventivi: viewPreventivi, assenze: viewAssenze, misure: viewMisure, notifiche: viewNotifiche, categorie: viewCategorie, aspetto: viewAspetto, inventario: viewInventario, rifiuti: viewRifiuti, scadcantiere: viewScadCantiere, ore: viewOre, checklist: viewChecklist, operazioni: viewOperazioni, giro: viewGiro, ditte: viewDitte, home: viewHome, scheda: viewScheda, scadenze: viewScadenze, calendario: viewCalendario, lavori: viewLavori, barche: function () { return V.boatId ? viewBoat() : viewBarche(); } })[V.tab]();
+    else html = ({ richiestecl: viewRichiesteCl, vernice: viewVernice, controllo: viewControllo, programma: viewProgramma, pannello: viewPannello, riepiloghi: viewRiepiloghi, batterie: viewBatterie, mappa: viewMappa, altro: viewAltro, backup: viewBackup, vari: viewVari, magazzino: viewMagazzino, preventivi: viewPreventivi, assenze: viewAssenze, misure: viewMisure, notifiche: viewNotifiche, categorie: viewCategorie, aspetto: viewAspetto, inventario: viewInventario, rifiuti: viewRifiuti, scadcantiere: viewScadCantiere, ore: viewOre, checklist: viewChecklist, operazioni: viewOperazioni, giro: viewGiro, ditte: viewDitte, home: viewHome, scheda: viewScheda, scadenze: viewScadenze, calendario: viewCalendario, lavori: viewLavori, barche: function () { return V.boatId ? viewBoat() : viewBarche(); } })[V.tab]();
     if (TAB.as && S.status === 'ready') html = tabBar() + html;
     $('#view').innerHTML = html;
     renderTop(); renderTabs(); bindFeat(); tabCheck();
@@ -9315,6 +9439,16 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'Le assenze compaiono anche in programma, calendario e ore del mese.',
       'D|L’amministratore approva o rifiuta e lo vedi in Home. Puoi cancellare una tua richiesta finché non è decisa.',
       'A|Le richieste da approvare compaiono qui e in Home: approva o rifiuta con un tocco.'] },
+    richiestecl: { t: 'Richieste dei clienti', p: 'Vari chiesti e problemi segnalati dai clienti dal portale.', li: [
+      'Il cliente, dal suo portale, chiede il varo per un giorno o segnala un problema (anche con fino a 3 foto).',
+      'Le richieste nuove compaiono in Home e qui. Aprendola il cliente vede «Ricevuta».',
+      'Scrivi la risposta e scegli l’esito: Ricevuta, Confermata o Non possibile. Il cliente vede risposta e stato nel portale.',
+      'Confermando un varo puoi metterlo direttamente in Vari e alaggi, col giorno chiesto.'] },
+    vernice: { t: 'Vernice per le carene', p: 'Quanta antivegetativa serve e quanta ordinarne.', li: [
+      'La superficie della carena si stima da lunghezza e larghezza della barca (a motore 85%, a vela 75% del rettangolo). Più è precisa la scheda della barca, più è preciso il conto.',
+      'Le carene in programma sono le barche con una lavorazione da fare di antivegetativa o carena, o con la scadenza «Antivegetativa» nei prossimi 6 mesi.',
+      'In magazzino conta gli articoli con «antivegetativa» nel nome: in litri, oppure in latte se nel nome c’è la misura (es. «2,5 l»).',
+      'A|Resa (metri quadri per litro) e numero di mani si cambiano in fondo: valgono per tutti.'] },
     misure: { t: 'Misure e unità', p: 'Strumenti di misura per l’officina.', li: [
       'Convertitore tra millimetri e pollici.',
       '«Altre unità» converte lunghezza (mm, cm, dm, m, km, piedi, pollici, miglia nautiche), volume (ml, cl, dl, litri, m³, galloni USA e inglesi), potenza (W, kW, CV, HP), pressione (bar, mbar, psi, kPa, atm), velocità (nodi, km/h), peso, coppia di serraggio (Nm, lb·ft) e temperatura (°C, °F): scrivi in un campo e gli altri si aggiornano.',
@@ -9398,7 +9532,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'Si rompe il telefono? I dati non si perdono: basta entrare con la stessa email e password da un altro dispositivo.',
       'Il cliente vede ore e prezzi? No: vede solo dove è la barca, il suo stato e i lavori fatti.'] }
   };
-  var GUIDA_ORD = ['inizio', 'home', 'scheda', 'lavori', 'calendario', 'barche', 'barca', 'mappa', 'porto', 'altro', 'programma', 'pannello', 'riepiloghi', 'vari', 'giro', 'ditte', 'scadenze', 'scadcantiere', 'batterie', 'magazzino', 'preventivi', 'operazioni', 'controllo', 'rifiuti', 'assenze', 'ore', 'misure', 'notifiche', 'categorie', 'aspetto', 'backup', 'account', 'ai', 'faq'];
+  var GUIDA_ORD = ['inizio', 'home', 'scheda', 'lavori', 'calendario', 'barche', 'barca', 'mappa', 'porto', 'altro', 'programma', 'pannello', 'riepiloghi', 'vari', 'giro', 'ditte', 'scadenze', 'scadcantiere', 'batterie', 'magazzino', 'vernice', 'preventivi', 'richiestecl', 'operazioni', 'controllo', 'rifiuti', 'assenze', 'ore', 'misure', 'notifiche', 'categorie', 'aspetto', 'backup', 'account', 'ai', 'faq'];
   function guidaQui() {
     if (V.tab === 'barche' && V.boatId && boatById(V.boatId)) return 'barca';
     if (V.tab === 'mappa') return M.area === 'porto' ? 'porto' : 'mappa';
@@ -10902,11 +11036,12 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       '<span class="hint" style="margin-top:-6px">Nella scheda di ogni barca dove è montato vedi quando va cambiato di nuovo.</span>' +
       '<label class="check"><input type="checkbox" id="f-mil"' + (m.inLista ? ' checked' : '') + '> Mettilo nella lista della spesa anche se non è sotto scorta</label>' +
       field(lab('f-mnote', 'Note'), '<textarea id="f-mnote" placeholder="Codice, dove si trova…">' + esc(m.note || '') + '</textarea>') +
+      (sdsOn() ? sdsCampi(m) : '') +
       (hist.length ? '<div class="lbl">Ultimi movimenti</div><div class="group">' + hist.map(function (x) {
         return '<div class="hist"><span>' + esc(fmtDate(x.data)) + ' · ' + esc(x.t) + '</span><span class="q" style="color:var(--' + (x.q < 0 ? 'late' : 'ok') + ')">' + (x.q > 0 ? '+' : '') + esc(fmtQ(x.q, m.um)) + '</span></div>';
       }).join('') + '</div>' : '');
     openSheet({
-      title: isNew ? 'Nuovo articolo' : 'Articolo', body: body, deleteLabel: 'Elimina dal magazzino',
+      title: isNew ? 'Nuovo articolo' : 'Articolo', body: body, deleteLabel: 'Elimina dal magazzino', foto: sdsOn() ? m.sdsFoto || [] : [],
       onOpen: function (f) {
         var nm = f.querySelector('#f-mn'), ts = f.querySelector('#f-mt'), cs = f.querySelector('#f-mc'), tAuto = isNew || !m.tipo, cAuto = isNew || !m.categoria, um = f.querySelector('#f-mu'), uAuto = isNew;
         function hints() {
@@ -10936,8 +11071,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         if (!nome) { formErr('Scrivi il nome dell’articolo.'); return false; }
         var dup = magByName(nome);
         if (dup && (isNew || dup.id !== m.id)) { formErr('C’è già un articolo con questo nome.'); return false; }
+        var sdsD = sdsOn() ? sdsLeggi(f) : null; if (sdsD === false) return false;
         var data = { nome: nome, tipo: val(f, 'f-mt'), categoria: val(f, 'f-mc'), um: val(f, 'f-mu'), minimo: parseDec(val(f, 'f-mmin')), fornitore: val(f, 'f-mf'), qtaOrdine: parseDec(val(f, 'f-mqo')), inLista: !!f.querySelector('#f-mil').checked, note: val(f, 'f-mnote'), codice: val(f, 'f-mcod'), posizione: val(f, 'f-mpos'), cambioMesi: parseIntS(val(f, 'f-mcm')), cambioOre: parseIntS(val(f, 'f-mco')), modificato: now };
         function mov(id, q, tipo) { var mr = S.db.collection('movimenti').doc(); return w(function () { return mr.set({ articoloId: id, qta: q, tipo: tipo, data: todayISO(), utente: S.myId || '', creato: now }); }); }
+        if (sdsD) Object.assign(data, sdsD);
         if (isNew) {
           data.creato = now;
           var ref = S.db.collection('magazzino').doc();
@@ -10954,6 +11091,43 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         toast('Magazzino aggiornato'); return true;
       }
     });
+  }
+
+  /* ---------- Schede di sicurezza dei prodotti (idea 28, Aspetto dell’app › sezioni) ----------
+     Nell'articolo del magazzino: link alla scheda del produttore, foto delle pagine, data di revisione e pericoli.
+     In Magazzino l'elenco di tutte, con quelle che mancano: per i controlli (ASL, ispettorato) e per chi le usa. */
+  function sdsOn() { return sezOn('schede'); }
+  function avOn() { return sezOn('avanzamento'); }
+  var SDS_PER = ['Infiammabile', 'Corrosivo', 'Tossico', 'Nocivo o irritante', 'Pericoloso per l’ambiente', 'Sotto pressione'];
+  function sdsServe(m) { return m.tipo === 'prodotto' || /antivegetativ|vernic|smalt|resin|solvent|diluent|acetone|primer|stucc|catalizz|sgrassa|detergent|olio|grasso|gel ?coat|silicon|sigillant|colla|antiruggine|antigel|acido|spray/i.test(m.nome || ''); }
+  function sdsHa(m) { return !!((m.sds && m.sds.link) || (m.sdsFoto || []).length); }
+  function sdsCampi(m) {
+    var x = m.sds || {};
+    return '<div class="lbl">Scheda di sicurezza</div>' +
+      field(lab('f-sdl', 'Link alla scheda del produttore (facoltativo)'), inp('f-sdl', x.link, 'type="url" inputmode="url" autocapitalize="off" placeholder="https://…"'), 'Oppure fotografa le pagine qui sotto.') +
+      field(lab('f-sdr', 'Revisione del (facoltativo)'), inp('f-sdr', x.rev, 'type="date"')) +
+      '<div class="lbl" style="margin-top:4px">Pericoli</div><div class="chips" style="flex-wrap:wrap;margin-bottom:10px">' + SDS_PER.map(function (p, i) {
+        return '<label class="check" style="margin:0 10px 6px 0"><input type="checkbox" class="f-sdp" value="' + i + '"' + ((x.pericoli || []).indexOf(p) >= 0 ? ' checked' : '') + '> ' + esc(p) + '</label>'; }).join('') + '</div>' +
+      photoBlock(m.sdsFoto || []).replace('Foto (facoltative)', 'Foto della scheda (le pagine)');
+  }
+  function sdsLeggi(f) {
+    var link = val(f, 'f-sdl');
+    if (link && !/^https?:\/\//i.test(link)) { formErr('Il link della scheda deve iniziare con https://'); return false; }
+    var per = Array.prototype.filter.call(f.querySelectorAll('.f-sdp'), function (c) { return c.checked; }).map(function (c) { return SDS_PER[+c.value]; });
+    return { sds: { link: link, rev: val(f, 'f-sdr'), pericoli: per }, sdsFoto: SHEET.foto.slice() };
+  }
+  function sdsLista() {
+    var con = S.mag.filter(sdsHa).sort(byName), senza = S.mag.filter(function (m) { return !sdsHa(m) && sdsServe(m); }).sort(byName);
+    function riga(m) {
+      var x = m.sds || {}, sub = [x.pericoli && x.pericoli.length ? x.pericoli.join(', ') : '', x.rev ? 'revisione ' + fmtDate(x.rev) : '', (m.sdsFoto || []).length ? m.sdsFoto.length + ' foto' : ''].filter(Boolean).join(' · ');
+      return '<div class="row"><button type="button" class="hit" data-act="sds-art" data-id="' + esc(m.id) + '"><span class="main"><span class="title">' + esc(m.nome) + '</span><span class="sub">' + esc(sub || (sdsHa(m) ? 'scheda presente' : 'manca la scheda')) + '</span></span></button>' +
+        (x.link ? '<a class="mini" href="' + esc(x.link) + '" target="_blank" rel="noopener">Apri</a>' : (m.sdsFoto || []).length ? '<button type="button" class="mini" data-act="sds-foto" data-id="' + esc(m.id) + '">Foto</button>' : '') + '</div>';
+    }
+    openSheet({ title: 'Schede di sicurezza', menu: true,
+      body: '<p class="context">Le schede dei prodotti del magazzino: tienile aggiornate per chi le usa e per i controlli.</p>' +
+        (senza.length ? '<div class="lbl">Mancano (' + senza.length + ')</div><div class="group">' + senza.map(riga).join('') + '</div>' : '<div class="notice">Ci sono tutte le schede dei prodotti che sembrano pericolosi.</div>') +
+        (con.length ? '<div class="lbl" style="margin-top:12px">Ci sono (' + con.length + ')</div><div class="group">' + con.map(riga).join('') + '</div>' : '') +
+        '<p class="cap" style="margin-top:8px">«Mancano» = prodotti in latta o tanica e quelli che dal nome sembrano vernici, solventi, resine, oli… Per aggiungere la scheda tocca il prodotto.</p>' });
   }
 
   /* Vari e alaggi */
@@ -11147,6 +11321,13 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'mv-open': x = S.mag.find(function (m) { return m.id === id; }); if (x) magSheet(x); break;
       case 'ric-all': V.boatRicAll = true; render(); break;
       case 'kit-list': kitListSheet(); break;
+      case 'sds-list': sdsLista(); break;
+      case 'prev-avanz': var pa = (S.prev || []).find(function (x) { return x.id === id; }); if (pa) { closeSheet(); avSheet(pa); } break;
+      case 'av-copia': var at = $('#av-t'); if (at) { var fatto = function () { toast('Testo copiato'); }, vecchio = function () { at.select(); document.execCommand('copy'); fatto(); }; try { navigator.clipboard.writeText(at.value).then(fatto, vecchio); } catch (e) { vecchio(); } } break;
+      case 'vn-salva': vnSalva(); break;
+      case 'rqc-open': x = rqcList().find(function (r) { return r.id === id; }); if (x) rqcSheet(x); break;
+      case 'sds-art': var ma = S.mag.find(function (x) { return x.id === id; }); if (ma) { closeSheet(); magSheet(ma); } break;
+      case 'sds-foto': var mf = S.mag.find(function (x) { return x.id === id; }); if (mf && (mf.sdsFoto || []).length) openLightbox(mf.sdsFoto[0]); break;
       case 'kit-new': if (S.canWrite) kitSheet(null); break;
       case 'kit-edit': x = (S.kit || []).find(function (k) { return k.id === id; }); if (x && S.canWrite) kitSheet(x); break;
       case 'inv-start': if (S.canWrite) invStart(); break;
@@ -11540,7 +11721,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     db.collection('impostazioni').onSnapshot(function (snap) {
       var m = null, b = null, ly = {}, asp = null;
       var pm0 = S.portoMio; S.portoMio = null;
-      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'porto') S.portoMio = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
+      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'vernice') S.vnCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'porto') S.portoMio = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
       var mc = m !== S.mapCfg; S.mapCfg = m; S.bkInfo = b; S.layouts = ly; S.aspetto = asp;
       if (NM_MARCA.dalDatabase(asp) && V.asp) NM_MARCA.prova(V.asp); // l'aspetto scelto vale subito per tutti
       if ((V.tab === 'mappa' && (mc || pm0 !== S.portoMio)) || V.tab === 'aspetto' || V.tab === 'backup' || V.tab === 'batterie' || V.tab === 'rifiuti' || V.tab === 'notifiche' || V.tab === 'categorie' || V.tab === 'home' || V.tab === 'barche' || V.tab === 'pannello' || V.tab === 'riepiloghi') { if (!LY.drag) render(); }
@@ -11561,6 +11742,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     sub('cariche', function (x) { S.cariche = x; });
     sub('posti', function (x) { S.posti = toMap(x); });
     sub('richieste', function (x) { S.richieste = x; });
+    sub('richiesteCliente', function (x) { S.rqc = x; });
     sub('rifiuti', function (x) { S.rif = x; });
     sub('ritiri', function (x) { S.ritiri = x; });
     sub('scadCantiere', function (x) { S.scadC = x; });
