@@ -6,7 +6,7 @@
   'use strict';
   var CFG = window.NM_FIREBASE_CONFIG || null;
   var COLLS = ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
-    'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'programma', 'cariche', 'posti', 'richieste', 'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi'];
+    'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'deposito', 'programma', 'cariche', 'posti', 'richieste', 'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi'];
   var RUOLI = { base: 'Dipendente', editor: 'Dipendente', admin: 'Amministratore', cliente: 'Cliente' }; // «editor» era «Può cancellare»: ora vale come Dipendente
   var FULL_EVERY = 7 * 864e5;            // una rilettura completa a settimana per sicurezza
   var GIF0 = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
@@ -102,7 +102,7 @@
     '#nmfb .bc{margin-top:14px}#nmfb .bh{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}#nmfb .bn{font-size:1.25rem;font-weight:700}#nmfb .bm{color:#b9bccb;font-size:.95rem}' +
     '#nmfb .st{flex:none;font-size:.8rem;font-weight:600;padding:3px 10px;border-radius:99px;background:#26275e;color:#c9d4ff}#nmfb .st.acqua{background:#0f3b2a;color:#7fe0a0}#nmfb .st.lav{background:#3d2f0b;color:#ffcf6b}' +
     '#nmfb .kv{display:flex;justify-content:space-between;gap:12px;border-top:1px solid #2a2c5c;padding:10px 0;font-size:.95rem}#nmfb .kv span{color:#b9bccb}#nmfb .kv b{text-align:right;font-weight:600}' +
-    '#nmfb h5{margin:14px 0 6px;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:#9a9dc0}#nmfb .lv{display:flex;gap:12px;padding:7px 0;border-top:1px solid #23245a;font-size:.95rem}#nmfb .lv .d{flex:none;width:58px;color:#9a9dc0;font-variant-numeric:tabular-nums}' +
+    '#nmfb h5{margin:14px 0 6px;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:#9a9dc0}#nmfb .lv{display:flex;gap:12px;padding:7px 0;border-top:1px solid #23245a;font-size:.95rem}#nmfb .lv .d{flex:none;width:58px;color:#9a9dc0;font-variant-numeric:tabular-nums}#nmfb .dfo{display:flex;gap:6px;flex:none}#nmfb .dfo img{width:52px;height:52px;object-fit:cover;border-radius:9px;background:#23245a;cursor:zoom-in}#nmfb .dfo img.big{position:fixed;inset:0;margin:auto;width:auto;height:auto;max-width:94vw;max-height:80vh;z-index:5;border-radius:12px;box-shadow:0 0 0 100vmax rgba(0,0,0,.7);cursor:zoom-out}' +
     '#nmfb .gd{margin-top:18px;color:#b9bccb;font-size:.95rem}#nmfb .gd summary{color:#8cc2ff;cursor:pointer;padding:8px 0}#nmfb .gd ul{margin:4px 0 0;padding-left:20px}#nmfb .gd li{margin:6px 0}' +
     '#nmfb .upd{color:#8a8db0;font-size:.82rem;margin-top:10px}#nmfb .more{background:none;border:0;color:#8cc2ff;font:inherit;padding:8px 0;cursor:pointer}' +
     '#nmpan .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;width:100%}#nmpan .chip{display:inline-flex;align-items:center;gap:4px;background:#1e3a5f;color:#d6e8ff;border-radius:99px;padding:4px 4px 4px 10px;font-size:.9rem}' +
@@ -116,7 +116,7 @@
     '#nmcr .pill{display:inline-block;font-size:.78rem;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.1);color:#c9ccd6;margin-left:6px;font-weight:500}#nmcr .note{color:#9a9daa;font-size:.9rem;margin:12px 4px}' +
     /* computer e tablet: il pannello lascia libero il menù a sinistra dell'app (largo 236px) */
     '@media (min-width:768px) and (min-height:500px){#nmpan{left:236px}}' +
-    '#nmmsg{position:fixed;top:calc(env(safe-area-inset-top) + 64px);left:10px;right:10px;z-index:100000;display:flex;justify-content:center}#nmmsg .it{max-width:520px;width:100%;box-sizing:border-box;background:#1e3a5f;color:#fff;border:1px solid #2f8ff0;border-radius:14px;padding:12px 14px;font:15px/1.45 -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.3)}#nmmsg .ok{margin-top:8px;border:0;border-radius:10px;background:#2f8ff0;color:#fff;padding:8px 14px;font:inherit;cursor:pointer}#nmcr select.b{appearance:auto}' +
+    '#nmmsg,#nmabb{position:fixed;top:calc(env(safe-area-inset-top) + 64px);left:10px;right:10px;z-index:100000;display:flex;justify-content:center}#nmmsg .it,#nmabb .it{max-width:520px;width:100%;box-sizing:border-box;background:#1e3a5f;color:#fff;border:1px solid #2f8ff0;border-radius:14px;padding:12px 14px;font:15px/1.45 -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.3)}#nmmsg .ok,#nmabb .ok{margin-top:8px;border:0;border-radius:10px;background:#2f8ff0;color:#fff;padding:8px 14px;font:inherit;cursor:pointer}#nmcr select.b{appearance:auto}#nmnov{position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px}#nmnov .it{max-width:520px;width:100%;max-height:85vh;overflow:auto;box-sizing:border-box;background:#18212c;color:#eef3f8;border:1px solid #2a3644;border-radius:18px;padding:18px 18px 16px;font:15px/1.5 -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.5)}#nmnov h3{margin:0 0 6px;font-size:1.2rem}#nmnov h4{margin:12px 0 4px;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:#9aabbd}#nmnov ul{margin:0;padding-left:20px}#nmnov li{margin:6px 0}#nmnov .ok{margin-top:14px;width:100%;border:0;border-radius:12px;background:#2ec4b6;color:#062a26;padding:12px;font:600 15px/1 -apple-system,BlinkMacSystemFont,sans-serif;cursor:pointer}#nmabb{top:auto;bottom:calc(env(safe-area-inset-bottom) + 84px)}#nmabb .it{background:#4a3a12;border-color:#ffb020}#nmabb .ok{background:#ffb020;color:#2a1f00}' +
     '#nmatt{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 76px);right:10px;left:10px;z-index:100001;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}' +
     '#nmatt .it{pointer-events:auto;position:relative;max-width:420px;width:100%;box-sizing:border-box;background:#2b2c33;color:#fff;border-radius:14px;padding:10px 40px 10px 14px;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.3)}#nmatt .x{position:absolute;top:4px;right:4px;width:32px;height:32px;border:0;background:none;color:#c9cbe0;font-size:20px;line-height:1;cursor:pointer}' +
     '#nmatt .it b{display:block}#nmatt .it span{color:#c9cbe0}#nmattv{width:100%;text-align:left}#nmattv .ar{display:block;padding:10px 0;border-top:1px solid #2a2d55}#nmattv .ar:first-child{border-top:0}#nmattv .ar b{display:block}#nmattv .ar div{color:#b7bad8;font-size:.9rem}' +
@@ -238,7 +238,7 @@
   }
   function emit(L) {
     var s = snapOf(L); L.subs.slice().forEach(function (x) { try { x.next(s); } catch (e) { console.error(e); errScrivi(e); } });
-    if (L.name === 'barche' || L.name === 'lavori' || L.name === 'posti') schedulePortale();
+    if (L.name === 'barche' || L.name === 'lavori' || L.name === 'posti' || L.name === 'deposito' || L.name === 'impostazioni') schedulePortale();
   }
   function docSnap(id, d) { return { id: id, exists: !!d, data: function () { return d ? clone(d) : undefined; } }; }
 
@@ -549,6 +549,50 @@
       '<button class="lnk" id="nm-out">Esci</button>');
     $('#nm-out', o).onclick = logout;
   }
+  /* ---------- prova e abbonamento: aziende/{az}.scade (ultimo giorno, AAAA-MM-GG) e scadeMs (fine di quel giorno, per le regole) ---------- */
+  var PROVA_GG = 30;
+  function oggiISO() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function piuGiorni(g, n) { var d = new Date(Date.parse(g + 'T12:00:00Z') + n * 864e5); return d.toISOString().slice(0, 10); }
+  function fineGiorno(g) { return Date.parse(g + 'T23:59:59+01:00'); }
+  function giorniA(g) { return Math.round((Date.parse(g + 'T12:00:00Z') - Date.parse(oggiISO() + 'T12:00:00Z')) / 864e5); }
+  function dataIt(g) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(g || ''); return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] : ''; }
+  function azScaduta(A) { return !!(A && A.scadeMs && Date.now() > A.scadeMs); }
+  setInterval(function () { if (started && AZD && azScaduta(AZD)) location.reload(); }, 10 * 60 * 1000);
+  function showScaduto(x) {
+    var adm = x.stato === 'attivo' && x.ruolo === 'admin', cosa = AZD && AZD.abbonata ? 'L’abbonamento' : 'Il periodo di prova';
+    var o = overlay('<h2>Abbonamento scaduto</h2><p>' + cosa + ' di <b>' + esc((AZD && AZD.nome) || 'la tua azienda') + '</b> è finito il ' + esc(dataIt(AZD && AZD.scade)) + '. ' +
+      (adm ? 'I dati restano salvati e non vengono cancellati: per continuare a usare l’app contatta il gestore del servizio. Intanto puoi scaricare una copia di tutti i dati.</p><button class="btn" id="nm-scar">Scarica i dati</button><p id="nm-scar-st" style="margin-top:8px"></p>'
+        : 'I dati restano salvati. Per informazioni parla con l’amministratore della tua azienda.</p>') + '<button class="lnk" id="nm-out">Esci</button>');
+    $('#nm-out', o).onclick = logout;
+    var b = $('#nm-scar', o); if (b) b.onclick = function () { scaricaScaduto(x.azienda, b, $('#nm-scar-st', o)); };
+  }
+  // la stessa copia di Altro › Copia dei dati (senza foto): si recupera con «Recupera ciò che manca»
+  async function scaricaScaduto(az, b, st) {
+    b.disabled = true; var ref = fs.collection('aziende').doc(az), coll = {}, conteggi = {}, tot = 0, cs = COLLS.filter(function (c) { return c !== 'foto'; });
+    try {
+      for (var i = 0; i < cs.length; i++) {
+        st.textContent = 'Scarico ' + (i + 1) + ' di ' + cs.length + '…';
+        var s = await ref.collection(cs[i]).get(), m = {}, n = 0;
+        s.docs.forEach(function (d) { if (cs[i] === 'impostazioni' && d.id === 'backup') return; m[d.id] = d.data(); n++; });
+        coll[cs[i]] = m; conteggi[cs[i]] = n; tot += n;
+      }
+      var file = { app: 'Gestionale cantiere', tipo: 'Copia dei dati', formato: 1, creata: nowISO(), creataDa: (MEX && MEX.nome) || '', voci: tot, conteggi: conteggi, collezioni: coll };
+      var blob = new Blob([JSON.stringify(file, function (k, v) { return v && typeof v.toDate === 'function' ? v.toDate().toISOString() : v; }, 1)], { type: 'application/json' }), u = URL.createObjectURL(blob), l = document.createElement('a');
+      l.href = u; l.download = (String((AZD && AZD.nome) || 'Gestionale').replace(/[^A-Za-z0-9-]+/g, '') || 'Gestionale') + '-copia-' + oggiISO() + '.json'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 5000);
+      st.textContent = 'Scaricato: ' + tot + ' voci.';
+    } catch (e) { st.textContent = 'Non riuscito (' + errOf(e).code + '). Riprova.'; }
+    b.disabled = false;
+  }
+  // in Home, agli amministratori: gli ultimi 7 giorni prima della scadenza (si chiude per quel giorno)
+  function avvisoAbb() {
+    var el = $('#nmabb'), A = AZD, d = A && A.scade && A.scadeMs ? giorniA(A.scade) : null, visto = '';
+    try { visto = localStorage.getItem('gr-abb-visto') || ''; } catch (e) { }
+    if (!ME || ME.ruolo !== 'admin' || ME.assist || d == null || d > 7 || d < 0 || visto === oggiISO() + A.scade) { if (el) el.remove(); return; }
+    ensureCss(); if (!el) { el = document.createElement('div'); el.id = 'nmabb'; document.body.appendChild(el); }
+    el.innerHTML = '<div class="it"><b>' + (A.abbonata ? 'L’abbonamento' : 'La prova') + ' finisce ' + (d === 0 ? 'oggi' : d === 1 ? 'domani' : 'tra ' + d + ' giorni') + '</b> (' + esc(dataIt(A.scade)) + ').<br>Dopo, l’app si blocca finché non rinnovi; i dati restano salvati. Per continuare contatta il gestore del servizio.<br><button class="ok">Ho capito</button></div>';
+  }
+  document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('#nmabb .ok'); if (!b) return; try { localStorage.setItem('gr-abb-visto', oggiISO() + (AZD && AZD.scade)); } catch (x) { } var el = $('#nmabb'); if (el) el.remove(); });
+
   function showBlocked(perche) {
     var o = overlay('<h2>Accesso sospeso</h2><p>' + (perche === 'azienda' ? 'La tua azienda non è attiva in questo momento. Per informazioni contatta il gestore del servizio.' :
       perche === 'nessuna' ? 'Il tuo account non è collegato a nessuna azienda attiva.' : 'Il tuo account non è attivo. Parla con un amministratore della tua azienda.') + '</p><button class="lnk" id="nm-out">Esci</button>');
@@ -582,7 +626,7 @@
     if (!AZ_UNSUB || AZ_UNSUB.az !== x.azienda || (AZD === null && AZ_UNSUB.st !== x.stato)) {
       if (AZ_UNSUB) AZ_UNSUB();
       AZD = undefined;
-      var un = fs.collection('aziende').doc(x.azienda).onSnapshot(function (d) { AZD = d.exists ? d.data() : null; decidi(); if ($('#nmpan')) renderPanel(); }, function () { AZD = null; decidi(); });
+      var un = fs.collection('aziende').doc(x.azienda).onSnapshot(function (d) { AZD = d.exists ? d.data() : null; decidi(); if (started) avvisoAbb(); if ($('#nmpan')) renderPanel(); }, function () { AZD = null; decidi(); });
       un.az = x.azienda; un.st = x.stato; AZ_UNSUB = un;
     }
     decidi();
@@ -596,6 +640,7 @@
       if (AZD && AZD.stato === 'in_attesa') showWait(x, true); else showBlocked(AZD ? 'azienda' : 'nessuna');
       return;
     }
+    if (azScaduta(AZD)) { if (started) { location.reload(); return; } showScaduto(x); return; }
     AZ = x.azienda;
     if (x.stato === 'attivo' && x.ruolo === 'cliente') { if (started) { location.reload(); return; } if (!CLIENTE) { ME = x; showCliente(x); } return; }
     if (CLIENTE) { location.reload(); return; }
@@ -618,7 +663,7 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 
   function afterStart() {
-    msgServizio();
+    msgServizio(); avvisoAbb(); setTimeout(novitaMostra, 2500);
     UT_UNSUB = fs.collection('utenti').where('azienda', '==', AZ).onSnapshot(function (s) {
       var m = {}; s.docs.forEach(function (d) { m[d.id] = d.data(); }); UT = m; if ($('#nmpan')) renderPanel(); schedulePortale();
     }, function () { });
@@ -669,7 +714,7 @@
   /* ---------- cestino (solo amministratori) ---------- */
   var CEST = null, CEST_DAYS = 60;
   var CEST_NOMI = { barche: 'Barca', lavori: 'Lavoro o mansione', scadenze: 'Scadenza', vari: 'Varo o alaggio', magazzino: 'Ricambio', movimenti: 'Movimento di magazzino',
-    operazioni: 'Servizio', opModelli: 'Gruppo di servizi', mezzi: 'Mezzo', conferme: 'Giornata confermata', posti: 'Posto al porto', attrezzatura: 'Attrezzatura', programma: 'Programma',
+    operazioni: 'Servizio', opModelli: 'Gruppo di servizi', mezzi: 'Mezzo', conferme: 'Giornata confermata', posti: 'Posto al porto', attrezzatura: 'Attrezzatura', deposito: 'Roba in deposito', programma: 'Programma',
     cariche: 'Carica batterie', richieste: 'Richiesta', rifiuti: 'Rifiuto', ritiri: 'Ritiro rifiuti', scadCantiere: 'Scadenza del cantiere', preventivi: 'Preventivo', assenze: 'Ferie o permesso', kit: 'Kit ricambi', inventari: 'Inventario', giri: 'Giro di controllo', cronometri: 'Cronometro', ditte: 'Ditta esterna',
     checklist: 'Checklist', modelli: 'Modello di checklist', checkBarca: 'Lista della barca', dipendenti: 'Dipendente', impostazioni: 'Impostazione' };
   function cestCutoff() { return new Date(Date.now() - CEST_DAYS * 864e5).toISOString(); }
@@ -893,7 +938,7 @@
      Chi gestisce il servizio (utenti/{uid} con ruolo «creatore», messo da GitHub: vedi .github/workflows/creatore.yml)
      approva le aziende nuove, le sospende, vede di ognuna accessi, azioni ed errori. Nei dati di un'azienda
      (barche, clienti, lavori…) entra solo se l'azienda ha acceso «Permetti assistenza». */
-  var CR = { on: false, az: {}, ut: {}, att: {}, vista: null, filtro: 'tutto', q: '', ord: 'nome', avv: [], cons: null, giorni: 7, metr: 'fotoMb', chi: '', msg: null, note: {}, scarico: '' };
+  var CR = { ai: {}, on: false, az: {}, ut: {}, att: {}, vista: null, filtro: 'tutto', q: '', ord: 'nome', avv: [], cons: null, giorni: 7, metr: 'fotoMb', chi: '', msg: null, note: {}, scarico: '' };
   function avviaCreatore(x) {
     var as = ''; try { as = sessionStorage.getItem('nm-assist') || ''; } catch (e) { }
     if (started) return;
@@ -998,6 +1043,27 @@
   }
 
   /* ---------- messaggio a tutte le aziende (messaggioServizio/attuale) ---------- */
+  // Novità: quelle del file (scritte a ogni pubblicazione) e quelle del gestore; si correggono, si nascondono, se ne aggiungono
+  var TA = 'width:100%;box-sizing:border-box;margin-top:8px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#f4f5f7;padding:10px;font:inherit';
+  function crNovHtml() {
+    if (CR.nov === undefined) { CR.nov = null; novitaTutte(true).then(function (l) { CR.nov = l; crRender(); }); }
+    if (!CR.nov) return '<p class="note">Carico…</p>';
+    var ed = CR.novEd, form = function (x) {
+      return '<div class="u"><input id="cr-nov-t" maxlength="60" placeholder="Titolo, es. Novembre 2026" value="' + esc((x && x.titolo) || '') + '" style="' + TA + '">' +
+        '<textarea id="cr-nov-r" rows="6" maxlength="2000" placeholder="Una novità per riga" style="' + TA + '">' + esc(((x && x.righe) || []).join('\n')) + '</textarea>' +
+        '<div class="acts"><button class="b pri" data-cr="nov-salva" data-id="' + esc(x ? x.id : '') + '">' + (x ? 'Salva' : 'Pubblica la novità') + '</button><button class="b" data-cr="nov-annulla">Annulla</button></div>' +
+        '<div class="em">Compare una volta, al prossimo ingresso, a chi lavora nelle aziende (non ai clienti).</div></div>';
+    };
+    return '<div class="grp">' + (ed === 'nuova' ? form(null) : '') + (CR.nov.length ? CR.nov.slice(0, 6).map(function (x) {
+      if (ed === x.id) return form(x);
+      return '<div class="u"' + (x.nascosta ? ' style="opacity:.55"' : '') + '><div class="nm">' + esc(x.titolo || x.id) + (x.nascosta ? '<span class="pill">nascosta</span>' : '') + '</div><div class="em">' + (x.righe || []).map(esc).join('<br>') + '</div>' +
+        '<div class="acts"><button class="b" data-cr="nov-mod" data-id="' + esc(x.id) + '">Modifica</button>' + (x.nascosta ? '<button class="b" data-cr="nov-vedi" data-id="' + esc(x.id) + '">Rimetti</button>' : '<button class="b red" data-cr="nov-nascondi" data-id="' + esc(x.id) + '">Nascondi</button>') + '</div></div>';
+    }).join('') : '<div class="u"><div class="em">Ancora nessuna novità.</div></div>') +
+      (ed !== 'nuova' ? '<div class="u"><button class="b pri" data-cr="nov-nuova">+ Nuova novità</button></div>' : '') + '</div>';
+  }
+  function crNovScrivi(id, data, msg) {
+    fs.collection('novita').doc(id).set(Object.assign({ il: nowISO() }, data), { merge: true }).then(function () { CR.novEd = null; CR.nov = undefined; toast(msg); crRender(); }, function (er) { toast('Non riuscito: ' + errOf(er).code); });
+  }
   function crMsgHtml() {
     var m = CR.msg && CR.msg.attivo ? CR.msg : null;
     return '<div class="grp"><div class="u">' + (m ? '<div class="nm">In Home di tutte le aziende dal ' + esc(crQuando(m.il)) + '</div><div class="em">' + esc(m.testo) + '</div>' : '<div class="em">Nessun messaggio attivo.</div>') +
@@ -1028,7 +1094,7 @@
     if (!CR.on || started) return;
     var o = $('#nmcr'); if (!o) { hideOverlay(); o = document.createElement('div'); o.id = 'nmcr'; document.body.appendChild(o); }
     var ae = document.activeElement, fid = ae && o.contains(ae) && ae.id ? ae.id : '', sel = fid && ae.selectionStart != null ? [ae.selectionStart, ae.selectionEnd] : null, keep = {};
-    ['cr-msg', 'cr-nota'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
+    ['cr-msg', 'cr-nota', 'cr-nov-t', 'cr-nov-r'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
     var ids = Object.keys(CR.az).sort(function (a, b) { return String(CR.az[b].creato || '').localeCompare(String(CR.az[a].creato || '')); });
     var h = '<div class="in">';
     if (CR.vista && CR.vista.indexOf('rep:') === 0 && CR.az[CR.vista.slice(4)]) {
@@ -1046,11 +1112,11 @@
       var k = CR.vista.slice(3), A = CR.az[k], last = crUltimo(k), e7 = crErr7(k), nota = CR.note[k];
       var ult = {}; ((CR.att[k] || {}).list || []).forEach(function (x) { if (crTipo(x) === 'accessi' && !ult[x.uid]) ult[x.uid] = x.il; });
       h += '<div class="top"><button class="back" data-cr="home">‹ Aziende</button><h3>' + esc(A.nome || 'Azienda') + '</h3><span style="min-width:64px"></span></div>' +
-        '<div class="grp"><div class="u"><div class="nm">' + esc(A.adminNome || 'Amministratore') + '</div><div class="em">' + esc((A.stato || '') + ' · codice ' + (codBello(A.codice) || '—') + ' · ' + (A.assistenza ? 'assistenza permessa' : 'assistenza non permessa')) + '<br>' + crSpazio(A) +
+        '<div class="grp"><div class="u"><div class="nm">' + esc(A.adminNome || 'Amministratore') + '</div><div class="em">' + esc((A.stato || '') + ' · codice ' + (codBello(A.codice) || '—') + ' · ' + (A.assistenza ? 'assistenza permessa' : 'assistenza non permessa')) + '<br>' + crAbb(A) + '<br>' + crSpazio(A) + '<br>' + crAi(k, A) +
         '<br>Ultimo accesso: ' + esc(last ? (last.nome || '') + ', ' + crQuando(last.il) : 'nessuno') + (e7 ? ' · <span style="color:#ff8a80">' + e7 + (e7 === 1 ? ' errore' : ' errori') + ' in 7 giorni</span>' : '') + '</div>' +
         '<div class="acts">' + (A.telefono ? '<a class="b" style="text-decoration:none;color:inherit;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:9px 12px" href="tel:' + esc(String(A.telefono).replace(/[^\d+]/g, '')) + '">Chiama</a>' : '') +
         (A.email ? '<a class="b" style="text-decoration:none;color:inherit;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:9px 12px" href="mailto:' + esc(A.email) + '">Email</a>' : '') +
-        '<button class="b pri" data-cr="rep" data-id="' + k + '">Report</button><button class="b" data-cr="quota" data-id="' + k + '">Quota spazio</button>' +
+        '<button class="b pri" data-cr="rep" data-id="' + k + '">Report</button><button class="b" data-cr="pagato" data-id="' + k + '">Segna pagato</button>' + (!A.abbonata ? '<button class="b" data-cr="prova" data-id="' + k + '">Giorni di prova</button>' : '') + '<button class="b" data-cr="quota" data-id="' + k + '">Quota spazio</button><button class="b" data-cr="aimax" data-id="' + k + '">Limite AI</button>' +
         (A.assistenza ? '<button class="b" data-cr="entra" data-id="' + k + '">Entra per assistenza</button>' : '') +
         '<button class="b" data-cr="scarica" data-id="' + k + '"' + (CR.scarico ? ' disabled' : '') + '>Scarica i dati</button><button class="b red" data-cr="sosp" data-id="' + k + '">Sospendi</button></div>' +
         (CR.scarico ? '<div class="em" style="margin-top:8px">' + esc(CR.scarico) + '</div>' : '') + '</div></div>' +
@@ -1071,7 +1137,7 @@
           acts = '<button class="b pri" data-cr="ok" data-id="' + kk + '">Approva</button><button class="b red" data-cr="no" data-id="' + kk + '">Rifiuta</button>';
         } else if (st === 'attiva') {
           var last = crUltimo(kk), e7 = crErr7(kk), R = CR.att[kk], np = crPersone(kk).length, na = crPersone(kk, 'in_attesa').length;
-          info = esc(np + (np === 1 ? ' persona' : ' persone') + (na ? ' (+' + na + ' in attesa)' : '')) + ' · ' + crSpazio(a) + '<br>' +
+          info = crAbb(a) + '<br>' + esc(np + (np === 1 ? ' persona' : ' persone') + (na ? ' (+' + na + ' in attesa)' : '')) + ' · ' + crSpazio(a) + '<br>' +
             esc('Ultimo accesso: ' + (R && R.loading ? '…' : last ? crQuando(last.il) : 'nessuno')) + (e7 ? ' · <span style="color:#ff8a80">' + e7 + (e7 === 1 ? ' errore' : ' errori') + ' in 7 giorni</span>' : '');
           acts = '<button class="b pri" data-cr="scheda" data-id="' + kk + '">Apri</button><button class="b" data-cr="rep" data-id="' + kk + '">Report</button>';
         } else {
@@ -1103,6 +1169,7 @@
           '<div class="chips">' + [['nome', 'Nome'], ['spazio', 'Spazio'], ['accesso', 'Ultimo accesso'], ['errori', 'Errori']].map(function (c) { return '<button class="b' + (CR.ord === c[0] ? ' pri' : '') + '" data-cr="ord" data-id="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>' : '') +
         (att.length ? '<div class="grp" style="margin-top:10px">' + att.map(row).join('') + '</div>' : by('attiva').length ? '<p class="note">Nessuna azienda trovata.</p>' : '') +
         sec('Sospese', by('sospesa')) + sec('Rifiutate', by('rifiutata')) +
+        '<h4>Novità in app</h4>' + crNovHtml() +
         '<h4>Messaggio a tutte le aziende</h4>' + crMsgHtml() +
         (!ids.length && !CR.err ? '<p class="note">Ancora nessuna azienda. Quando un’azienda si registra dal sito, la sua richiesta compare qui.</p>' : '') +
         '<p class="note">Approvando un’azienda, chi l’ha registrata diventa il suo amministratore e l’azienda riceve il suo codice per far entrare colleghi e clienti. Nei dati di un’azienda entri solo se ha acceso «Permetti assistenza» in Altro › Utenti e permessi.</p>';
@@ -1116,13 +1183,37 @@
     for (var i = 0; i < 4; i++) {
       var c = a.codice || codNuovo(), b = fs.batch(), now = nowISO();
       if (!a.codice) b.set(fs.collection('codici').doc(c), { azienda: k, creato: now });
-      b.update(fs.collection('aziende').doc(k), { stato: 'attiva', codice: c, approvata: now, modificato: now });
+      var up = { stato: 'attiva', codice: c, approvata: now, modificato: now };
+      if (!a.scade) { up.scade = piuGiorni(oggiISO(), PROVA_GG); up.scadeMs = fineGiorno(up.scade); up.abbonata = false; } // prova di 30 giorni dall'approvazione
+      b.update(fs.collection('aziende').doc(k), up);
       if (a.admin && CR.ut[a.admin]) b.update(fs.collection('utenti').doc(a.admin), { stato: 'attivo', modificato: now });
-      try { await b.commit(); toast((a.nome || 'Azienda') + ' approvata. Codice: ' + codBello(c)); return; } catch (e) { if (a.codice || i === 3) { toast('Non riuscito: ' + errOf(e).code); return; } }
+      try { await b.commit(); toast((a.nome || 'Azienda') + ' approvata. Codice: ' + codBello(c) + (a.scade ? '' : ' · prova di ' + PROVA_GG + ' giorni')); return; } catch (e) { if (a.codice || i === 3) { toast('Non riuscito: ' + errOf(e).code); return; } }
     }
   }
   // Spazio di ogni azienda: lo misura ogni mattina l'invio delle notifiche (aziende/{az}.spazioMb); la quota la decide il gestore (100 MB se non scritta)
   var QUOTA0 = 100;
+  // prova e abbonamento, una riga: in prova / abbonata fino al…, in rosso se scaduta, in giallo negli ultimi 7 giorni
+  function crAbb(a) {
+    if (!a.scade) return 'Senza scadenza';
+    var d = giorniA(a.scade), t = (a.abbonata ? 'Abbonata' : 'In prova') + ' fino al ' + dataIt(a.scade);
+    if (azScaduta(a)) return '<span style="color:#ff8a80">' + (a.abbonata ? 'Abbonamento scaduto' : 'Prova finita') + ' il ' + esc(dataIt(a.scade)) + ': app bloccata</span>';
+    return '<span' + (d <= 7 ? ' style="color:#ffb020"' : '') + '>' + esc(t + (d <= 7 ? ' (' + (d === 0 ? 'oggi' : d === 1 ? 'domani' : 'tra ' + d + ' giorni') + ')' : '')) + '</span>';
+  }
+  // AI di oggi: quante richieste su quante (si legge quando si apre la scheda dell'azienda)
+  function crAi(k, a) {
+    var max = aiMaxDi(a), u = CR.ai[k];
+    if (u === undefined) { CR.ai[k] = null; fs.collection('aziende').doc(k).collection('aiUso').doc(oggiISO()).get().then(function (d) { CR.ai[k] = d.exists ? d.data().n || 0 : 0; crRender(); }, function () { CR.ai[k] = -1; crRender(); }); }
+    return esc('AI oggi: ' + (u == null ? '…' : u < 0 ? '?' : u) + ' richieste su ' + max);
+  }
+  function crScade(k, g, abb, msg) {
+    var up = g ? { scade: g, scadeMs: fineGiorno(g), abbonata: abb, modificato: nowISO() } : { scade: FV.delete(), scadeMs: FV.delete(), abbonata: abb, modificato: nowISO() };
+    fs.collection('aziende').doc(k).update(up).then(function () { toast(msg); }, function (e) { toast('Non riuscito: ' + errOf(e).code); });
+  }
+  function leggiData(v) {
+    var m = /^\s*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})\s*$/.exec(v || ''); if (!m) return null;
+    var y = +m[3] < 100 ? 2000 + +m[3] : +m[3], g = y + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2), d = new Date(g + 'T12:00:00Z');
+    return isNaN(d) || d.getUTCDate() !== +m[1] ? null : g;
+  }
   function crQuota(a) { return a.quotaMb > 0 ? a.quotaMb : QUOTA0; }
   function crSpazio(a) {
     if (a.spazioMb == null) return 'Spazio: non ancora misurato';
@@ -1165,6 +1256,38 @@
     else if (k === 'riatt') crStato(id, 'attiva', 'Azienda riattivata');
     else if (k === 'no') { if (confirm('Rifiutare la richiesta di ' + (a.nome || 'questa azienda') + '?')) crStato(id, 'rifiutata', 'Richiesta rifiutata'); }
     else if (k === 'sosp') { if (confirm('Sospendere ' + (a.nome || 'questa azienda') + '? Nessuno dell’azienda potrà entrare finché non la riattivi. I dati restano.')) crStato(id, 'sospesa', 'Azienda sospesa'); }
+    else if (k === 'nov-nuova') { CR.novEd = 'nuova'; crRender(); }
+    else if (k === 'nov-mod') { CR.novEd = id; crRender(); }
+    else if (k === 'nov-annulla') { CR.novEd = null; crRender(); }
+    else if (k === 'nov-nascondi') { if (confirm('Nascondere questa novità? Chi non l’ha ancora vista non la vedrà.')) crNovScrivi(id, { nascosta: true }, 'Novità nascosta'); }
+    else if (k === 'nov-vedi') crNovScrivi(id, { nascosta: false }, 'Novità rimessa');
+    else if (k === 'nov-salva') {
+      var tt = (($('#cr-nov-t') || {}).value || '').trim(), rr = (($('#cr-nov-r') || {}).value || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 12);
+      if (!rr.length) { toast('Scrivi almeno una novità'); return; }
+      crNovScrivi(id || new Date().toISOString(), { titolo: tt, righe: rr, nascosta: false }, id ? 'Novità salvata' : 'Novità pubblicata');
+    }
+    else if (k === 'aimax') {
+      var vm = prompt('Richieste all’AI al giorno per ' + (a.nome || 'questa azienda') + ' (oggi ' + aiMaxDi(a) + '; 0 = AI spenta). La quota gratuita del servizio è in comune tra tutte le aziende.', String(aiMaxDi(a)));
+      if (vm == null) return; var nm = Math.round(parseFloat(String(vm).replace(',', '.')));
+      if (!(nm >= 0 && nm <= 500)) { toast('Scrivi un numero tra 0 e 500'); return; }
+      fs.collection('aziende').doc(id).update({ aiMax: nm, modificato: nowISO() }).then(function () { toast('AI: ' + nm + ' richieste al giorno'); }, function (er) { toast('Non riuscito: ' + errOf(er).code); });
+    }
+    else if (k === 'prova') {
+      var base = String(a.approvata || nowISO()).slice(0, 10), gg0 = a.scade ? giorniA(a.scade) - giorniA(base) : PROVA_GG;
+      var v = prompt('Giorni di prova per ' + (a.nome || 'questa azienda') + ', contati dall’approvazione del ' + dataIt(base) + ' (oggi ' + gg0 + ').', String(gg0));
+      if (v == null) return; var n = Math.round(parseFloat(String(v).replace(',', '.')));
+      if (!(n >= 1 && n <= 365)) { toast('Scrivi un numero di giorni tra 1 e 365'); return; }
+      var g = piuGiorni(base, n); crScade(id, g, false, 'In prova fino al ' + dataIt(g));
+    }
+    else if (k === 'pagato') {
+      var prop = dataIt(piuGiorni(a.scade && !azScaduta(a) ? a.scade : oggiISO(), 365));
+      var v2 = prompt('Pagato: abbonata fino al giorno (GG/MM/AAAA).\nLascia vuoto per togliere la scadenza (l’azienda non si blocca mai).', prop);
+      if (v2 == null) return;
+      if (!v2.trim()) { if (confirm('Togliere la scadenza a ' + (a.nome || 'questa azienda') + '? Non si bloccherà mai.')) crScade(id, null, true, 'Senza scadenza'); return; }
+      var g2 = leggiData(v2); if (!g2) { toast('Scrivi la data come 31/12/2027'); return; }
+      if (g2 < oggiISO()) { toast('La data è già passata'); return; }
+      crScade(id, g2, true, 'Abbonata fino al ' + dataIt(g2));
+    }
     else if (k === 'quota') {
       var v = prompt('Spazio per le foto di ' + (a.nome || 'questa azienda') + ', in MB (oggi ' + crQuota(a) + '). Tutte le aziende insieme stanno in 1024 MB.', String(crQuota(a)));
       if (v == null) return; var q = Math.round(parseFloat(String(v).replace(',', '.')));
@@ -1183,7 +1306,37 @@
       el.innerHTML = '<div class="it"><b>Dal gestore del servizio</b><br>' + esc(m.testo) + '<br><button class="ok" data-il="' + esc(m.il) + '">Ho letto</button></div>';
     }, function () { });
   }
+  document.addEventListener('click', function (e) { var im = e.target.closest && e.target.closest('#nmfb .dfo img'); if (im) im.classList.toggle('big'); });
   document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('#nmmsg .ok'); if (!b) return; try { localStorage.setItem('gr-msg-visto', b.getAttribute('data-il')); } catch (x) { } var el = $('#nmmsg'); if (el) el.remove(); });
+
+  /* ---------- Cosa c'è di nuovo: dopo una pubblicazione compare una volta a ogni persona (utenti/{uid}.novitaVista) ----------
+     Le righe le scrive chi pubblica, in novita.json; il gestore le corregge o ne aggiunge dal suo pannello
+     (raccolta «novita»: stesso id = sostituisce quella del file). Chi entra dopo una novità non la vede. */
+  function novitaTutte(anche) {
+    var file = fetch('novita.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; });
+    var db = fs.collection('novita').get().then(function (s) { var o = []; s.forEach(function (d) { o.push(Object.assign({ id: d.id, mia: true }, d.data())); }); return o; }).catch(function () { return []; });
+    return Promise.all([file, db]).then(function (r) {
+      var m = {}; (Array.isArray(r[0]) ? r[0] : []).forEach(function (x) { if (x && x.id) m[x.id] = Object.assign({ file: true }, x); });
+      r[1].forEach(function (x) { m[x.id] = Object.assign({}, m[x.id] || {}, x); });
+      return Object.keys(m).map(function (k) { return m[k]; }).filter(function (x) { return anche || (!x.nascosta && (x.righe || []).length); }).sort(function (a, b) { return String(b.id).localeCompare(String(a.id)); });
+    });
+  }
+  function novitaVista(id) { if (!ME) return; ME.novitaVista = id; fs.collection('utenti').doc(ME.uid).update({ novitaVista: id, modificato: nowISO() }).catch(function () { }); }
+  function novitaMostra() {
+    if (!ME || ME.ruolo === 'cliente' || ME.assist || $('#nmnov')) return;
+    var LI = live('impostazioni');
+    LI.start.then(function () { return whenReady(LI, 15000); }).then(novitaTutte).then(function (l) {
+      if (!l.length || !ME || !sezAccesa('novita', true)) return; // spenta in Aspetto dell'app
+      var vista = ME.novitaVista || '', ultima = String(l[0].id);
+      if (!vista && String(ME.creato || '').slice(0, 10) >= ultima.slice(0, 10)) { novitaVista(ultima); return; } // arrivato dopo: si parte da qui
+      var nuove = l.filter(function (x) { return String(x.id) > vista; }).slice(0, 3);
+      if (!nuove.length) return;
+      ensureCss(); var el = document.createElement('div'); el.id = 'nmnov'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Cosa c’è di nuovo');
+      el.innerHTML = '<div class="it"><h3>Cosa c’è di nuovo</h3>' + nuove.map(function (x) { return (x.titolo ? '<h4>' + esc(x.titolo) + '</h4>' : '') + '<ul>' + x.righe.map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('') + '</ul>'; }).join('') + '<button class="ok">Ho capito</button></div>';
+      document.body.appendChild(el);
+      el.querySelector('.ok').onclick = function () { el.remove(); novitaVista(ultima); };
+    });
+  }
 
   /* ---------- area cliente ---------- */
   var CL = { unsubs: [], docs: {}, all: {} };
@@ -1216,6 +1369,10 @@
         '<span class="st ' + cls + '">' + esc(st) + '</span></div>' +
         '<div class="kv" style="margin-top:12px"><span>Dove si trova</span><b>' + esc(dove) + '</b></div>' +
         (d.porto && (d.porto.contratto || d.porto.fino) ? '<div class="kv"><span>Contratto del posto</span><b>' + esc([d.porto.contratto, d.porto.fino ? 'fino al ' + dataLunga(d.porto.fino) : ''].filter(Boolean).join(' · ')) + '</b></div>' : '') +
+        ((d.deposito || []).length ? '<h5>In deposito al cantiere</h5>' + d.deposito.map(function (x) {
+          return '<div class="lv" style="align-items:center"><span style="flex:1">' + esc(x.cosa) + (x.quanti > 1 ? ' ×' + x.quanti : '') + '</span>' +
+            ((x.foto || []).length ? '<span class="dfo">' + x.foto.map(function (f) { if (!PH[f]) setTimeout(function () { loadPhoto(f); }, 0); return '<img alt="" data-blob="' + esc(f) + '" src="' + esc(PH[f] || 'data:image/gif;base64,R0lGODlhAQABAAAAACw=') + '">'; }).join('') + '</span>' : '') + '</div>';
+        }).join('') : '') +
         '<h5>Lavori eseguiti</h5>' +
         (lav.length ? show.map(function (l) { return '<div class="lv"><span class="d">' + esc(dataCorta(l.data)) + '</span><span>' + esc(l.titolo) + '</span></div>'; }).join('') +
           (lav.length > 8 ? '<button class="more" data-cl="more" data-id="' + esc(id) + '">' + (open ? 'Mostra meno' : 'Mostra tutti (' + lav.length + ')') + '</button>' : '')
@@ -1224,7 +1381,7 @@
     });
     h += '<details class="gd"><summary>? Come funziona questa pagina</summary><ul>' +
       '<li>Per ogni tua barca vedi lo stato (in rimessaggio, in lavorazione, in acqua, consegnata) e dove si trova: al cantiere o al suo posto in porto.</li>' +
-      '<li>Sotto ci sono i lavori eseguiti dal cantiere, con la data.</li>' +
+      '<li>Sotto ci sono le cose tue che il cantiere tiene in deposito (tender, cuscini, tendalini…), con le foto, e i lavori eseguiti, con la data.</li>' +
       '<li>La pagina si aggiorna da sola pochi secondi dopo ogni modifica del cantiere.</li>' +
       '<li>Se manca una barca o qualcosa non torna, chiama il cantiere.</li></ul></details>';
     h += '<button class="lnk" data-cl="pw">Cambia password</button><button class="lnk" data-cl="out">Esci</button>';
@@ -1259,11 +1416,27 @@
       .slice(0, 100).map(function (l) { return { data: l.data || '', titolo: l.titolo || 'Lavoro' }; });
     var pid = Object.keys(P).filter(function (k) { return P[k].barcaId === bid; })[0], p = pid ? P[pid] : null;
     return { nome: b.nome || '', modello: b.modello || '', lunghezza: b.lunghezza || null, stato: b.stato || '', posto: b.posto || '',
-      porto: p ? { posto: pid, contratto: p.contratto || '', fino: p.fino || '' } : null, lavori: lav };
+      porto: p ? { posto: pid, contratto: p.contratto || '', fino: p.fino || '' } : null, lavori: lav, deposito: depoPortale(bid) };
   }
+  // roba del cliente in deposito: cosa, quanti e foto (dove è riposta e le note restano al cantiere)
+  // sezioni accese in Aspetto dell'app (impostazioni/sezioni): «deposito» è spenta di base, «novita» accesa
+  function sezAccesa(k, base) {
+    var I = LIVE.impostazioni ? LIVE.impostazioni.map : {}, c = I.sezioni;
+    if (!c || c._del || !Array.isArray(c.spente)) return base;
+    if (c.spente.indexOf(k) >= 0) return false;
+    return base || (c.conosce || []).indexOf(k) >= 0;
+  }
+  function depoPortale(bid) {
+    if (!sezAccesa('deposito', false)) return [];
+    var D = LIVE.deposito ? LIVE.deposito.map : {};
+    return Object.keys(D).map(function (k) { return D[k]; }).filter(function (x) { return x.barcaId === bid && x.stato !== 'restituito'; })
+      .sort(function (a, c) { return String(a.cosa || '').localeCompare(String(c.cosa || ''), 'it'); })
+      .slice(0, 40).map(function (x) { return { cosa: x.cosa || '', quanti: x.quanti || null, foto: (x.foto || []).slice(0, 4) }; });
+  }
+  function fotoDi(s) { var o = []; (s && s.deposito || []).forEach(function (x) { (x.foto || []).forEach(function (f) { o.push(f); }); }); return o; }
   async function syncPortale() {
     var ids = linkedBoats(); if (!ids.length) return;
-    var need = ['barche', 'lavori', 'posti', 'portale'];
+    var need = ['barche', 'lavori', 'posti', 'deposito', 'impostazioni', 'portale'];
     for (var i = 0; i < need.length; i++) { var L = live(need[i]); await L.start; await whenReady(L, 15000); }
     var cur = LIVE.portale.map;
     ids.forEach(function (bid) {
@@ -1272,6 +1445,9 @@
       if (c && stable(c) === stable(s)) return;
       s.aggiornato = nowISO();
       write('portale', bid, 'set', s).catch(function () { });
+      // le foto del portale le può aprire il cliente di questa barca (regole: foto.portale tra le sue barche)
+      var prima = fotoDi(c);
+      fotoDi(s).forEach(function (f) { if (prima.indexOf(f) < 0) AC('foto').doc(f).update({ portale: bid }).catch(function () { }); });
     });
   }
 
@@ -1283,7 +1459,7 @@
     magazzino: ['voce di magazzino', 'voci di magazzino'], movimenti: ['carico o scarico', 'carichi e scarichi'], operazioni: ['servizio di cantiere', 'servizi di cantiere'],
     opModelli: ['gruppo dei servizi', 'gruppi dei servizi'], mezzi: ['mezzo o carrello', 'mezzi e carrelli'], conferme: ['giornata confermata', 'giornate confermate'],
     dipendenti: ['nome dei dipendenti', 'nomi dei dipendenti'], impostazioni: ['misure della mappa', 'misure della mappa'], posti: ['posto al porto', 'posti al porto'],
-    attrezzatura: ['attrezzatura di bordo', 'attrezzature di bordo'], programma: ['voce del programma', 'voci del programma'], cariche: ['carica delle batterie', 'cariche delle batterie'],
+    attrezzatura: ['attrezzatura di bordo', 'attrezzature di bordo'], deposito: ['cosa in deposito', 'cose in deposito'], programma: ['voce del programma', 'voci del programma'], cariche: ['carica delle batterie', 'cariche delle batterie'],
     richieste: ['richiesta', 'richieste'], checklist: ['checklist', 'checklist'], checkBarca: ['lista per barca', 'liste per barca'], modelli: ['modello di checklist', 'modelli di checklist'],
     giri: ['giro di controllo', 'giri di controllo'], cronometri: ['cronometro', 'cronometri'], ditte: ['ditta esterna', 'ditte esterne'] };
   var IMP_KEY = null, IMP = null;
@@ -1685,8 +1861,28 @@
     pulizia: function () { var L = live('impostazioni'); return L.map.pulizia || null; }
   };
 
+  /* ---------- tetto dell'AI: ogni azienda ha AI_MAX richieste al giorno (aziende/{az}.aiMax, lo cambia il gestore),
+     contate in aziende/{az}/aiUso/{giorno}. Le regole fanno salire il conto solo di uno alla volta e non oltre il tetto. ---------- */
+  var AI_MAX = 30;
+  function aiMaxDi(a) { return a && typeof a.aiMax === 'number' && a.aiMax >= 0 ? a.aiMax : AI_MAX; }
+  function aiConta() {
+    var max = aiMaxDi(AZD), r = AC('aiUso').doc(oggiISO());
+    return fs.runTransaction(function (t) {
+      return t.get(r).then(function (d) {
+        var n = d.exists ? (d.data().n || 0) : 0;
+        if (n >= max) throw { code: 'ai_finita' };
+        if (d.exists) t.update(r, { n: n + 1, il: nowISO() }); else t.set(r, { n: 1, il: nowISO() });
+      });
+    }).catch(function (e) {
+      if (e && e.code === 'ai_finita') throw e;
+      if (e && /permission/.test(e.code || '')) throw { code: 'ai_finita' }; // oltre il tetto le regole rifiutano
+      throw { code: 'rete' };
+    });
+  }
+
   /* ---------- quello che vede l'app ---------- */
   window.__NM_FB = {
+    aiConta: aiConta,
     use: function (name) {
       return READY.then(function () { return name === 'db' ? DB : name === 'user' ? USER : name === 'assets' ? ASSETS : name === 'downloads' ? DL : null; });
     },

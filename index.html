@@ -1122,7 +1122,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
 
   /* ---------- Stato ---------- */
   var S = { posti: {}, richieste: [], db: null, status: 'loading', canWrite: true, writeUnknown: false, boats: [], lavori: [], lavoriAll: [], scadenze: [], got: {}, pendingBoat: null, user: null, myId: null, me: {}, isOwner: false, dip: {}, prof: {},
-    conf: {}, mag: [], mov: [], vari: [], modelli: [], ckBarca: {}, check: [], assets: null, opModelli: [], ops: [], mezzi: [], attr: [], prog: [], cariche: [], isEditor: false, battCfg: null, dl: undefined, bkInfo: null, rif: [], ritiri: [], rifCfg: null, meteoCfg: null, scadC: [], prev: [], kit: [], inv: [], assenze: [], giri: [], crono: {}, ditte: [] };
+    conf: {}, mag: [], mov: [], vari: [], modelli: [], ckBarca: {}, check: [], assets: null, opModelli: [], ops: [], mezzi: [], attr: [], prog: [], cariche: [], isEditor: false, battCfg: null, dl: undefined, bkInfo: null, rif: [], ritiri: [], rifCfg: null, meteoCfg: null, scadC: [], prev: [], kit: [], inv: [], assenze: [], giri: [], crono: {}, ditte: [], depo: [] };
   var V = { tab: 'home', boatId: null, q: '', lavFilter: 'aperti', showDone: false, exConfirm: false, calMonth: todayISO().slice(0, 7), calDay: todayISO(), calVista: (function () { try { return localStorage.getItem('nm-cal-vista') === 'sett' ? 'sett' : 'mese'; } catch (e) { return 'mese'; } })(), feat: 0, boatLavAll: false, schedaDay: todayISO(), nomeDraft: null,
     boatView: null, resRange: 'anno', oreMonth: todayISO().slice(0, 7), oreOpen: null, magQ: '', magGroup: 'tipo', progDay: null, progView: 'ora', panPer: 'sett', panBy: 'persona', variDone: false, rifTab: 'deposito', rifEuro: false, scShowDone: false, prevFilter: 'aperti' };
   var SHEET = { onDelete: null, foto: [], run: null };
@@ -1337,6 +1337,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var sub = [];
     if (showBoat && b && b.posto) sub.push(b.posto);
     if (v.note) sub.push(v.note);
+    if (!v.fatto && v.tipo === 'varo' && depoOn()) { var ndp = depoOf(v.barcaId).length; if (ndp) sub.push(ndp + (ndp === 1 ? ' cosa in deposito' : ' cose in deposito') + ' da restituire'); }
     var status = v.fatto ? '<span class="status ok">Fatto il ' + esc(fmtDate(v.fattoIl)) + '</span>' : '<span class="status" style="color:var(--' + (late ? 'late' : 'vio') + ')">' + esc(cap(variWhen(v))) + '</span>';
     var btn = (!v.fatto && S.canWrite) ? '<button type="button" class="chk" data-act="done-vari" data-id="' + esc(v.id) + '">' + I.check + 'Fatto</button>' : '';
     return '<div class="row"><button type="button" class="hit" data-act="edit-vari" data-id="' + esc(v.id) + '">' + dateBlock(v.data, lv) +
@@ -1965,6 +1966,14 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var atb = S.attr.filter(function (x) { return x.barcaId === b.id; }).sort(function (x, y) { return String(x.tipo || x.nome || '').localeCompare(String(y.tipo || y.nome || ''), 'it'); });
     h += secH('Attrezzatura di bordo', S.canWrite ? 'new-attr' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
     h += atb.length ? '<div class="group">' + atb.map(attrRow).join('') + '</div>' : '<div class="notice">Niente segnato. Aggiungi salpancora, verricelli, cuscineria, tendalino, teli e coperture: marca, misure e colori restano qui per la prossima volta.</div>';
+
+    if (depoOn()) {
+    var dpb = depoOf(b.id), dpr = depoOf(b.id, true).filter(function (x) { return x.stato === 'restituito'; });
+    h += secH('Roba in deposito' + (dpb.length ? ' (' + dpb.length + ')' : ''), S.canWrite ? 'new-depo' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
+    h += dpb.length ? '<div class="group">' + dpb.map(depoRow).join('') + '</div>' + (S.canWrite ? '<button type="button" class="btn sec" data-act="depo-ric" data-id="' + esc(b.id) + '" style="width:100%;margin-top:10px">' + I.check + 'Riconsegna: spunta cosa restituisci</button>' : '')
+      : '<div class="notice">Niente in deposito. Segna qui tender, fuoribordo, cuscini e tendalini del cliente: cosa, dove sono riposti e una foto.</div>';
+    if (dpr.length) h += '<div class="sec-h" style="margin-top:14px"><span class="cap">Restituite</span></div><div class="group">' + dpr.slice(0, 10).map(depoRow).join('') + '</div>';
+    }
 
     var ricB = ricOfBoat(b);
     h += secH('Ricambi montati' + (ricB.length ? ' (' + ricB.length + ')' : ''));
@@ -6808,6 +6817,63 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     return '<button type="button" class="row" data-act="edit-attr" data-id="' + esc(x.id) + '"><span class="main"><span class="title">' + esc(attrLabel(x)) + '</span>' + (sub.length ? '<span class="sub">' + esc(sub.join(' · ')) + '</span>' : '') + '</span>' +
       '<span class="side">' + st + ((x.foto || []).length ? '<span class="cap">' + x.foto.length + ' foto</span>' : '') + '</span></button>';
   }
+  /* ---------- Roba del cliente in deposito: tender, fuoribordo, cuscini, tendalini… Cosa, dove è riposta, foto.
+     Alla riconsegna si spunta ciò che torna al cliente. Il cliente la vede nel portale (cosa, quanti, foto: non dove né le note). ---------- */
+  function depoOn() { return sezOn('deposito'); } // si accende da Altro › Aspetto dell'app, tra le sezioni (spenta di base)
+  var DEPO_TIPI = ['Tender', 'Fuoribordo', 'Cuscini', 'Tendalino', 'Bimini', 'Cappottina', 'Teli e coperture', 'Parabordi', 'Cime', 'Salvagenti e giubbotti', 'Zattera', 'Batterie', 'Carrello', 'Remi', 'Passerella'];
+  function depoOf(bid, tutti) { return (S.depo || []).filter(function (x) { return x.barcaId === bid && (tutti || x.stato !== 'restituito'); }).sort(function (a, c) { return String(a.cosa || '').localeCompare(String(c.cosa || ''), 'it'); }); }
+  function depoRow(x) {
+    var rest = x.stato === 'restituito', sub = [rest ? 'Restituita il ' + fmtDate(x.restituito) : x.dove ? 'Dove: ' + x.dove : 'Dove: non segnato', x.note].filter(Boolean);
+    return '<button type="button" class="row" data-act="edit-depo" data-id="' + esc(x.id) + '"' + (rest ? ' style="opacity:.65"' : '') + '><span class="main"><span class="title">' + esc(x.cosa || 'Senza nome') + (num(x.quanti) > 1 ? ' ×' + fmtNum(x.quanti) : '') + '</span><span class="sub">' + esc(sub.join(' · ')) + '</span></span>' +
+      '<span class="side">' + (rest ? '<span class="pill">Restituita</span>' : '<span class="pill teal">In deposito</span>') + ((x.foto || []).length ? '<span class="cap">' + x.foto.length + ' foto</span>' : '') + '</span></button>';
+  }
+  function depoSheet(x, boatId) {
+    var isNew = !x; x = x || { barcaId: boatId || '', stato: 'deposito' };
+    var b = boatById(x.barcaId), rest = x.stato === 'restituito';
+    openSheet({
+      title: isNew ? 'Roba in deposito' : x.cosa || 'Roba in deposito', foto: x.foto, deleteLabel: 'Elimina', deleteText: 'La togli dall’elenco della barca. Se è stata restituita, meglio spuntare «Restituita».',
+      body: '<p class="context">' + esc(b ? boatLabel(b) : '') + '</p>' +
+        field(lab('fd-cosa', 'Cosa'), inp('fd-cosa', x.cosa, 'list="fd-cosa-l" placeholder="es. Tender, fuoribordo, cuscini, tendalino" autocomplete="off" required') + '<datalist id="fd-cosa-l">' + DEPO_TIPI.map(function (t) { return '<option value="' + esc(t) + '">'; }).join('') + '</datalist>') +
+        '<div class="grid2">' + field(lab('fd-q', 'Quanti'), inp('fd-q', x.quanti, 'type="number" min="1" step="1" inputmode="numeric" placeholder="1"')) + field(lab('fd-dove', 'Dove è riposta'), inp('fd-dove', x.dove, 'placeholder="es. capannone, scaffale 3"')) + '</div>' +
+        field(lab('fd-note', 'Note'), '<textarea id="fd-note" placeholder="es. tender grigio con sacca e pompa">' + esc(x.note || '') + '</textarea>') +
+        photoBlock(x.foto) +
+        (!isNew ? '<label class="check"><input type="checkbox" id="fd-rest"' + (rest ? ' checked' : '') + '> Restituita al cliente' + (rest && x.restituito ? ' il ' + esc(fmtDate(x.restituito)) : '') + '</label>' : '') +
+        '<span class="hint">Una foto aiuta a riconoscerla e a restituire proprio quella. Il cliente nel suo portale vede cosa, quanti e le foto, non dove è riposta né le note.</span>',
+      item: x, onDelete: isNew ? null : async function () { if (await delSeq([S.db.collection('deposito').doc(x.id)])) { closeSheet(); toast('Tolta dall’elenco'); } },
+      onOpen: function (f) { if (isNew) setTimeout(function () { try { f.querySelector('#fd-cosa').focus(); } catch (e) { } }, 60); },
+      onSubmit: async function (f) {
+        var now = new Date().toISOString(), qn = num(val(f, 'fd-q'));
+        var d = { cosa: val(f, 'fd-cosa'), dove: val(f, 'fd-dove'), note: val(f, 'fd-note'), quanti: qn && qn > 0 ? Math.round(qn) : null, foto: SHEET.foto.slice(), barcaId: x.barcaId, modificato: now };
+        if (!d.cosa) { formErr('Scrivi cosa è, per esempio Tender o Cuscini.'); return false; }
+        var ch = f.querySelector('#fd-rest'), r = !!(ch && ch.checked);
+        d.stato = r ? 'restituito' : 'deposito'; d.restituito = r ? (x.restituito || todayISO()) : '';
+        var ok;
+        if (isNew) { d.creato = now; d.creatoDa = S.myId || ''; var rf = S.db.collection('deposito').doc(); ok = await w(function () { return rf.set(d); }); }
+        else { var r2 = S.db.collection('deposito').doc(x.id); ok = await w(function () { return r2.update(d); }); }
+        if (ok) toast(isNew ? 'Aggiunta al deposito' : 'Salvata');
+        return ok;
+      }
+    });
+  }
+  // alla riconsegna: l'elenco di ciò che c'è in deposito, si spunta ciò che torna al cliente
+  function depoRiconsegna(bid) {
+    var l = depoOf(bid), b = boatById(bid); if (!l.length) return;
+    openSheet({ title: 'Riconsegna', submitLabel: 'Segna restituite',
+      body: '<p class="context">' + esc(b ? boatLabel(b) : '') + ' · togli la spunta a ciò che resta in deposito.</p><div class="group">' + l.map(function (x) {
+        return '<label class="row check" style="padding:12px 14px"><input type="checkbox" data-depo="' + esc(x.id) + '" checked> <span><b>' + esc(x.cosa || '') + (num(x.quanti) > 1 ? ' ×' + fmtNum(x.quanti) : '') + '</b>' + (x.dove ? '<br><span class="cap">' + esc(x.dove) + '</span>' : '') + '</span></label>';
+      }).join('') + '</div>',
+      onSubmit: async function (f) {
+        var ids = Array.prototype.slice.call(f.querySelectorAll('[data-depo]:checked')).map(function (c) { return c.getAttribute('data-depo'); });
+        if (!ids.length) { formErr('Spunta almeno una cosa.'); return false; }
+        var now = new Date().toISOString(), oggi = todayISO();
+        for (var i = 0; i < ids.length; i++) {
+          var r = S.db.collection('deposito').doc(ids[i]);
+          if (!(await w(function () { return r.update({ stato: 'restituito', restituito: oggi, modificato: now }); }))) return false;
+        }
+        toast(ids.length === 1 ? 'Segnata restituita' : ids.length + ' cose restituite');
+        return true;
+      } });
+  }
   function attrSheet(a, boatId) {
     var isNew = !a; a = a || { barcaId: boatId || '' };
     var b = boatById(a.barcaId), linked = isNew ? [] : S.lavori.filter(function (l) { return l.attrId === a.id; }).sort(function (x, y) { return String(y.data || '').localeCompare(String(x.data || '')); });
@@ -7360,8 +7426,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['scadcantiere', 'Scadenze del cantiere', 'mezzi, attrezzature, sicurezza'], ['magazzino', 'Magazzino', 'ricambi e scorte'], ['rifiuti', 'Rifiuti', 'deposito, ritiri e registro'],
     ['misure', 'Misure e unità', 'convertitore, unità e filetti'], ['clienti', 'Clienti da sentire', 'barche ferme, contratti e scadenze dimenticate (solo amministratore)'],
     ['controllo', 'Controllo dei mezzi', 'prima dell’uso: gomme, freni, perdite; i mezzi che non vanno restano fermi (spento di base)'],
-    ['tablet', 'Tablet condiviso con PIN', 'un tablet in officina per tutti: nome, PIN di 4 cifre, si richiude dopo 5 minuti (spento di base)']];
-  var SEZ_OFF = ['tablet', 'controllo']; // sezioni spente finché l'amministratore non le accende
+    ['tablet', 'Tablet condiviso con PIN', 'un tablet in officina per tutti: nome, PIN di 4 cifre, si richiude dopo 5 minuti (spento di base)'],
+    ['deposito', 'Roba del cliente in deposito', 'tender, cuscini, tendalini con foto e riconsegna; il cliente li vede nel portale (spento di base)'],
+    ['novita', 'Cosa c’è di nuovo', 'dopo un aggiornamento dell’app, una finestra con le novità, una volta a ognuno']];
+  var SEZ_OFF = ['tablet', 'controllo', 'deposito']; // sezioni spente finché l'amministratore non le accende
   // riquadri di Home e Pannello che appartengono a una sezione (spariscono se le loro sezioni sono tutte spente)
   var SEZ_BLOCCHI = { w_mag: ['magazzino'], w_porto: ['porto'], w_rif: ['rifiuti'], w_batt: ['batterie'], vari: ['vari'], prog: ['programma'], meteo: ['meteo'],
     contr: ['porto'], riord: ['magazzino', 'batterie'], serv: ['operazioni'], magb: ['magazzino', 'batterie'] };
@@ -7674,7 +7742,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['barche', 'Barche'], ['lavori', 'Lavorazioni e mansioni'], ['scadenze', 'Scadenze'], ['vari', 'Vari e alaggi'],
     ['magazzino', 'Ricambi del magazzino'], ['movimenti', 'Carichi e scarichi di magazzino'], ['operazioni', 'Servizi di cantiere'],
     ['opModelli', 'Gruppi dei servizi'], ['mezzi', 'Mezzi e carrelli'], ['conferme', 'Giornate confermate'],
-    ['dipendenti', 'Nomi dei dipendenti'], ['impostazioni', 'Misure della mappa'], ['posti', 'Posti al porto'], ['attrezzatura', 'Attrezzatura di bordo'], ['programma', 'Programma dei lavori'], ['cariche', 'Cariche delle batterie'], ['richieste', 'Richieste di chi cerca una barca'], ['rifiuti', 'Rifiuti segnati'], ['ritiri', 'Ritiri dei rifiuti'], ['scadCantiere', 'Scadenze del cantiere'], ['preventivi', 'Preventivi'], ['assenze', 'Ferie e permessi'], ['giri', 'Giri di controllo'], ['ditte', 'Ditte esterne'], ['kit', 'Kit di ricambi'], ['inventari', 'Inventari del magazzino'],
+    ['dipendenti', 'Nomi dei dipendenti'], ['impostazioni', 'Misure della mappa'], ['posti', 'Posti al porto'], ['attrezzatura', 'Attrezzatura di bordo'], ['deposito', 'Roba del cliente in deposito'], ['programma', 'Programma dei lavori'], ['cariche', 'Cariche delle batterie'], ['richieste', 'Richieste di chi cerca una barca'], ['rifiuti', 'Rifiuti segnati'], ['ritiri', 'Ritiri dei rifiuti'], ['scadCantiere', 'Scadenze del cantiere'], ['preventivi', 'Preventivi'], ['assenze', 'Ferie e permessi'], ['giri', 'Giri di controllo'], ['ditte', 'Ditte esterne'], ['kit', 'Kit di ricambi'], ['inventari', 'Inventari del magazzino'],
     ['checklist', 'Vecchie checklist'], ['checkBarca', 'Vecchie liste per barca'], ['modelli', 'Vecchi modelli di checklist']
   ];
   var BK_OLD = ['checklist', 'checkBarca', 'modelli'];
@@ -7689,7 +7757,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       barche: S.boats.length, lavori: S.lavoriAll.length, scadenze: S.scadenze.length, vari: S.vari.length, magazzino: S.mag.length, movimenti: S.mov.length,
       operazioni: S.ops.length, opModelli: S.opModelli.length, mezzi: S.mezzi.length, conferme: Object.keys(S.conf).length, dipendenti: Object.keys(S.dip).length,
       impostazioni: S.mapCfg ? 1 : 0, checklist: S.check.length, checkBarca: Object.keys(S.ckBarca).length, modelli: S.modelli.length,
-      posti: Object.keys(S.posti || {}).length, attrezzatura: (S.attr || []).length, programma: (S.prog || []).length,
+      posti: Object.keys(S.posti || {}).length, attrezzatura: (S.attr || []).length, deposito: (S.depo || []).length, programma: (S.prog || []).length,
       cariche: (S.cariche || []).length, richieste: (S.richieste || []).length, rifiuti: (S.rif || []).length, ritiri: (S.ritiri || []).length, scadCantiere: (S.scadC || []).length, preventivi: (S.prev || []).length, assenze: (S.assenze || []).length, kit: (S.kit || []).length, inventari: (S.inv || []).length
     };
   }
@@ -7716,6 +7784,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     h += '<div class="empty" style="margin-top:14px"><span class="ic-circle">' + I.dl + '</span><h3>Copia di tutti i dati</h3>' +
       '<p>Un unico file con barche, lavorazioni, scheda lavoro, programma, scadenze, magazzino, rifiuti, vari e alaggi, servizi, porto, attrezzatura, batterie, mezzi e mappa.</p>' + save +
       (inf && inf.ultima ? '<p class="cap" style="margin-top:6px">Ultima copia: ' + esc(fmtWhen(inf.ultima)) + (inf.nome ? ' · ' + esc(inf.nome) : '') + '</p>' : '') + '</div>';
+    var au = inf && inf.auto;
+    h += '<div class="empty" style="margin-top:14px"><span class="ic-circle">' + I.restore + '</span><h3>Copia automatica</h3>' +
+      '<p>Ogni domenica notte il servizio salva da solo una copia dei dati dell’azienda, chiusa con una password. Le copie restano 8 settimane: se ti serve, chiedila al gestore del servizio e recuperala qui sotto.</p>' +
+      '<p class="cap" style="margin:6px 0 0">' + (au && au.ultima ? 'Ultima copia automatica: ' + esc(fmtWhen(au.ultima)) + (au.voci ? ' · ' + esc(nVoci(au.voci)) : '') : 'Nessuna copia automatica ancora.') + '</p></div>';
 
     var rows = BK_COLL.filter(function (x) { return x[0] !== 'impostazioni' && (c[x[0]] || BK_OLD.indexOf(x[0]) < 0); }).map(function (x) {
       return '<div class="kv-row"><span class="k">' + esc(x[1]) + '</span><span class="v">' + fmtNum(c[x[0]] || 0) + '</span></div>';
@@ -7833,7 +7905,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       var res = await S.dl.save({ filename: fn, data: JSON.stringify(file, null, 1) });
       if (res && res.status === 'saved') {
         toast('Copia pronta: ' + nVoci(tot));
-        try { await S.db.collection('impostazioni').doc('backup').set({ ultima: now.toISOString(), da: S.myId || '', nome: chi, voci: tot }); } catch (e) { }
+        try { await S.db.collection('impostazioni').doc('backup').set({ ultima: now.toISOString(), da: S.myId || '', nome: chi, voci: tot }, { merge: true }); } catch (e) { }
       }
     } catch (e) { bkDlErr(e && e.code); }
     BK.busy = false; render();
@@ -8682,6 +8754,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       var b = boatById(a.barcaId);
       return { s: gqScore(words, attrLabel(a), [a.tipo, a.marca, a.modello, a.misure, a.colore, b && b.nome]), h: gqRow('attr', a.id, attrLabel(a), [a.tipo !== attrLabel(a) ? a.tipo : '', a.marca, b ? b.nome : ''].filter(Boolean).join(' · '), '') };
     }));
+    grp('Roba in deposito', (depoOn() ? S.depo || [] : []).map(function (x) {
+      var b = boatById(x.barcaId);
+      return { s: gqScore(words, x.cosa, [x.dove, x.note, b && b.nome, b && b.proprietario]), h: gqRow('depo', x.id, x.cosa || 'Roba in deposito', [b ? b.nome : '', x.stato === 'restituito' ? 'restituita' : x.dove].filter(Boolean).join(' · '), '') };
+    }));
     return groups.length ? groups.join('') : '<p class="context">Nessun risultato per “' + esc(q) + '”.</p>';
   }
   function gqBar() { return '<button type="button" class="search gq-bar" data-act="gq-open">' + I.search + '<span>Cerca barca, cliente, articolo, lavoro…</span></button>'; }
@@ -8708,6 +8784,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     else if (k === 'scc') { x = (S.scadC || []).find(function (s) { return s.id === id; }); if (x && S.canWrite) scSheet(x); else { V.tab = 'scadcantiere'; V.boatId = null; render(); } }
     else if (k === 'prev') { x = (S.prev || []).find(function (p) { return p.id === id; }); if (x && S.canWrite) prevSheet(x); else { V.tab = 'preventivi'; V.boatId = null; render(); } }
     else if (k === 'attr') { x = (S.attr || []).find(function (a) { return a.id === id; }); if (x && S.canWrite) attrSheet(x); else if (x && x.barcaId) gqGo('boat', x.barcaId); }
+    else if (k === 'depo') { x = (S.depo || []).find(function (a) { return a.id === id; }); if (x && S.canWrite) depoSheet(x); else if (x && x.barcaId) gqGo('boat', x.barcaId); }
   }
 
   /* ---------- Guida: il tasto «?» in alto apre la spiegazione della sezione in cui si è ---------- */
@@ -9450,7 +9527,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   // cosa punta al doppione d e cosa cambia perché punti alla barca a; per annullare si conserva il valore di prima
   function mrgPiano(a, d) {
-    var mv = [], liste = [['lavori', S.lavoriAll], ['scadenze', S.scadenze], ['vari', S.vari], ['operazioni', S.ops], ['programma', S.prog], ['preventivi', S.prev], ['attrezzatura', S.attr],
+    var mv = [], liste = [['lavori', S.lavoriAll], ['scadenze', S.scadenze], ['vari', S.vari], ['operazioni', S.ops], ['programma', S.prog], ['preventivi', S.prev], ['attrezzatura', S.attr], ['deposito', S.depo],
       ['cariche', S.cariche], ['rifiuti', S.rif], ['movimenti', S.mov], ['checklist', S.check]];
     liste.forEach(function (L) {
       (L[1] || []).forEach(function (x) {
@@ -10154,6 +10231,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var hd = { 'Content-Type': 'application/json', 'x-goog-api-key': c.apiKey, 'X-Firebase-AppId': c.appId || '' };
     var tk = window.__NM_FB.appCheckToken ? await window.__NM_FB.appCheckToken() : ''; // App Check: dal 2/11/2026 senza gettone l'AI risponde «non autorizzato»
     if (tk) hd['X-Firebase-AppCheck'] = tk;
+    if (window.__NM_FB.aiConta) await window.__NM_FB.aiConta(); // tetto dell'azienda: 30 richieste al giorno, se non deciso diverso
     for (var i = 0; i < AI_MODELS.length; i++) {
       var r = await fetch('https://firebasevertexai.googleapis.com/v1beta/projects/' + encodeURIComponent(c.projectId) + '/models/' + AI_MODELS[i] + ':generateContent', {
         method: 'POST', headers: hd,
@@ -10173,6 +10251,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function aiErrMsg(e) {
     var c = e && e.code;
     return c === 'ai_off' ? 'Il riconoscimento con l’AI non è ancora attivo: va acceso una volta nella console di Firebase (AI Logic). Intanto scrivi a mano.'
+      : c === 'ai_finita' ? 'AI finita per oggi, riprova domani. Intanto scrivi a mano.'
       : c === 'rete' ? 'Serve internet per il riconoscimento con l’AI.' : c === 'troppe' ? 'Troppe richieste in poco tempo: riprova tra un minuto.' : 'Non sono riuscito a riconoscerlo: scrivilo a mano.';
   }
   var AI_PEZZO = 'Sei in un cantiere nautico italiano. Nella foto c’è un ricambio, un prodotto o un materiale (anche la sua scatola o etichetta). ' +
@@ -10867,6 +10946,9 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'mis-u': (function () { var f = t.getAttribute('data-f'), u = t.getAttribute('data-u'); if (f === 'k') V.misKu = u; else if (f === 'fd') V.misFdu = u; else if (f === 'fp') V.misFpu = u; })(); render(); break;
       case 'ass-no': if (confirm('Rifiutare la richiesta?')) assDecide(id, false); break;
       case 'new-attr': if (S.canWrite) attrSheet(null, t.getAttribute('data-boat') || V.boatId); break;
+      case 'new-depo': if (S.canWrite) depoSheet(null, t.getAttribute('data-boat') || V.boatId); break;
+      case 'edit-depo': x = (S.depo || []).find(function (a) { return a.id === id; }); if (x && S.canWrite) depoSheet(x); break;
+      case 'depo-ric': if (S.canWrite) depoRiconsegna(id); break;
       case 'edit-attr': x = S.attr.find(function (a) { return a.id === id; }); if (x && S.canWrite) attrSheet(x); break;
       case 'new-lav': lavSheet(null, t.getAttribute('data-boat') || V.boatId, t.getAttribute('data-date')); break;
       case 'edit-lav': var l = S.lavori.find(function (x) { return x.id === id; }); if (l) lavSheet(l); break;
@@ -11006,6 +11088,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     sub('mezzi', function (x) { S.mezzi = x; });
     sub('controlliMezzi', function (x) { S.ctrlMz = x; });
     sub('attrezzatura', function (x) { S.attr = x; });
+    sub('deposito', function (x) { S.depo = x; });
     sub('programma', function (x) { S.prog = x; S.got.programma = true; progPulizia(); });
     sub('cariche', function (x) { S.cariche = x; });
     sub('posti', function (x) { S.posti = toMap(x); });
