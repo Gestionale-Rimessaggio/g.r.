@@ -4,6 +4,7 @@
 # e, se manca la password, la copia si ferma.
 # Segreti: FIREBASE_SERVICE_ACCOUNT (già usato dalle notifiche) e COPIA_PASSWORD (da creare in
 # Settings › Secrets and variables › Actions). Le copie restano scaricabili 8 settimane in Actions.
+# Si può far partire anche a mano: Actions › «Copia dei dati automatica» › Run workflow.
 name: Copia dei dati automatica
 
 on:
