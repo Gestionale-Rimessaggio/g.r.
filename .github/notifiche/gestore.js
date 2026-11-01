@@ -8,7 +8,7 @@
 
 var oraRoma = function (d) { return require('./invia').oraRoma(d); };
 var COLLS = ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
-  'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'programma', 'cariche', 'posti', 'richieste',
+  'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'deposito', 'programma', 'cariche', 'posti', 'richieste',
   'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'foto', 'fotoInfo', 'notifiche', 'attivita', 'cestino', 'portale'];
 var ERRORI_SOGLIA = 5, INATTIVA_GG = 30, RICHIESTE_UNA_A_UNA = 3; // più richieste nuove di così nello stesso giro: un avviso solo
 

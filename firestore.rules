@@ -53,7 +53,7 @@ service cloud.firestore {
     // Le raccolte con i dati di ogni azienda (le stesse di COLLS in nm-fb.js)
     function raccolteCantiere() {
       return ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
-        'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'programma', 'cariche', 'posti', 'richieste',
+        'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'deposito', 'programma', 'cariche', 'posti', 'richieste',
         'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi'];
     }
 
@@ -80,6 +80,10 @@ service cloud.firestore {
       match /portale/{barcaId} {
         allow read: if staffA(a) || (cliente(a) && barcaId in me().get('barche', []));
         allow write: if staffA(a);
+      }
+      // Le foto della roba in deposito che compaiono nel portale (foto.portale = la barca): le apre solo il cliente di quella barca
+      match /foto/{id} {
+        allow get: if cliente(a) && resource.data.get('portale', '') in me().get('barche', []);
       }
 
       // Cestino: ogni cancellazione ne lascia qui una copia (per 60 giorni).
