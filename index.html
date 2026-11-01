@@ -1891,7 +1891,136 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function viewBarche() {
     return exampleBanner() + '<div class="search">' + I.search + '<input id="q" type="search" placeholder="Cerca nome, modello, cliente, posto" value="' + esc(V.q) + '" autocomplete="off" aria-label="Cerca barche"></div>' +
       (aiOn() && S.boats.length ? '<button type="button" class="btn sec" data-act="boat-ai" style="width:100%;margin-top:10px">' + I.camera + 'Trova la barca dalla foto</button>' : '') +
+      (S.isOwner && S.canWrite ? '<button type="button" class="btn sec" data-act="xl-import" style="width:100%;margin-top:10px">' + I.doc + 'Barche e clienti da Excel</button>' : '') +
       '<div id="boat-list">' + boatListHtml() + '</div>';
+  }
+
+  /* ---------- Barche e clienti da Excel (idea G5, solo amministratore) ----------
+     Legge il primo foglio di un .xlsx (lo zip si apre col DecompressionStream del browser, niente librerie) o un .csv;
+     chi importa sceglie quale colonna va in quale campo (le indovina dai titoli); le barche con un nome già presente si saltano. */
+  var XL_CAMPI = [['nome', 'Nome della barca', /^(nome( (della )?barca| imbarcazione| unit[aà])?|barca|imbarcazione|unit[aà]|natante)$/],
+    ['modello', 'Modello', /modell|cantiere costr|marca/], ['tipo', 'Tipo (motore, vela…)', /^tipo|propulsion/], ['lunghezza', 'Lunghezza (m)', /lungh|loa|lft|^l\.?$/],
+    ['larghezza', 'Larghezza (m)', /largh|baglio|^b\.?$/], ['anno', 'Anno', /^anno|costruzion/], ['immatricolazione', 'Matricola o targa', /matricol|targa|immatric|sigla/],
+    ['proprietario', 'Proprietario (cliente)', /propriet|cliente|armator|intestat|nominativ|ragione soc/], ['telefono', 'Telefono', /tel|cell|mobile/], ['email', 'Email', /mail/],
+    ['posto', 'Posto', /posto|ormeggio|banchina|stallo/], ['stato', 'Stato', /^stato|situazion/], ['note', 'Note', /note|annotaz/]];
+  async function xlUnzip(buf) {
+    var u8 = new Uint8Array(buf), dv = new DataView(buf), e = u8.length - 22;
+    while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+    if (e < 0) throw new Error('zip');
+    var n = dv.getUint16(e + 10, true), p = dv.getUint32(e + 16, true), out = {};
+    for (var i = 0; i < n; i++) {
+      var met = dv.getUint16(p + 10, true), csz = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+      var name = new TextDecoder().decode(u8.subarray(p + 46, p + 46 + nl)); p += 46 + nl + xl + cl;
+      if (!/^xl\/(sharedStrings\.xml|workbook\.xml|_rels\/workbook\.xml\.rels|worksheets\/sheet\d+\.xml)$/.test(name)) continue;
+      var lo = off + 30 + dv.getUint16(off + 26, true) + dv.getUint16(off + 28, true), data = u8.subarray(lo, lo + csz);
+      if (met === 8) data = new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+      else if (met !== 0) continue;
+      out[name] = new TextDecoder().decode(data);
+    }
+    return out;
+  }
+  function xlColN(ref) { var m = /^([A-Z]+)/.exec(ref || ''), n = 0; if (!m) return -1; for (var i = 0; i < m[1].length; i++) n = n * 26 + m[1].charCodeAt(i) - 64; return n - 1; }
+  async function xlLeggi(file) {
+    var buf = await file.arrayBuffer();
+    if (/\.csv$|\.txt$/i.test(file.name)) {
+      var t = new TextDecoder().decode(buf).replace(/^﻿/, ''), sep = (t.split('\n')[0].match(/;/g) || []).length >= (t.split('\n')[0].match(/,/g) || []).length ? ';' : ',';
+      var rows = [], row = [], cell = '', q = false;
+      for (var i = 0; i < t.length; i++) {
+        var c = t[i];
+        if (q) { if (c === '"' && t[i + 1] === '"') { cell += '"'; i++; } else if (c === '"') q = false; else cell += c; }
+        else if (c === '"') q = true; else if (c === sep) { row.push(cell); cell = ''; } else if (c === '\n') { row.push(cell.replace(/\r$/, '')); rows.push(row); row = []; cell = ''; } else cell += c;
+      }
+      if (cell || row.length) { row.push(cell); rows.push(row); }
+      return rows;
+    }
+    var z = await xlUnzip(buf), P = new DOMParser(), ss = [];
+    if (z['xl/sharedStrings.xml']) Array.prototype.forEach.call(P.parseFromString(z['xl/sharedStrings.xml'], 'application/xml').getElementsByTagName('si'), function (si) {
+      ss.push(Array.prototype.map.call(si.getElementsByTagName('t'), function (x) { return x.textContent; }).join(''));
+    });
+    var sheet = 'xl/worksheets/sheet1.xml';
+    try { // il primo foglio della cartella, anche se non si chiama sheet1
+      var wb = P.parseFromString(z['xl/workbook.xml'], 'application/xml'), first = wb.getElementsByTagName('sheet')[0], rid = first && (first.getAttribute('r:id') || first.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id'));
+      Array.prototype.forEach.call(P.parseFromString(z['xl/_rels/workbook.xml.rels'], 'application/xml').getElementsByTagName('Relationship'), function (r) { if (r.getAttribute('Id') === rid) sheet = 'xl/' + r.getAttribute('Target').replace(/^\/?xl\//, '').replace(/^\//, ''); });
+    } catch (e) { }
+    if (!z[sheet]) sheet = Object.keys(z).filter(function (k) { return /worksheets\/sheet\d+\.xml$/.test(k); }).sort()[0];
+    if (!sheet || !z[sheet]) throw new Error('foglio');
+    var out = [];
+    Array.prototype.forEach.call(P.parseFromString(z[sheet], 'application/xml').getElementsByTagName('row'), function (r) {
+      var row = [];
+      Array.prototype.forEach.call(r.getElementsByTagName('c'), function (c) {
+        var col = xlColN(c.getAttribute('r')), t = c.getAttribute('t'), v = c.getElementsByTagName('v')[0], is = c.getElementsByTagName('is')[0], val = '';
+        if (t === 's' && v) val = ss[+v.textContent] || ''; else if (t === 'inlineStr' && is) val = is.textContent; else if (v) val = v.textContent;
+        if (col < 0) col = row.length; row[col] = String(val);
+      });
+      out.push(Array.from(row, function (x) { return x == null ? '' : x; }));
+    });
+    return out;
+  }
+  function xlNorm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 .]/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function xlSheet() {
+    if (!S.isOwner) return;
+    var X = { rows: null, head: 0 };
+    function corpo() {
+      if (!X.rows) return '<p class="context">Scegli il file Excel (.xlsx) o .csv con le barche e i clienti, per esempio quello esportato dal vecchio gestionale. Si legge il primo foglio; nella prima riga ci vanno i titoli delle colonne.</p>' +
+        '<label class="btn self-start">' + I.dl + 'Scegli il file<input type="file" id="xl-f" accept=".xlsx,.csv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" class="vh"></label><p class="form-err" id="xl-e" hidden></p>';
+      var H = X.rows[X.head], dati = X.rows.slice(X.head + 1).filter(function (r) { return r.some(function (c) { return String(c).trim(); }); });
+      var h = '<p class="context">Ho trovato <b>' + dati.length + ' righe</b>. Per ogni campo scegli la colonna del file (ho provato a indovinarle dai titoli). Solo il nome della barca è obbligatorio.</p>';
+      h += XL_CAMPI.map(function (c) {
+        var g = -1; H.forEach(function (t, i) { if (g < 0 && c[2].test(xlNorm(t))) g = i; });
+        return field(lab('xl-c-' + c[0], c[1]), '<select id="xl-c-' + c[0] + '" class="xl-c" data-k="' + c[0] + '"><option value="">— nessuna —</option>' + H.map(function (t, i) { return '<option value="' + i + '"' + (i === g ? ' selected' : '') + '>' + esc(String(t || 'Colonna ' + (i + 1)).slice(0, 40)) + '</option>'; }).join('') + '</select>');
+      }).join('');
+      return h + '<div class="lbl">Anteprima</div><div id="xl-pv"></div>';
+    }
+    function mappa(f) { var m = {}; Array.prototype.forEach.call(f.querySelectorAll('.xl-c'), function (s) { if (s.value !== '') m[s.getAttribute('data-k')] = +s.value; }); return m; }
+    function barcheDa(f) {
+      var m = mappa(f), noti = {}, out = [], salt = 0;
+      S.boats.forEach(function (b) { noti[xlNorm(b.nome)] = 1; });
+      X.rows.slice(X.head + 1).forEach(function (r) {
+        var g = function (k) { return m[k] == null ? '' : String(r[m[k]] == null ? '' : r[m[k]]).trim(); }, nome = g('nome');
+        if (!nome) return; if (noti[xlNorm(nome)]) { salt++; return; } noti[xlNorm(nome)] = 1;
+        var tipo = g('tipo'), st = g('stato'), tp = TIPI_BARCA.filter(function (t) { return xlNorm(t) === xlNorm(tipo); })[0] || (/vel/i.test(tipo) ? 'Vela' : /gomm|rib/i.test(tipo) ? 'Gommone' : tipo ? 'Motore' : '');
+        out.push({ nome: nome, modello: g('modello'), tipo: tp, stato: STATI_BARCA.filter(function (s) { return xlNorm(s) === xlNorm(st); })[0] || '',
+          lunghezza: parseDec(g('lunghezza').replace(/\s*m$/i, '')), larghezza: parseDec(g('larghezza').replace(/\s*m$/i, '')), anno: g('anno').replace(/\.0$/, ''), immatricolazione: g('immatricolazione'),
+          proprietario: g('proprietario'), telefono: g('telefono').replace(/\.0$/, ''), email: g('email'), posto: g('posto'), note: g('note') });
+      });
+      return { barche: out, saltate: salt };
+    }
+    function anteprima(f) {
+      var x = barcheDa(f), pv = f.querySelector('#xl-pv'); if (!pv) return;
+      pv.innerHTML = (x.barche.length ? '<div class="group">' + x.barche.slice(0, 5).map(function (b) {
+        return '<div class="row"><span class="main"><span class="title">' + esc(b.nome) + '</span><span class="sub">' + esc([b.modello, b.lunghezza ? fmtNum(b.lunghezza, 2) + ' m' : '', b.proprietario, b.telefono, b.posto].filter(Boolean).join(' · ')) + '</span></span></div>'; }).join('') + '</div>' : '<div class="notice">Nessuna barca da aggiungere: scegli la colonna del nome.</div>') +
+        '<p class="cap" style="margin:8px 2px 0">Aggiungo <b>' + x.barche.length + '</b> barche' + (x.barche.length > 5 ? ' (qui sopra le prime 5)' : '') + '.' + (x.saltate ? (x.saltate === 1 ? ' Una ha un nome già presente nell’app e la salto.' : ' ' + x.saltate + ' hanno un nome già presente nell’app e le salto.') : '') + '</p>';
+      var sv = $('#sheet-save'); if (sv) sv.textContent = x.barche.length ? 'Aggiungi ' + x.barche.length : 'Aggiungi';
+    }
+    function apri() {
+      openSheet({ title: 'Barche e clienti da Excel', submitLabel: 'Aggiungi', body: corpo(),
+        onOpen: function (f) {
+          var fi = f.querySelector('#xl-f');
+          if (fi) fi.addEventListener('change', async function () {
+            var file = fi.files && fi.files[0], er = f.querySelector('#xl-e'); if (!file) return;
+            try {
+              var rows = await xlLeggi(file); X.head = rows.findIndex(function (r) { return r.filter(function (c) { return String(c).trim(); }).length >= 2; });
+              if (X.head < 0 || rows.length < X.head + 2) throw new Error('vuoto');
+              X.rows = rows; apri();
+            } catch (e) { er.textContent = typeof DecompressionStream === 'undefined' ? 'Questo browser non apre i file Excel: salvalo come .csv e riprova.' : 'Non riesco a leggere il file: controlla che sia un .xlsx o un .csv con i titoli nella prima riga.'; er.hidden = false; }
+          });
+          if (X.rows) { f.addEventListener('change', function (e) { if (e.target.classList.contains('xl-c')) anteprima(f); }); anteprima(f); }
+        },
+        onSubmit: async function (f) {
+          if (!X.rows) { formErr('Scegli prima il file.'); return false; }
+          var x = barcheDa(f); if (!x.barche.length) { formErr('Non c’è nessuna barca da aggiungere.'); return false; }
+          var now = new Date().toISOString(), n = 0;
+          for (var i = 0; i < x.barche.length; i++) {
+            var d = x.barche[i], data = {}; Object.keys(d).forEach(function (k) { if (d[k] !== '' && d[k] != null) data[k] = d[k]; });
+            data.daCompletare = !(d.lunghezza && d.proprietario); data.importata = now; data.creato = data.modificato = now;
+            var ref = S.db.collection('barche').doc(), ok = await w(function () { return ref.set(data); }); if (!ok) break; n++;
+            if (d.posto && PORTO_ON() && Porto.libero(d.posto)) await Porto.assign(d.posto, ref.id);
+          }
+          toast(n === x.barche.length ? 'Aggiunte ' + n + ' barche' : 'Aggiunte ' + n + ' barche su ' + x.barche.length + ': riprova per le altre (salto quelle già aggiunte)', n !== x.barche.length);
+          render(); return n > 0;
+        } });
+    }
+    apri();
   }
 
   function viewBoat() {
@@ -9326,7 +9455,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       '«Trova la barca dalla foto»: fotografi una barca e l’app propone le 5 più simili tra quelle registrate. La foto non viene salvata.',
       'Le barche con dati incompleti mostrano «manca: …» con il tasto per completarle.',
       'Su computer e tablet le barche sono in tabella: tocca il titolo di una colonna per ordinare (tocca di nuovo per invertire), i tasti sopra per vedere solo quelle a terra, in acqua, con scadenze o con lavori aperti, una riga per aprire la barca.',
-      'Con il + in alto aggiungi una barca nuova.'] },
+      'Con il + in alto aggiungi una barca nuova.',
+      'A|«Barche e clienti da Excel»: scegli il file (.xlsx o .csv) del vecchio gestionale, indica quale colonna è il nome, il cliente, il telefono…, guarda l’anteprima e aggiungi. Le barche con un nome già presente si saltano.'] },
     riepiloghi: { t: 'Riepiloghi', p: 'I numeri del cantiere in quattro pagine, aggiornati in tempo reale. Su computer e tablet sono nel menù sotto Amministrazione, sul telefono in Altro › Riepiloghi.', li: [
       'Scadenze in arrivo: scadute, entro 30 e 90 giorni, quante per mese e per tipo, e i clienti da avvisare con il telefono. Tocca una riga per aprire la barca.',
       'Magazzino e consumi: articoli sotto scorta con quanto ordinare, i ricambi più usati del mese e gli articoli fermi da più di un anno.',
@@ -11322,6 +11452,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'ric-all': V.boatRicAll = true; render(); break;
       case 'kit-list': kitListSheet(); break;
       case 'sds-list': sdsLista(); break;
+      case 'xl-import': xlSheet(); break;
       case 'prev-avanz': var pa = (S.prev || []).find(function (x) { return x.id === id; }); if (pa) { closeSheet(); avSheet(pa); } break;
       case 'av-copia': var at = $('#av-t'); if (at) { var fatto = function () { toast('Testo copiato'); }, vecchio = function () { at.select(); document.execCommand('copy'); fatto(); }; try { navigator.clipboard.writeText(at.value).then(fatto, vecchio); } catch (e) { vecchio(); } } break;
       case 'vn-salva': vnSalva(); break;
