@@ -4983,8 +4983,24 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       if (P.filter === 'fit') h += '<button type="button" class="chip-b pt-chip" data-act="pt-filter" data-f="fit" aria-pressed="true"><i style="background:var(--ok)"></i>Adatti alla barca <b>' + Object.keys(P.fit || {}).length + '</b> ✕</button>';
       return h;
     }
+    function misTxt(b) { return b.len ? fmtNum(b.len, 2) + ' × ' + (b.wid ? fmtNum(b.wid, 2) : '—') + ' m' : 'misure non scritte'; }
+    function listaView() {
+      var puoDis = S.isOwner && S.canWrite && sezOn('portomio'), due = dueList().length, ven = vendite().length;
+      var rows = BERTHS.filter(visible).map(function (b) {
+        var d = postoDoc(b.id) || {}, boat = berthBoat(b), st = STATI[statoOf(b)], tit = boat ? boat.nome || 'Barca' : d.cliente || (statoOf(b) === 'libero' ? 'Libero' : 'Della Marina');
+        var sc = d.fino && daysUntil(d.fino) != null && daysUntil(d.fino) <= 30 && statoOf(b) !== 'marina' ? ' <span class="pill ' + (daysUntil(d.fino) < 0 ? 'late' : 'soon') + '">' + (daysUntil(d.fino) < 0 ? 'Contratto scaduto' : 'Scade il ' + esc(fmtDate(d.fino))) + '</span>' : '';
+        return '<button type="button" class="pt-riga" data-act="pt-row" data-id="' + esc(b.id) + '" id="ptr-' + esc(b.id) + '"' + (P.sel === b.id ? ' aria-current="true"' : '') + '><span class="pt-code">' + esc(b.id) + '</span><span class="pt-rt"><b>' + esc(tit) + '</b><span class="cap">' + esc([boat && d.cliente ? d.cliente : '', b.zona, misTxt(b)].filter(Boolean).join(' · ')) + '</span></span><span><span class="pill ' + st.pill + '">' + esc(st.s) + '</span>' + sc + '</span></button>';
+      }).join('');
+      return '<div class="map-ctrl">' + (S.canWrite ? '<button type="button" class="chip-b" data-act="pt-add">+ Aggiungi posto</button>' : '') + (puoDis ? '<button type="button" class="chip-b" data-act="pt-draw">Disegna il vostro porto</button>' : '') +
+        '<button type="button" class="chip-b" data-act="pt-find">Trova posto</button><button type="button" class="chip-b" data-act="pt-broker">Brokeraggio <b>' + ven + '</b></button>' +
+        '<button type="button" class="chip-b" data-act="pt-contracts">Contratti <b style="color:var(--soon)">' + (due || '') + '</b></button><button type="button" class="chip-b" data-act="pt-search">Cerca</button></div>' +
+        '<div class="pt-chips" id="pt-chips">' + chipsHtml() + '</div>' +
+        '<style>.pt-riga{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:0 0 8px;color:inherit;font:inherit;cursor:pointer}.pt-riga[aria-current=true]{border-color:var(--accent)}.pt-riga .pt-rt{flex:1;min-width:0;display:flex;flex-direction:column}.pt-riga .pt-rt b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pt-riga>span:last-child{display:flex;flex-direction:column;align-items:flex-end;gap:4px}</style>' +
+        '<div id="pt-lista" style="margin-top:10px">' + (rows || '<div class="notice">' + (BERTHS.length ? 'Nessun posto con questo filtro.' : 'Nessun posto ancora.' + (S.canWrite ? ' Con «Aggiungi posto» scrivi il nome del posto e le misure, poi assegni barca, cliente e contratto.' : '')) + '</div>') + '</div>';
+    }
     function view() {
       mioSync();
+      if (MIO.lista) return listaView();
       var due = dueList().length, ven = vendite().length, mio = !!MIO.cfg, puoDis = S.isOwner && S.canWrite && sezOn('portomio');
       return '<div class="map-ctrl">' + (mio ? '' : '<div class="seg2" role="group" aria-label="Vista del porto"><button type="button" data-act="pt-mode" data-m="2d" aria-pressed="' + (P.mode === '2d') + '">Pianta</button><button type="button" data-act="pt-mode" data-m="3d" aria-pressed="' + (P.mode === '3d') + '">3D</button></div>') +
         (puoDis ? '<button type="button" class="chip-b" data-act="pt-draw">' + (mio ? 'Modifica il disegno' : 'Disegna il vostro porto') + '</button>' : '') +
@@ -4995,7 +5011,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         '<div class="m3-hint" id="pt-hint" style="transition:opacity .4s"></div>' +
         '<div class="map-tools"><button type="button" data-act="pt-zin" aria-label="Avvicina">+</button><button type="button" data-act="pt-zout" aria-label="Allontana">−</button><button type="button" data-act="pt-fit" aria-label="Tutto il porto">' + I.fit + '</button>' + (MIO.cfg ? '' : '<button type="button" data-act="pt-north" aria-label="Nord in alto" style="color:var(--late);font-size:.8rem"><span id="pt-needle" style="display:inline-block">N</span></button>') + '</div>' +
         '<div class="map-card" id="pt-card" hidden></div></div>' +
-        '<p class="cap" style="margin:10px 2px 0">' + (mio ? 'Il vostro porto, disegnato sulla foto: le misure dei posti sono quelle scritte nel disegno.' : 'Porto di esempio, disegnato dalla foto dall’alto: pontili, posti e misure sono stimati.' + (puoDis ? ' Con «Disegna il vostro porto» mettete la foto del vostro e segnate le file di posti.' : '')) + ' Ogni posto parte come “della Marina”: toccalo per segnarlo come vostro, assegnare barca e cliente, contratto e scadenza.</p>';
+        '<p class="cap" style="margin:10px 2px 0">' + (mio ? 'Il vostro porto, disegnato sulla foto: le misure dei posti sono quelle scritte nel disegno.' : '') + ' Ogni posto parte come “della Marina”: toccalo per segnarlo come vostro, assegnare barca e cliente, contratto e scadenza.</p>';
     }
     function listHtml() {
       var list = BERTHS.filter(function (b) { var d = postoDoc(b.id), st = statoOf(b); return st !== 'marina' || (d && d.barcaId); });
@@ -5028,8 +5044,9 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       el.innerHTML = h; el.hidden = false;
     }
     function refresh() {
-      if (!P.mounted) return;
       mioSync();
+      if (MIO.lista) { if ($('#pt-lista') && V.tab === 'mappa') render(); return; }
+      if (!P.mounted) return;
       if (!MIO.cfg) buildBoats();
       var ch = $('#pt-chips'); if (ch) ch.innerHTML = chipsHtml();
       mlFill(listHtml());
@@ -5038,6 +5055,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       card(); draw();
     }
     function mount() {
+      mioSync();
+      if (MIO.lista) { if (P.flyOnMount && P.sel) { P.flyOnMount = false; var r = document.getElementById('ptr-' + P.sel); if (r) setTimeout(function () { r.scrollIntoView({ block: 'center' }); }, 60); } return; }
       stage = $('#porto-root'); cv = $('#pt-cv'); if (!stage || !cv) return;
       ctx = cv.getContext('2d');
       mioSync(); P.kind = MIO.ref;
@@ -5054,10 +5073,15 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     function unmount() { P.mounted = false; if (P.ro) { P.ro.disconnect(); P.ro = null; } if (P.anim) { cancelAnimationFrame(P.anim.raf); P.anim = null; } stage = cv = ctx = null; }
 
     // ---------- Fogli: posto, vendita, brokeraggio, richieste, contratti, trova posto, cerca ----------
+    function misDi(d) { var o = {}; ['len', 'wid', 'zona'].forEach(function (k) { if (d && d[k] != null && d[k] !== '') o[k] = d[k]; }); return o; } // le misure scritte a mano restano
     function berthOfBoat(boatId) { mioSync(); for (var k in (S.posti || {})) { if (S.posti[k] && S.posti[k].barcaId === boatId && BY[k]) return BY[k]; } return null; }
     function postoSheet(b) {
-      var d = postoDoc(b.id) || {}, boats = S.boats.slice().sort(byName);
-      var body = '<p class="context">' + esc(b.id + ' · ' + b.zona) + ' · posto ' + fmtNum(b.len, 2) + ' × ' + fmtNum(b.wid, 2) + ' m</p>' +
+      var d = (!b.nuovo && postoDoc(b.id)) || {}, boats = S.boats.slice().sort(byName);
+      function f2(v) { return v ? String(r2(v)).replace('.', ',') : ''; }
+      var body = (b.lista ? (b.nuovo ? field(lab('f-pid', 'Nome del posto'), inp('f-pid', '', 'type="text" maxlength="20" autocapitalize="characters" placeholder="es. A12 o Banchina 3" required'), 'Come lo chiamate voi: compare nell’elenco e nella scheda della barca.') : '') +
+          '<div class="grid2">' + field(lab('f-pz', 'Zona'), inp('f-pz', b.zona, 'type="text" maxlength="40" placeholder="es. Pontile 2"')) + '<div></div></div>' +
+          '<div class="grid2">' + field(lab('f-pl', 'Lunghezza del posto (m)'), inp('f-pl', f2(b.len), 'type="text" inputmode="decimal" placeholder="es. 12"')) + field(lab('f-pw', 'Larghezza (m)'), inp('f-pw', f2(b.wid), 'type="text" inputmode="decimal" placeholder="es. 4"')) + '</div>'
+        : '<p class="context">' + esc(b.id + ' · ' + b.zona) + ' · posto ' + fmtNum(b.len, 2) + ' × ' + fmtNum(b.wid, 2) + ' m</p>') +
         field(lab('f-pg', 'Chi gestisce il posto'), '<select id="f-pg">' + opts([['marina', 'La Marina'], ['nostro', 'Noi (' + NOME() + ')']], d.gestione === 'nostro' ? 'nostro' : 'marina') + '</select>') +
         field(lab('f-pb', 'Barca'), '<select id="f-pb"><option value="">Nessuna barca</option>' + boats.map(function (x) { var o = berthOfBoat(x.id); return '<option value="' + esc(x.id) + '"' + (x.id === d.barcaId ? ' selected' : '') + '>' + esc((x.nome || 'Senza nome') + (num(x.lunghezza) ? ' · ' + fmtNum(x.lunghezza, 2) + ' m' : '') + (o && o.id !== b.id ? ' · ora in ' + o.id : '')) + '</option>'; }).join('') + '</select>', 'Le misure della barca vengono dalla sua scheda. Se la barca è già in un altro posto, viene spostata qui.') +
         '<p class="cap" id="f-pwarn" style="color:var(--soon);margin:-4px 2px 0" hidden></p>' +
@@ -5065,11 +5089,12 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         '<div class="grid2">' + field(lab('f-pk', 'Contratto'), '<select id="f-pk">' + opts([['', '—'], 'Annuale', 'Stagionale estivo', 'Invernale', 'Mensile', 'Transito'], d.contratto || '') + '</select>') + field(lab('f-pf', 'Fino al'), inp('f-pf', d.fino, 'type="date"')) + '</div>' +
         field(lab('f-pn', 'Note'), '<textarea id="f-pn" placeholder="es. corrente 32 A, chiavi in ufficio, cime nuove a poppa">' + esc(d.note || '') + '</textarea>');
       openSheet({
-        title: 'Posto ' + b.id, body: body, submitLabel: 'Salva',
-        deleteLabel: d.gestione === 'nostro' ? 'Libera il posto' : 'Riporta alla Marina', deleteText: d.gestione === 'nostro' ? 'Tolgo barca, cliente e contratto: il posto resta vostro e torna libero.' : 'Tolgo barca e cliente: il posto torna della Marina.',
-        ownDel: true, onDelete: postoDoc(b.id) ? async function () {
+        title: b.nuovo ? 'Nuovo posto' : 'Posto ' + b.id, body: body, submitLabel: 'Salva',
+        deleteLabel: b.lista ? 'Togli il posto' : d.gestione === 'nostro' ? 'Libera il posto' : 'Riporta alla Marina', deleteText: b.lista ? 'Tolgo il posto dall’elenco, con barca, cliente e contratto.' : d.gestione === 'nostro' ? 'Tolgo barca, cliente e contratto: il posto resta vostro e torna libero.' : 'Tolgo barca e cliente: il posto torna della Marina.',
+        ownDel: true, onDelete: !b.nuovo && postoDoc(b.id) ? async function () {
           var ref = S.db.collection('posti').doc(b.id), ok;
-          if (d.gestione === 'nostro') ok = await w(function () { return ref.set({ gestione: 'nostro', barcaId: '', cliente: '', telefono: '', contratto: '', fino: '', note: '', modificato: new Date().toISOString() }); });
+          if (b.lista) { ok = await delSeq([ref]); if (ok) { closeSheet(); toast('Posto tolto'); } return; }
+          if (d.gestione === 'nostro') ok = await w(function () { return ref.set(Object.assign(misDi(d), { gestione: 'nostro', barcaId: '', cliente: '', telefono: '', contratto: '', fino: '', note: '', modificato: new Date().toISOString() })); });
           else ok = await delSeq([ref]);
           if (ok) { closeSheet(); toast(d.gestione === 'nostro' ? 'Posto libero' : 'Posto della Marina'); }
         } : null,
@@ -5077,15 +5102,27 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
           var sb = f.querySelector('#f-pb'), cl = f.querySelector('#f-pc'), tl = f.querySelector('#f-pt');
           function chk() {
             var x = boatById(sb.value), wv = $('#f-pwarn'), m = [];
-            if (x) { var L = num(x.lunghezza), Bm = num(x.larghezza) || (L ? beamOf(x).B : null); if (L && L > b.len) m.push('la barca è lunga ' + fmtNum(L, 2) + ' m e il posto ' + fmtNum(b.len, 2) + ' m'); if (Bm && Bm > b.wid - 0.3) m.push('larga ' + fmtNum(Bm, 2) + ' m per un posto di ' + fmtNum(b.wid, 2) + ' m'); if (!L) m.push('la barca non ha la lunghezza in scheda: non la disegno'); }
+            if (x) { var L = num(x.lunghezza), Bm = num(x.larghezza) || (L ? beamOf(x).B : null); if (L && b.len && L > b.len) m.push('la barca è lunga ' + fmtNum(L, 2) + ' m e il posto ' + fmtNum(b.len, 2) + ' m'); if (Bm && b.wid && Bm > b.wid - 0.3) m.push('larga ' + fmtNum(Bm, 2) + ' m per un posto di ' + fmtNum(b.wid, 2) + ' m'); if (!L && !b.lista) m.push('la barca non ha la lunghezza in scheda: non la disegno'); }
             if (wv) { wv.hidden = !m.length; wv.textContent = m.length ? 'Attenzione: ' + m.join(', ') + '.' : ''; }
           }
           sb.addEventListener('change', function () { var x = boatById(sb.value); if (x && !cl.value.trim()) cl.value = x.proprietario || ''; if (x && !tl.value.trim()) tl.value = x.telefono || ''; chk(); });
           chk();
         },
         onSubmit: async function (f) {
-          var data = { gestione: val(f, 'f-pg'), barcaId: val(f, 'f-pb'), cliente: val(f, 'f-pc'), telefono: val(f, 'f-pt'), contratto: val(f, 'f-pk'), fino: val(f, 'f-pf'), note: val(f, 'f-pn'), modificato: new Date().toISOString() };
+          var data = Object.assign(misDi(d), { gestione: val(f, 'f-pg'), barcaId: val(f, 'f-pb'), cliente: val(f, 'f-pc'), telefono: val(f, 'f-pt'), contratto: val(f, 'f-pk'), fino: val(f, 'f-pf'), note: val(f, 'f-pn'), modificato: new Date().toISOString() });
           if (data.fino && !data.contratto) data.contratto = 'Annuale';
+          if (b.lista) {
+            var Lp = parseDec(val(f, 'f-pl')), Wp = parseDec(val(f, 'f-pw'));
+            if ((val(f, 'f-pl') && !(Lp > 0 && Lp <= 150)) || (val(f, 'f-pw') && !(Wp > 0 && Wp <= 50))) { formErr('Controlla le misure del posto, in metri.'); return false; }
+            data.zona = val(f, 'f-pz'); data.len = Lp ? r2(Lp) : null; data.wid = Wp ? r2(Wp) : null;
+            if (b.nuovo) {
+              var nid = val(f, 'f-pid').replace(/\s+/g, ' ');
+              if (!nid) { formErr('Scrivi il nome del posto.'); return false; }
+              if (/[\/]/.test(nid) || nid === '.' || nid === '..' || /^__.*__$/.test(nid)) { formErr('Il nome del posto non può contenere la barra /.'); return false; }
+              if (postoDoc(nid)) { formErr('C’è già un posto «' + nid + '».'); return false; }
+              b = { id: nid, lista: true };
+            }
+          }
           var old = data.barcaId ? berthOfBoat(data.barcaId) : null;
           if (old && old.id !== b.id) { var od = postoDoc(old.id) || {}, oref = S.db.collection('posti').doc(old.id); await w(function () { return oref.update({ barcaId: '', modificato: data.modificato }); }); }
           var ref = S.db.collection('posti').doc(b.id), ok = await w(function () { return ref.set(data); });
@@ -5198,12 +5235,14 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         }
       });
     }
-    function goto(id) { var b = BY[id]; if (!b) return; closeSheet(); P.sel = id; card(); draw(); flyTo(b); }
+    function goto(id) { var b = BY[id]; if (!b) return; if (MIO.lista) { P.sel = id; postoSheet(b); return; } closeSheet(); P.sel = id; card(); draw(); flyTo(b); }
     function click(act, t) {
       var id = t.getAttribute('data-id');
       switch (act) {
         case 'pt-mode': setMode(t.getAttribute('data-m')); return true;
         case 'pt-draw': disegnoSheet(); return true;
+        case 'pt-row': if (BY[id]) { P.sel = id; postoSheet(BY[id]); } return true;
+        case 'pt-add': postoSheet({ id: '', zona: '', len: 0, wid: 0, lista: true, nuovo: true }); return true;
         case 'pt-zin': if (MIO.cfg) { mioZoom(1 / 1.6); draw(); return true; } animateTo({ dist: Math.max(28, CAM.dist / 1.6) }, 300); return true;
         case 'pt-zout': if (MIO.cfg) { mioZoom(1.6); draw(); return true; } animateTo({ dist: Math.min(900, CAM.dist * 1.6) }, 300); return true;
         case 'pt-fit': fitAll(); return true;
@@ -5234,11 +5273,18 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       var c = S.portoMio;
       return sezOn('portomio') && c && c.foto && num(c.pxW) > 0 && num(c.pxH) > 0 && num(c.k) > 0 && Array.isArray(c.file) && c.file.length ? c : null;
     }
+    // senza il porto disegnato (sezione spenta o disegno non fatto) il Porto è un elenco: i posti sono quelli salvati in «posti»
+    function listaPosti() {
+      return Object.keys(S.posti || {}).map(function (id) {
+        var d = S.posti[id] || {}; // le misure sono solo quelle scritte per il posto (niente dal porto di esempio)
+        return { id: id, pon: '', zona: d.zona || '', len: num(d.len) || 0, wid: num(d.wid) || 0, lista: true };
+      }).sort(function (a, b) { return a.id.localeCompare(b.id, 'it', { numeric: true }); });
+    }
     function mioSync() {
-      var c = mioCfg(), ref = c ? S.portoMio : null;
-      if (ref === MIO.ref) return; MIO.ref = ref; MIO.cfg = c; MIO.fitted = false;
+      var c = mioCfg(), ref = c ? S.portoMio : (S.posti || null);
+      if (ref === MIO.ref && MIO.lista === !c) return; MIO.ref = ref; MIO.lista = !c; MIO.cfg = c; MIO.fitted = false;
       BERTHS.length = 0; Object.keys(BY).forEach(function (k) { delete BY[k]; });
-      (c ? mioPosti(c) : DEF).forEach(function (o) { o.i = BERTHS.length; BERTHS.push(o); BY[o.id] = o; });
+      (c ? mioPosti(c) : listaPosti()).forEach(function (o) { o.i = BERTHS.length; BERTHS.push(o); BY[o.id] = o; });
       boatsKey = '';
       if (P.sel && !BY[P.sel]) P.sel = null;
     }
@@ -5411,7 +5457,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         body: '<p class="context">Carica una foto dall’alto del porto, mettila in scala con una misura che conosci, poi segna le file di posti: tocca dove inizia e dove finisce ogni fila, scrivi la lettera, quanti posti e quanto sono lunghi.</p>' +
           '<label class="btn sec self-start">' + I.photo + '<span id="pd-lab">' + (E.w ? 'Cambia foto' : 'Scegli la foto') + '</span><input type="file" accept="image/*,application/pdf,.pdf" id="f-pd-file" class="vh"></label>' +
           '<div id="pd-wrap" style="margin-top:10px"></div>' +
-          '<span class="hint">I posti si chiamano con la lettera della fila e il numero, per esempio C-03. Se togli o accorci una fila, i posti che spariscono perdono barca e cliente segnati.</span>',
+          '<span class="hint">I posti si chiamano con la lettera della fila e il numero, per esempio C-03. I posti che non sono nel disegno non si vedono nel Porto, ma restano salvati.</span>',
         deleteLabel: 'Togli il disegno', deleteText: 'Tolgo la foto e le file: il porto torna quello di esempio. I posti segnati restano salvati e ricompaiono se ridisegni le stesse file.',
         onDelete: c0 ? async function () { var ref = S.db.collection('impostazioni').doc('porto'); if (await w(function () { return ref.delete(); })) { closeSheet(); toast('Disegno del porto tolto'); } } : null,
         onOpen: function (form) {
@@ -5476,7 +5522,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
           if (!E.file.length) { formErr('Segna almeno una fila di posti.'); return false; }
           var cfg = { pxW: E.w, pxH: E.h, k: k, file: E.file }, nuovi = {}; mioPosti(cfg).forEach(function (b) { nuovi[b.id] = 1; });
           var persi = Object.keys(S.posti || {}).filter(function (id) { var d = S.posti[id]; return d && !nuovi[id] && (d.barcaId || d.cliente) && (!MIO.cfg || BY[id]); });
-          if (persi.length && T.avviso !== persi.join()) { T.avviso = persi.join(); formErr('Spariscono ' + persi.length + ' posti con barca o cliente: ' + persi.slice(0, 8).join(', ') + (persi.length > 8 ? '…' : '') + '. Premi di nuovo Salva per confermare.'); return false; }
+          if (persi.length && T.avviso !== persi.join()) { T.avviso = persi.join(); formErr((persi.length === 1 ? 'Un posto con barca o cliente non è nel disegno' : persi.length + ' posti con barca o cliente non sono nel disegno') + ': ' + persi.slice(0, 8).join(', ') + (persi.length > 8 ? '…' : '') + '. Non si vedranno nel Porto (restano salvati e tornano se spegni il disegno). Premi di nuovo Salva per confermare.'); return false; }
           var id = E.foto;
           if (E.blob) {
             if (!S.assets) { formErr('Caricamento non disponibile.'); return false; }
@@ -5509,7 +5555,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       var b = berthOfBoat(boatId); if (!b) return true;
       var d = postoDoc(b.id) || {}, ref = S.db.collection('posti').doc(b.id), now = new Date().toISOString();
       if (keepClient) return w(function () { return ref.update({ barcaId: '', modificato: now }); });
-      if (d.gestione === 'nostro') return w(function () { return ref.set({ gestione: 'nostro', barcaId: '', cliente: '', telefono: '', contratto: '', fino: '', note: '', modificato: now }); });
+      if (d.gestione === 'nostro') return w(function () { return ref.set(Object.assign(misDi(d), { gestione: 'nostro', barcaId: '', cliente: '', telefono: '', contratto: '', fino: '', note: '', modificato: now })); });
+      if (MIO.lista) return w(function () { return ref.update({ barcaId: '', cliente: '', telefono: '', contratto: '', fino: '', modificato: now }); }); // nell'elenco il posto resta
       return delSeq([ref]);
     }
     function gotoBerth(id) { mioSync(); if (BY[id]) { P.sel = id; P.flyOnMount = true; } }
@@ -7704,8 +7751,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['tablet', 'Tablet condiviso con PIN', 'un tablet in officina per tutti: nome, PIN di 4 cifre, si richiude dopo 5 minuti (spento di base)'],
     ['deposito', 'Roba del cliente in deposito', 'tender, cuscini, tendalini con foto e riconsegna; il cliente li vede nel portale (spento di base)'],
     ['novita', 'Cosa c’è di nuovo', 'dopo un aggiornamento dell’app, una finestra con le novità, una volta a ognuno'],
-    ['portomio', 'Porto disegnato da voi', 'i vostri pontili e posti sopra la foto del porto (con Porto e posti barca); spento torna il porto di esempio']];
-  var SEZ_OFF = ['tablet', 'controllo', 'deposito']; // sezioni spente finché l'amministratore non le accende
+    ['portomio', 'Porto disegnato da voi', 'la mappa del porto: i vostri pontili e posti sopra la foto, con Porto e posti barca (spento di base: senza, il Porto è l’elenco dei posti)']];
+  var SEZ_OFF = ['tablet', 'controllo', 'deposito', 'portomio']; // sezioni spente finché l'amministratore non le accende
   // riquadri di Home e Pannello che appartengono a una sezione (spariscono se le loro sezioni sono tutte spente)
   var SEZ_BLOCCHI = { w_mag: ['magazzino'], w_porto: ['porto'], w_rif: ['rifiuti'], w_batt: ['batterie'], vari: ['vari'], prog: ['programma'], meteo: ['meteo'],
     contr: ['porto'], riord: ['magazzino', 'batterie'], serv: ['operazioni'], magb: ['magazzino', 'batterie'] };
@@ -9147,15 +9194,16 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'L|Senza planimetria la mappa è un rettangolo vuoto: scrivi larghezza e lunghezza dal righello e puoi già sistemare le barche.',
       'L|Il tasto con la foto, sotto + e −, nasconde o mostra la planimetria sotto le barche.',
       'Sul computer, sopra la mappa, c’è l’elenco delle barche già sistemate con una casella per cercarle: tocchi un nome e la mappa ci va. La scheda della barca si apre a destra.'] },
-    porto: { t: 'Porto', p: 'I pontili della Marina con i posti barca.', li: [
+    porto: { t: 'Porto', p: 'I vostri posti barca al porto: l’elenco, o la mappa se il porto è disegnato da voi.', li: [
       'Tocca un posto per segnarlo come vostro o della Marina e assegnare barca, cliente, contratto e scadenza.',
       '«Contratti» elenca i posti in ordine di scadenza, con quelli vicini in alto.',
       '«Trova posto»: scrivi le misure di una barca e si accendono i vostri posti liberi in cui entra.',
       '«Brokeraggio»: barche in vendita e persone che cercano una barca, con quelle adatte già abbinate.',
       'Sul computer, sopra la mappa, c’è l’elenco dei vostri posti con la barca o il cliente: tocchi un posto e la mappa ci va. La scheda del posto si apre a destra.',
-      'Se il porto è disegnato da voi, la mappa è la foto del vostro porto con i posti colorati sopra: trascini per spostarti, due dita o la rotella per ingrandire.',
-      'A|«Disegna il vostro porto»: carichi una foto dall’alto del porto (o una pianta), la metti in scala toccando due punti di cui sai la distanza, poi per ogni fila di posti tocchi dove inizia e dove finisce e scrivi lettera, quanti posti e quanto sono lunghi. I posti si chiamano con la lettera e il numero, per esempio C-03.',
-      'A|Il disegno si spegne in Altro › Aspetto dell’app, tra le sezioni: torna il porto di esempio e il disegno resta salvato.'] },
+      'Senza il porto disegnato, il Porto è l’elenco dei vostri posti: «Aggiungi posto» chiede nome, zona e misure; toccando un posto assegni barca, cliente, contratto e scadenza. I tasti colorati in alto filtrano l’elenco.',
+      'Se il porto è disegnato da voi, al posto dell’elenco c’è la foto del vostro porto con i posti colorati sopra: trascini per spostarti, due dita o la rotella per ingrandire.',
+      'A|«Disegna il vostro porto» (da accendere in Altro › Aspetto dell’app, tra le sezioni): carichi una foto dall’alto del porto (o una pianta), la metti in scala toccando due punti di cui sai la distanza, poi per ogni fila di posti tocchi dove inizia e dove finisce e scrivi lettera, quanti posti e quanto sono lunghi. I posti si chiamano con la lettera e il numero, per esempio C-03.',
+      'A|Spegnendo «Porto disegnato da voi» torna l’elenco dei posti; il disegno resta salvato e ricompare se lo riaccendi.'] },
     altro: { t: 'Altro', p: 'Qui trovi tutte le sezioni che non stanno nella barra in basso, e la ricerca unica.', li: [
       'La ricerca in alto trova barche, clienti, articoli, codici, lavori e scadenze in tutta l’app.',
       'A|Con la piccola matita sopra l’elenco riordini le voci con le frecce; l’ordine è solo tuo e non cambia il menù del computer. «Come all’inizio» rimette l’ordine di partenza.',
