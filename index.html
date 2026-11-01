@@ -7716,6 +7716,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     h += '<div class="empty" style="margin-top:14px"><span class="ic-circle">' + I.dl + '</span><h3>Copia di tutti i dati</h3>' +
       '<p>Un unico file con barche, lavorazioni, scheda lavoro, programma, scadenze, magazzino, rifiuti, vari e alaggi, servizi, porto, attrezzatura, batterie, mezzi e mappa.</p>' + save +
       (inf && inf.ultima ? '<p class="cap" style="margin-top:6px">Ultima copia: ' + esc(fmtWhen(inf.ultima)) + (inf.nome ? ' · ' + esc(inf.nome) : '') + '</p>' : '') + '</div>';
+    var au = inf && inf.auto;
+    h += '<div class="empty" style="margin-top:14px"><span class="ic-circle">' + I.restore + '</span><h3>Copia automatica</h3>' +
+      '<p>Ogni domenica notte il servizio salva da solo una copia dei dati dell’azienda, chiusa con una password. Le copie restano 8 settimane: se ti serve, chiedila al gestore del servizio e recuperala qui sotto.</p>' +
+      '<p class="cap" style="margin:6px 0 0">' + (au && au.ultima ? 'Ultima copia automatica: ' + esc(fmtWhen(au.ultima)) + (au.voci ? ' · ' + esc(nVoci(au.voci)) : '') : 'Nessuna copia automatica ancora.') + '</p></div>';
 
     var rows = BK_COLL.filter(function (x) { return x[0] !== 'impostazioni' && (c[x[0]] || BK_OLD.indexOf(x[0]) < 0); }).map(function (x) {
       return '<div class="kv-row"><span class="k">' + esc(x[1]) + '</span><span class="v">' + fmtNum(c[x[0]] || 0) + '</span></div>';
@@ -7833,7 +7837,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       var res = await S.dl.save({ filename: fn, data: JSON.stringify(file, null, 1) });
       if (res && res.status === 'saved') {
         toast('Copia pronta: ' + nVoci(tot));
-        try { await S.db.collection('impostazioni').doc('backup').set({ ultima: now.toISOString(), da: S.myId || '', nome: chi, voci: tot }); } catch (e) { }
+        try { await S.db.collection('impostazioni').doc('backup').set({ ultima: now.toISOString(), da: S.myId || '', nome: chi, voci: tot }, { merge: true }); } catch (e) { }
       }
     } catch (e) { bkDlErr(e && e.code); }
     BK.busy = false; render();
