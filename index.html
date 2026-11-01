@@ -6833,6 +6833,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         field(lab('fd-cosa', 'Cosa'), inp('fd-cosa', x.cosa, 'list="fd-cosa-l" placeholder="es. Tender, fuoribordo, cuscini, tendalino" autocomplete="off" required') + '<datalist id="fd-cosa-l">' + DEPO_TIPI.map(function (t) { return '<option value="' + esc(t) + '">'; }).join('') + '</datalist>') +
         '<div class="grid2">' + field(lab('fd-q', 'Quanti'), inp('fd-q', x.quanti, 'type="number" min="1" step="1" inputmode="numeric" placeholder="1"')) + field(lab('fd-dove', 'Dove è riposta'), inp('fd-dove', x.dove, 'placeholder="es. capannone, scaffale 3"')) + '</div>' +
         field(lab('fd-note', 'Note'), '<textarea id="fd-note" placeholder="es. tender grigio con sacca e pompa">' + esc(x.note || '') + '</textarea>') +
+        photoBlock(x.foto) +
         (!isNew ? '<label class="check"><input type="checkbox" id="fd-rest"' + (rest ? ' checked' : '') + '> Restituita al cliente' + (rest && x.restituito ? ' il ' + esc(fmtDate(x.restituito)) : '') + '</label>' : '') +
         '<span class="hint">Una foto aiuta a riconoscerla e a restituire proprio quella. Il cliente nel suo portale vede cosa, quanti e le foto, non dove è riposta né le note.</span>',
       item: x, onDelete: isNew ? null : async function () { if (await delSeq([S.db.collection('deposito').doc(x.id)])) { closeSheet(); toast('Tolta dall’elenco'); } },

@@ -102,7 +102,7 @@
     '#nmfb .bc{margin-top:14px}#nmfb .bh{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}#nmfb .bn{font-size:1.25rem;font-weight:700}#nmfb .bm{color:#b9bccb;font-size:.95rem}' +
     '#nmfb .st{flex:none;font-size:.8rem;font-weight:600;padding:3px 10px;border-radius:99px;background:#26275e;color:#c9d4ff}#nmfb .st.acqua{background:#0f3b2a;color:#7fe0a0}#nmfb .st.lav{background:#3d2f0b;color:#ffcf6b}' +
     '#nmfb .kv{display:flex;justify-content:space-between;gap:12px;border-top:1px solid #2a2c5c;padding:10px 0;font-size:.95rem}#nmfb .kv span{color:#b9bccb}#nmfb .kv b{text-align:right;font-weight:600}' +
-    '#nmfb h5{margin:14px 0 6px;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:#9a9dc0}#nmfb .lv{display:flex;gap:12px;padding:7px 0;border-top:1px solid #23245a;font-size:.95rem}#nmfb .lv .d{flex:none;width:58px;color:#9a9dc0;font-variant-numeric:tabular-nums}#nmfb .dfo{display:flex;gap:6px;flex-wrap:wrap;padding:0 0 8px}#nmfb .dfo img{width:76px;height:76px;object-fit:cover;border-radius:10px;background:#23245a}' +
+    '#nmfb h5{margin:14px 0 6px;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:#9a9dc0}#nmfb .lv{display:flex;gap:12px;padding:7px 0;border-top:1px solid #23245a;font-size:.95rem}#nmfb .lv .d{flex:none;width:58px;color:#9a9dc0;font-variant-numeric:tabular-nums}#nmfb .dfo{display:flex;gap:6px;flex:none}#nmfb .dfo img{width:52px;height:52px;object-fit:cover;border-radius:9px;background:#23245a;cursor:zoom-in}#nmfb .dfo img.big{position:fixed;inset:0;margin:auto;width:auto;height:auto;max-width:94vw;max-height:80vh;z-index:5;border-radius:12px;box-shadow:0 0 0 100vmax rgba(0,0,0,.7);cursor:zoom-out}' +
     '#nmfb .gd{margin-top:18px;color:#b9bccb;font-size:.95rem}#nmfb .gd summary{color:#8cc2ff;cursor:pointer;padding:8px 0}#nmfb .gd ul{margin:4px 0 0;padding-left:20px}#nmfb .gd li{margin:6px 0}' +
     '#nmfb .upd{color:#8a8db0;font-size:.82rem;margin-top:10px}#nmfb .more{background:none;border:0;color:#8cc2ff;font:inherit;padding:8px 0;cursor:pointer}' +
     '#nmpan .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;width:100%}#nmpan .chip{display:inline-flex;align-items:center;gap:4px;background:#1e3a5f;color:#d6e8ff;border-radius:99px;padding:4px 4px 4px 10px;font-size:.9rem}' +
@@ -1306,6 +1306,7 @@
       el.innerHTML = '<div class="it"><b>Dal gestore del servizio</b><br>' + esc(m.testo) + '<br><button class="ok" data-il="' + esc(m.il) + '">Ho letto</button></div>';
     }, function () { });
   }
+  document.addEventListener('click', function (e) { var im = e.target.closest && e.target.closest('#nmfb .dfo img'); if (im) im.classList.toggle('big'); });
   document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('#nmmsg .ok'); if (!b) return; try { localStorage.setItem('gr-msg-visto', b.getAttribute('data-il')); } catch (x) { } var el = $('#nmmsg'); if (el) el.remove(); });
 
   /* ---------- Cosa c'è di nuovo: dopo una pubblicazione compare una volta a ogni persona (utenti/{uid}.novitaVista) ----------
@@ -1368,8 +1369,8 @@
         '<div class="kv" style="margin-top:12px"><span>Dove si trova</span><b>' + esc(dove) + '</b></div>' +
         (d.porto && (d.porto.contratto || d.porto.fino) ? '<div class="kv"><span>Contratto del posto</span><b>' + esc([d.porto.contratto, d.porto.fino ? 'fino al ' + dataLunga(d.porto.fino) : ''].filter(Boolean).join(' · ')) + '</b></div>' : '') +
         ((d.deposito || []).length ? '<h5>In deposito al cantiere</h5>' + d.deposito.map(function (x) {
-          return '<div class="lv"><span>' + esc(x.cosa) + (x.quanti > 1 ? ' ×' + x.quanti : '') + '</span></div>' +
-            ((x.foto || []).length ? '<div class="dfo">' + x.foto.map(function (f) { if (!PH[f]) setTimeout(function () { loadPhoto(f); }, 0); return '<img alt="" data-blob="' + esc(f) + '" src="' + esc(PH[f] || 'data:image/gif;base64,R0lGODlhAQABAAAAACw=') + '">'; }).join('') + '</div>' : '');
+          return '<div class="lv" style="align-items:center"><span style="flex:1">' + esc(x.cosa) + (x.quanti > 1 ? ' ×' + x.quanti : '') + '</span>' +
+            ((x.foto || []).length ? '<span class="dfo">' + x.foto.map(function (f) { if (!PH[f]) setTimeout(function () { loadPhoto(f); }, 0); return '<img alt="" data-blob="' + esc(f) + '" src="' + esc(PH[f] || 'data:image/gif;base64,R0lGODlhAQABAAAAACw=') + '">'; }).join('') + '</span>' : '') + '</div>';
         }).join('') : '') +
         '<h5>Lavori eseguiti</h5>' +
         (lav.length ? show.map(function (l) { return '<div class="lv"><span class="d">' + esc(dataCorta(l.data)) + '</span><span>' + esc(l.titolo) + '</span></div>'; }).join('') +
