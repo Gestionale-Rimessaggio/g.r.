@@ -2017,6 +2017,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       h += '<div class="sec-h" style="margin-top:10px"><span class="cap">' + tots.join(' · ') + '</span>' +
         (lv.length > 5 ? '<button type="button" class="link" data-act="boat-lav-all">' + (V.boatLavAll ? 'Mostra meno' : 'Vedi tutti (' + lv.length + ')') + '</button>' : '') + '</div>';
     } else h += '<div class="notice">Nessun lavoro registrato.</div>';
+    if (sezOn('qrbarca')) h += '<button type="button" class="btn sec" data-act="boat-qr" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">' + I.doc + 'Etichetta QR da attaccare alla barca</button>';
+    if (S.canWrite) h += '<button type="button" class="btn sec" data-act="boat-sold" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">Barca venduta: cambia proprietario</button>' + (b.proprietari && b.proprietari.length ? '<p class="cap" style="margin:6px 4px 0">Proprietari di prima: ' + esc(b.proprietari.map(function (x) { return x.nome + (x.fino ? ' (fino al ' + fmtDate(x.fino) + ')' : ''); }).join(', ')) + '</p>' : '');
     if (S.isOwner && S.canWrite && S.boats.length > 1) h += '<button type="button" class="btn sec" data-act="boat-merge" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">Unisci con un’altra barca</button><p class="cap" style="margin:6px 4px 0">Solo per l’amministratore: se questa barca ha una scheda doppia.</p>';
     return h;
   }
@@ -3571,6 +3573,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   var FB_MSG_URL = 'https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js?i=1';
   LIB_SRI[FB_MSG_URL] = 'sha384-HY9kcCUNf5iP55Q7dt4qtyKGMq0L6BbtAwNb4LYA6MXDWUL8DRlsj1xhtwKBZ2BL';
   LIB_SRI[THREE_URL] = 'sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu';
+  var QR_URL = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
+  LIB_SRI[QR_URL] = 'sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k';
   LIB_SRI[ORBIT_URL] = 'sha384-wagZhIFgY4hD+7awjQjR4e2E294y6J2HSnd8eTNc15ZubTeQeVRZwhQJ+W6hnBsf';
   LIB_SRI['https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js'] = 'sha384-BzBxP10ZE72aitqj5UMmUsbKFliP/DZqA8Wq+BNNhlIJDGoEd1tpkMYXOg9+n6sB';
   LIB_SRI['https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js'] = 'sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH';
@@ -5030,12 +5034,12 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       var pills = '<span class="pill ' + st.pill + '">' + esc(st.s) + '</span>';
       if (d.fino && daysUntil(d.fino) != null && daysUntil(d.fino) <= 30 && stt !== 'marina') { var dd = daysUntil(d.fino); pills += ' <span class="pill ' + (dd < 0 ? 'late' : 'soon') + '">' + (dd < 0 ? 'Contratto scaduto' : dd === 0 ? 'Scade oggi' : 'Scade tra ' + dd + (dd === 1 ? ' giorno' : ' giorni')) + '</span>'; }
       if (inVendita(boat)) pills += ' <span class="pill vio">In vendita ' + esc(fmtEuro(boat.vendita.prezzo, true)) + '</span>';
-      if (boat && num(boat.lunghezza) > b.len) pills += ' <span class="pill late">Più lunga del posto</span>';
+      if (boat && troppoLunga(b, boat)) pills += ' <span class="pill late">Più lunga del posto</span>';
       h += '<div>' + pills + '</div><dl class="pt-kv">';
       h += '<dt>Posto</dt><dd>' + fmtNum(b.len, 2) + ' × ' + fmtNum(b.wid, 2) + ' m</dd><dt>Zona</dt><dd>' + esc(b.zona) + '</dd>';
       if (d.cliente || boat) h += '<dt>Cliente</dt><dd>' + esc(d.cliente || (boat && boat.proprietario) || '—') + '</dd><dt>Telefono</dt><dd>' + esc(d.telefono || (boat && boat.telefono) || '—') + '</dd>';
       if (d.contratto || d.fino) h += '<dt>Contratto</dt><dd>' + esc(d.contratto || '—') + '</dd><dt>Fino al</dt><dd>' + esc(d.fino ? fmtDate(d.fino) : '—') + '</dd>';
-      if (stt === 'libero') h += '<dt>Barca max</dt><dd>' + fmtNum(b.len - 0.3, 2) + ' × ' + fmtNum(b.wid - 0.4, 2) + ' m</dd>';
+      if ((stt === 'libero' || giusto()) && isFinite(maxL(b)) && maxL(b) > 0) h += '<dt>Barca max</dt><dd>' + fmtNum(maxL(b), 2) + (maxW(b) ? ' × ' + fmtNum(maxW(b), 2) : '') + ' m</dd>';
       h += '</dl>' + (d.note ? '<p class="cap" style="margin:0">' + esc(d.note) + '</p>' : '') + '<div class="m-acts">';
       if (S.canWrite) h += '<button type="button" class="btn' + (stt === 'marina' ? ' sec' : '') + '" data-act="pt-edit">' + (stt === 'libero' ? 'Assegna' : stt === 'marina' ? 'Segna o assegna' : 'Modifica posto') + '</button>';
       if (boat) h += '<button type="button" class="btn sec" data-act="pt-openboat">Scheda barca</button>';
@@ -5073,7 +5077,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     function unmount() { P.mounted = false; if (P.ro) { P.ro.disconnect(); P.ro = null; } if (P.anim) { cancelAnimationFrame(P.anim.raf); P.anim = null; } stage = cv = ctx = null; }
 
     // ---------- Fogli: posto, vendita, brokeraggio, richieste, contratti, trova posto, cerca ----------
-    function misDi(d) { var o = {}; ['len', 'wid', 'zona'].forEach(function (k) { if (d && d[k] != null && d[k] !== '') o[k] = d[k]; }); return o; } // le misure scritte a mano restano
+    function misDi(d) { var o = {}; ['len', 'wid', 'zona', 'lenMax', 'widMax'].forEach(function (k) { if (d && d[k] != null && d[k] !== '') o[k] = d[k]; }); return o; } // le misure scritte a mano restano
     function berthOfBoat(boatId) { mioSync(); for (var k in (S.posti || {})) { if (S.posti[k] && S.posti[k].barcaId === boatId && BY[k]) return BY[k]; } return null; }
     function postoSheet(b) {
       var d = (!b.nuovo && postoDoc(b.id)) || {}, boats = S.boats.slice().sort(byName);
@@ -5087,7 +5091,11 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         '<p class="cap" id="f-pwarn" style="color:var(--soon);margin:-4px 2px 0" hidden></p>' +
         '<div class="grid2">' + field(lab('f-pc', 'Cliente'), inp('f-pc', d.cliente, 'type="text" autocapitalize="words" placeholder="es. Melani"')) + field(lab('f-pt', 'Telefono'), inp('f-pt', d.telefono, 'type="tel" inputmode="tel"')) + '</div>' +
         '<div class="grid2">' + field(lab('f-pk', 'Contratto'), '<select id="f-pk">' + opts([['', '—'], 'Annuale', 'Stagionale estivo', 'Invernale', 'Mensile', 'Transito'], d.contratto || '') + '</select>') + field(lab('f-pf', 'Fino al'), inp('f-pf', d.fino, 'type="date"')) + '</div>' +
-        field(lab('f-pn', 'Note'), '<textarea id="f-pn" placeholder="es. corrente 32 A, chiavi in ufficio, cime nuove a poppa">' + esc(d.note || '') + '</textarea>');
+        field(lab('f-pn', 'Note'), '<textarea id="f-pn" placeholder="es. corrente 32 A, chiavi in ufficio, cime nuove a poppa">' + esc(d.note || '') + '</textarea>') +
+        (giusto() && !b.lista ? '<div class="grid2">' + field(lab('f-pml', 'Barca max: lunghezza (m)'), inp('f-pml', num(d.lenMax) != null ? String(d.lenMax).replace('.', ',') : '', 'type="text" inputmode="decimal" placeholder="' + esc(fmtNum(b.len, 2)) + ' (fila)"')) +
+          field(lab('f-pmw', 'Barca max: larghezza (m)'), inp('f-pmw', num(d.widMax) != null ? String(d.widMax).replace('.', ',') : '', 'type="text" inputmode="decimal" placeholder="non controllata"')) + '</div>' +
+          '<span class="hint" style="margin-top:-8px">Vuoto = la misura della fila. Scrivila solo se questo posto è diverso dagli altri della fila.</span>' : '') +
+        (giusto() && b.lista ? '<p class="cap">Lunghezza e larghezza del posto sono anche la barca più grande che ci sta.</p>' : '');
       openSheet({
         title: b.nuovo ? 'Nuovo posto' : 'Posto ' + b.id, body: body, submitLabel: 'Salva',
         deleteLabel: b.lista ? 'Togli il posto' : d.gestione === 'nostro' ? 'Libera il posto' : 'Riporta alla Marina', deleteText: b.lista ? 'Tolgo il posto dall’elenco, con barca, cliente e contratto.' : d.gestione === 'nostro' ? 'Tolgo barca, cliente e contratto: il posto resta vostro e torna libero.' : 'Tolgo barca e cliente: il posto torna della Marina.',
@@ -5102,15 +5110,19 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
           var sb = f.querySelector('#f-pb'), cl = f.querySelector('#f-pc'), tl = f.querySelector('#f-pt');
           function chk() {
             var x = boatById(sb.value), wv = $('#f-pwarn'), m = [];
-            if (x) { var L = num(x.lunghezza), Bm = num(x.larghezza) || (L ? beamOf(x).B : null); if (L && b.len && L > b.len) m.push('la barca è lunga ' + fmtNum(L, 2) + ' m e il posto ' + fmtNum(b.len, 2) + ' m'); if (Bm && b.wid && Bm > b.wid - 0.3) m.push('larga ' + fmtNum(Bm, 2) + ' m per un posto di ' + fmtNum(b.wid, 2) + ' m'); if (!L && !b.lista) m.push('la barca non ha la lunghezza in scheda: non la disegno'); }
+            var gml = b.lista ? parseDec(val(f, 'f-pl')) || b.len : parseDec(val(f, 'f-pml')) || b.len, gmw = b.lista ? parseDec(val(f, 'f-pw')) || b.wid : parseDec(val(f, 'f-pmw'));
+            if (x && giusto()) { var L1 = num(x.lunghezza), B1 = num(x.larghezza); if (L1 && gml && L1 > gml) m.push('la barca è lunga ' + fmtNum(L1, 2) + ' m e qui ci sta fino a ' + fmtNum(gml, 2) + ' m'); if (B1 && gmw && B1 > gmw) m.push('larga ' + fmtNum(B1, 2) + ' m e qui ci sta fino a ' + fmtNum(gmw, 2) + ' m'); }
+            else if (x) { var L = num(x.lunghezza), Bm = num(x.larghezza) || (L ? beamOf(x).B : null); if (L && b.len && L > b.len) m.push('la barca è lunga ' + fmtNum(L, 2) + ' m e il posto ' + fmtNum(b.len, 2) + ' m'); if (Bm && b.wid && Bm > b.wid - 0.3) m.push('larga ' + fmtNum(Bm, 2) + ' m per un posto di ' + fmtNum(b.wid, 2) + ' m'); if (!L && !b.lista) m.push('la barca non ha la lunghezza in scheda: non la disegno'); }
             if (wv) { wv.hidden = !m.length; wv.textContent = m.length ? 'Attenzione: ' + m.join(', ') + '.' : ''; }
           }
           sb.addEventListener('change', function () { var x = boatById(sb.value); if (x && !cl.value.trim()) cl.value = x.proprietario || ''; if (x && !tl.value.trim()) tl.value = x.telefono || ''; chk(); });
+          ['f-pml', 'f-pmw', 'f-pl', 'f-pw'].forEach(function (k) { var e = f.querySelector('#' + k); if (e) e.addEventListener('input', chk); });
           chk();
         },
         onSubmit: async function (f) {
           var data = Object.assign(misDi(d), { gestione: val(f, 'f-pg'), barcaId: val(f, 'f-pb'), cliente: val(f, 'f-pc'), telefono: val(f, 'f-pt'), contratto: val(f, 'f-pk'), fino: val(f, 'f-pf'), note: val(f, 'f-pn'), modificato: new Date().toISOString() });
           if (data.fino && !data.contratto) data.contratto = 'Annuale';
+          if (giusto() && !b.lista) { data.lenMax = parseDec(val(f, 'f-pml')) || null; data.widMax = parseDec(val(f, 'f-pmw')) || null; }
           if (b.lista) {
             var Lp = parseDec(val(f, 'f-pl')), Wp = parseDec(val(f, 'f-pw'));
             if ((val(f, 'f-pl') && !(Lp > 0 && Lp <= 150)) || (val(f, 'f-pw') && !(Wp > 0 && Wp <= 50))) { formErr('Controlla le misure del posto, in metri.'); return false; }
@@ -5210,7 +5222,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
           function upd() {
             var L = parseDec(val(f, 'f-fl')), B = parseDec(val(f, 'f-fb')), box = $('#f-fres'); if (!box) return;
             if (!(L > 0) || !(B > 0)) { box.innerHTML = '<p class="context">Scrivi lunghezza e larghezza.</p>'; return; }
-            var ok = BERTHS.filter(function (b) { return statoOf(b) === 'libero' && b.len >= L + 0.3 && b.wid >= B + 0.4; }).sort(function (a, c) { return a.len * a.wid - c.len * c.wid; });
+            var ok = liberiPer(L, B);
             P.fit = {}; ok.forEach(function (b) { P.fit[b.id] = 1; }); P.filter = 'fit'; refresh();
             box.innerHTML = ok.length ? '<button type="button" class="btn" data-act="close-sheet" style="width:100%">' + (ok.length === 1 ? 'Vedi il posto sulla mappa' : 'Vedi i ' + ok.length + ' posti sulla mappa') + '</button><div class="group" style="margin-top:10px">' + ok.slice(0, 10).map(function (b) { return bRow(b, '<span class="cap">' + fmtNum(b.len, 2) + ' × ' + fmtNum(b.wid, 2) + ' m</span>'); }).join('') + '</div>'
               : '<p class="context">Nessuno dei vostri posti liberi va bene per ' + fmtNum(L, 2) + ' × ' + fmtNum(B, 2) + ' m.' + (counts().libero ? '' : ' Per ora non avete posti segnati come vostri e liberi: aprite un posto e segnatelo come vostro.') + '</p>';
@@ -5536,10 +5548,18 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       });
     }
     function berthLabel(boatId) { var o = berthOfBoat(boatId); return o ? o.id : ''; }
-    function fitsBoat(b, boat) { var L = num(boat.lunghezza), B = num(boat.larghezza) || (L ? beamOf(boat).B : null); return (!L || b.len >= L + 0.3 - 1e-9) && (!B || b.wid >= B + 0.4 - 1e-9); }
+    // Idea A «Trova il posto giusto» (sezione postogiusto): la barca più grande che ci sta è la misura del posto (nell'elenco)
+    // o della fila disegnata, oppure quella scritta nel posto (lenMax, widMax). Spenta: le regole di prima (posto meno i margini).
+    function giusto() { return sezOn('postogiusto'); }
+    function maxL(b) { var d = postoDoc(b.id) || {}; return giusto() ? num(d.lenMax) || b.len || Infinity : b.len - 0.3; }
+    function maxW(b) { var d = postoDoc(b.id) || {}; return giusto() ? num(d.widMax) || (b.lista ? b.wid : 0) || null : b.wid - 0.4; }
+    function entra(b, L, B) { var ml = maxL(b), mw = maxW(b); return (!L || L <= ml + 1e-9) && (!B || !mw || B <= mw + 1e-9); }
+    function fitsBoat(b, boat) { var L = num(boat.lunghezza), B = num(boat.larghezza) || (L && !giusto() ? beamOf(boat).B : null); return entra(b, L, B); }
+    function troppoLunga(b, boat) { var L = num(boat && boat.lunghezza); return !!L && !!b.len && L > (giusto() ? maxL(b) : b.len) + 1e-9; }
+    function liberiPer(L, B) { mioSync(); return BERTHS.filter(function (b) { return statoOf(b) === 'libero' && entra(b, L, B); }).sort(function (a, c) { return (maxL(a) - maxL(c)) || a.len * a.wid - c.len * c.wid; }); }
     function suggest(boatId) {
       var boat = boatById(boatId), own = berthOfBoat(boatId);
-      var free = BERTHS.filter(function (b) { return statoOf(b) === 'libero' && (!boat || fitsBoat(b, boat)); }).sort(function (a, c) { return a.len * a.wid - c.len * c.wid; });
+      var free = BERTHS.filter(function (b) { return statoOf(b) === 'libero' && (!boat || fitsBoat(b, boat)); }).sort(function (a, c) { return (maxL(a) - maxL(c)) || a.len * a.wid - c.len * c.wid; });
       return { own: own ? { id: own.id, zona: own.zona, len: own.len, wid: own.wid } : null, free: free.slice(0, 12).map(function (b) { return { id: b.id, zona: b.zona, len: b.len, wid: b.wid }; }) };
     }
     function exists(id) { mioSync(); return !!BY[id]; }
@@ -5561,7 +5581,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     }
     function gotoBerth(id) { mioSync(); if (BY[id]) { P.sel = id; P.flyOnMount = true; } }
     function dueCount() { return dueList().length; }
-    return { view: view, mount: mount, unmount: unmount, refresh: refresh, click: click, resize: resize, isMounted: function () { mioSync(); return P.mounted && P.kind === MIO.ref && !!$('#porto-root'); }, berthLabel: berthLabel, suggest: suggest, assign: assign, release: release, exists: exists, stats: function () { var c = counts(); c.due = dueList().length; c.richieste = (S.richieste || []).length; return c; }, postoOf: function (id) { return postoDoc(id); }, gotoBerth: gotoBerth, dueCount: dueCount, zone: function () { mioSync(); var z = {}, o = []; BERTHS.forEach(function (b) { var st = statoOf(b); if (st !== 'libero' && st !== 'occupato') return; if (!z[b.zona]) { z[b.zona] = { zona: b.zona, nostri: 0, occupati: 0 }; o.push(z[b.zona]); } z[b.zona].nostri++; if (st === 'occupato') z[b.zona].occupati++; }); return o; },
+    return { view: view, mount: mount, unmount: unmount, refresh: refresh, click: click, resize: resize, isMounted: function () { mioSync(); return P.mounted && P.kind === MIO.ref && !!$('#porto-root'); }, berthLabel: berthLabel, liberiPer: liberiPer, troppoLunga: function (id, boat) { mioSync(); return !!BY[id] && troppoLunga(BY[id], boat); }, libero: function (id) { mioSync(); return !!BY[id] && statoOf(BY[id]) === 'libero'; }, suggest: suggest, assign: assign, release: release, exists: exists, stats: function () { var c = counts(); c.due = dueList().length; c.richieste = (S.richieste || []).length; return c; }, postoOf: function (id) { return postoDoc(id); }, gotoBerth: gotoBerth, dueCount: dueCount, zone: function () { mioSync(); var z = {}, o = []; BERTHS.forEach(function (b) { var st = statoOf(b); if (st !== 'libero' && st !== 'occupato') return; if (!z[b.zona]) { z[b.zona] = { zona: b.zona, nostri: 0, occupati: 0 }; o.push(z[b.zona]); } z[b.zona].nostri++; if (st === 'occupato') z[b.zona].occupati++; }); return o; },
       contratti: function (gg) { mioSync(); return BERTHS.filter(function (b) { var d = postoDoc(b.id), n = d && d.fino ? daysUntil(d.fino) : null; return n != null && n <= gg && statoOf(b) !== 'marina' && statoOf(b) !== 'libero'; }).map(function (b) { return { id: b.id, d: postoDoc(b.id), boat: berthBoat(b) }; }).sort(function (a, c) { return String(a.d.fino).localeCompare(String(c.d.fino)); }); }, dueList: function () { return dueList().map(function (b) { return { id: b.id, d: postoDoc(b.id), boat: berthBoat(b) }; }); } };
   })();
 
@@ -7602,6 +7622,16 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       }
     } catch (e) { toast('Non sono riuscito ad attivare le notifiche: riprova, e controlla di avere internet.', true); }
   }
+  // N6: prova delle notifiche. Una subito, mostrata da questo telefono (controlla che il telefono le faccia vedere);
+  // una vera, mandata dal giro automatico su GitHub (.github/notifiche/cronometri.js) che legge provaChiesta.
+  async function ntProva() {
+    if (!S.myId) return;
+    try {
+      var reg = await navigator.serviceWorker.ready;
+      await reg.showNotification('Notifica di prova', { body: 'Questo telefono mostra le notifiche. Tra poco ne arriva una seconda, quella vera.', icon: './icon-192.png', badge: './icon-192.png', tag: 'nm-prova', data: { url: './' } });
+    } catch (e) { toast('Il telefono non ha mostrato la notifica: controlla che le notifiche di questo sito non siano bloccate nelle impostazioni.', true); }
+    if (await ntSave({ provaChiesta: new Date().toISOString() })) toast('Notifica di prova mandata: la seconda arriva al prossimo giro automatico'); render();
+  }
   async function ntDisattiva() {
     var tok = ntDevTok(), cur = (ntMine() || {}).tokens || [];
     if (await ntSave({ tokens: cur.filter(function (t) { return t !== tok; }) })) {
@@ -7750,9 +7780,11 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['controllo', 'Controllo dei mezzi', 'prima dell’uso: gomme, freni, perdite; i mezzi che non vanno restano fermi (spento di base)'],
     ['tablet', 'Tablet condiviso con PIN', 'un tablet in officina per tutti: nome, PIN di 4 cifre, si richiude dopo 5 minuti (spento di base)'],
     ['deposito', 'Roba del cliente in deposito', 'tender, cuscini, tendalini con foto e riconsegna; il cliente li vede nel portale (spento di base)'],
+    ['postogiusto', 'Trova il posto giusto', 'propone i posti liberi dove la barca entra; nel posto si scrive la barca più grande che ci sta (spento di base)'],
+    ['qrbarca', 'Etichetta QR sulla barca', 'nella scheda della barca: stampa l’etichetta col QR che apre la sua scheda (spento di base)'],
     ['novita', 'Cosa c’è di nuovo', 'dopo un aggiornamento dell’app, una finestra con le novità, una volta a ognuno'],
     ['portomio', 'Porto disegnato da voi', 'la mappa del porto: i vostri pontili e posti sopra la foto, con Porto e posti barca (spento di base: senza, il Porto è l’elenco dei posti)']];
-  var SEZ_OFF = ['tablet', 'controllo', 'deposito', 'portomio']; // sezioni spente finché l'amministratore non le accende
+  var SEZ_OFF = ['tablet', 'controllo', 'deposito', 'portomio', 'postogiusto', 'qrbarca']; // sezioni spente finché l'amministratore non le accende
   // riquadri di Home e Pannello che appartengono a una sezione (spariscono se le loro sezioni sono tutte spente)
   var SEZ_BLOCCHI = { w_mag: ['magazzino'], w_porto: ['porto'], w_rif: ['rifiuti'], w_batt: ['batterie'], vari: ['vari'], prog: ['programma'], meteo: ['meteo'],
     contr: ['porto'], riord: ['magazzino', 'batterie'], serv: ['operazioni'], magb: ['magazzino', 'batterie'] };
@@ -7976,6 +8008,13 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     else h += '<button type="button" class="btn' + (on ? ' sec' : '') + '" style="width:100%;margin-top:10px" data-act="' + (on ? 'nt-off' : 'nt-on') + '">' + I.bell + (on ? 'Spegni su questo telefono' : 'Attiva su questo telefono') + '</button>';
     var nDev = me ? (me.tokens || []).length : 0;
     if (nDev) h += '<p class="cap" style="margin:8px 4px 0">Attive su ' + nDev + (nDev === 1 ? ' dispositivo' : ' dispositivi') + ' con il tuo account.</p>';
+    if (on && !why) {
+      var pc = me && me.provaChiesta, pf = me && me.provaFatta;
+      h += '<button type="button" class="btn sec" style="width:100%;margin-top:10px" data-act="nt-prova">' + I.bell + 'Mandami una notifica di prova</button>' +
+        '<p class="cap" style="margin:8px 4px 0">' + (pc && (!pf || pf < pc) ? 'Prova chiesta alle ' + esc(new Date(pc).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })) + ': la seconda notifica, quella vera, arriva al prossimo giro automatico (entro un’ora circa, dalle 7 alle 22).'
+          : pf ? 'Ultima notifica vera di prova mandata il ' + esc(fmtDate(pf.slice(0, 10))) + ' alle ' + esc(new Date(pf).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })) + (me.provaEsito ? ' · ' + esc(me.provaEsito) : '') + '.'
+          : 'Ne arrivano due: una subito da questo telefono e una vera, mandata come le altre al prossimo giro automatico (entro un’ora circa).') + '</p>';
+    }
     h += secH('Cosa ricevo') + '<div class="group"><label class="row check" style="padding:12px 14px"><input type="checkbox" data-nt="scadenze"' + (!me || me.scadenze !== false ? ' checked' : '') + (c.chi === 'admin' && !S.isOwner ? ' disabled' : '') + '> Scadenze' + (c.cantiere ? ' delle barche e del cantiere' : ' delle barche') + '</label>' +
       '<label class="row check" style="padding:12px 14px"><input type="checkbox" data-nt="cronometro"' + (!me || me.cronometro !== false ? ' checked' : '') + '> Il mio cronometro dimenticato acceso (oltre ' + CR_DIMENTICATO + ' ore)</label>' +
       (S.isOwner ? '<label class="row check" style="padding:12px 14px"><input type="checkbox" data-nt="spazio"' + (!me || me.spazio !== false ? ' checked' : '') + '> <span>Spazio quasi pieno (foto all’80% e al 95% dello spazio dell’azienda' + (c.spazioQuota ? ', ' + c.spazioQuota + ' MB' : '') + ')</span></label>' : '') + '</div>';
@@ -8703,6 +8742,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       add('altro', v.il || g.data, v.esito === 'problema' ? 'Giro dopo il vento: ' + ((v.cosa || []).join(', ').toLowerCase() || 'problema') : 'Giro dopo il vento: tutto a posto',
         [v.note, v.sistemato ? 'sistemato subito' : '', v.utente ? nameOf(v.utente) : ''].filter(Boolean).join(' · '), '', '', I.wind);
     });
+    (b.proprietari || []).forEach(function (x, i, a) { var dopo = a[i + 1] ? a[i + 1].nome : b.proprietario; add('altro', x.fino, 'Venduta: da ' + (x.nome || '—') + ' a ' + (dopo || '—'), '', '', '', I.boat); });
     if (b.creato) add('altro', b.creato, 'Scheda della barca creata', '', '', '', I.boat);
     return ev.sort(function (x, y) { return y.d.localeCompare(x.d) || y.t.localeCompare(x.t); });
   }
@@ -8853,6 +8893,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     }, { passive: true });
   }
   function render() {
+    if (S.status === 'ready' && qrHash()) qrApri();
     if (window.__NM_FB && window.__NM_FB.vista && S.status === 'ready') window.__NM_FB.vista(vistaNome());
     if (V.tab !== 'mappa' && M.three) dispose3D();
     if (V.lyEdit && V.tab !== V.lyTab) V.lyEdit = '';
@@ -9181,6 +9222,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       '«Resoconto» prepara il riepilogo dei lavori di un periodo, pronto da copiare e mandare al cliente.',
       '«Storia della barca» mette in fila, dal più recente, tutto quello che è successo: lavori fatti, scheda lavoro giorno per giorno, ricambi dal magazzino, vari e alaggi, cariche delle batterie, scadenze fatte, servizi, preventivi, giri dopo il vento e lavori dati fuori. In alto scegli cosa vedere; tocca una riga per aprirla.',
       'I tasti mappa e porto mostrano dove si trova la barca.',
+      'In fondo, «Barca venduta: cambia proprietario» scrive il nuovo proprietario: lavori e storia restano alla barca, quello di prima resta nella storia. Chiede cosa fare del posto, delle scadenze aperte e (all’amministratore) del portale del cliente di prima.',
+      'Se è accesa l’etichetta QR, «Etichetta QR» stampa l’adesivo da attaccare alla barca: inquadrato con il telefono apre questa scheda.',
       'A|In fondo, «Unisci con un’altra barca» serve quando la stessa barca è stata registrata due volte: scegli cosa tenere campo per campo e tutto passa sulla scheda che resta. Il doppione va nel cestino e da lì si può annullare l’unione.'] },
     mappa: { t: 'Mappa del cantiere', p: 'Il piazzale e il capannone in scala, con le barche disegnate con le loro misure.', pL: 'La pianta del vostro cantiere in scala, con le barche disegnate con le loro misure.', li: [
       'Trascina una barca dove si trova davvero: la posizione si salva da sola e la vedono tutti.',
@@ -9198,6 +9241,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'Tocca un posto per segnarlo come vostro o della Marina e assegnare barca, cliente, contratto e scadenza.',
       '«Contratti» elenca i posti in ordine di scadenza, con quelli vicini in alto.',
       '«Trova posto»: scrivi le misure di una barca e si accendono i vostri posti liberi in cui entra.',
+      'Con «Trova il posto giusto» acceso, la barca più grande che ci sta è la misura della fila (o del posto, se è scritta nel posto); nella scheda della barca e al varo ti propone i posti liberi dove entra.',
       '«Brokeraggio»: barche in vendita e persone che cercano una barca, con quelle adatte già abbinate.',
       'Sul computer, sopra la mappa, c’è l’elenco dei vostri posti con la barca o il cliente: tocchi un posto e la mappa ci va. La scheda del posto si apre a destra.',
       'Senza il porto disegnato, il Porto è l’elenco dei vostri posti: «Aggiungi posto» chiede nome, zona e misure; toccando un posto assegni barca, cliente, contratto e scadenza. I tasti colorati in alto filtrano l’elenco.',
@@ -9298,6 +9342,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'Attiva le notifiche su questo telefono: ogni mattina dei giorni lavorativi arriva un solo avviso con le scadenze.',
       'Se lasci il cronometro acceso più di 9 ore, o dal giorno prima, ti arriva un avviso (dalle 7 alle 22:30, una volta sola). Si spegne da «Cosa ricevo».',
       'Amministratori: quando le foto arrivano all’80% e poi al 95% dello spazio dell’azienda (lo decide il gestore del servizio, di solito 100 MB) arriva un avviso al mattino, e in Home compare «Spazio quasi pieno». Si spegne da «Cosa ricevo».',
+      '«Mandami una notifica di prova» controlla che arrivino: una compare subito (il telefono le fa vedere), la seconda è vera e arriva al prossimo giro automatico, entro un’ora circa.',
       'Su iPhone funzionano solo con l’app aggiunta alla schermata Home.',
       'A|Decidi tu l’ora, chi le riceve, quanto prima avvisare, la soglia per le ore motore e se includere le scadenze del cantiere.'] },
     aspetto: { t: 'Aspetto dell’app', p: 'Il nome dell’azienda, i colori, i loghi, il luogo del meteo e le sezioni che usate. Solo per l’amministratore.', li: [
@@ -9773,6 +9818,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       '<div class="grid2">' + field(lab('f-lunghezza', 'Lunghezza f.t. (m)'), inp('f-lunghezza', num(b.lunghezza) != null ? String(b.lunghezza).replace('.', ',') : '', 'type="text" inputmode="decimal" placeholder="es. 9,80"')) + field(lab('f-larghezza', 'Larghezza max (m)'), inp('f-larghezza', num(b.larghezza) != null ? String(b.larghezza).replace('.', ',') : '', 'type="text" inputmode="decimal" placeholder="es. 3,10"')) + '</div>' +
       '<span class="hint" style="margin-top:-8px">La larghezza massima (baglio) serve per la mappa. Se la lasci vuota la stimo dalla lunghezza.</span>' +
       '<div class="grid2">' + field(lab('f-anno', 'Anno'), inp('f-anno', b.anno, 'type="text" inputmode="numeric" placeholder="es. 2018"')) + field(lab('f-posto', 'Posto'), inp('f-posto', b.posto, 'type="text" placeholder="es. B12"')) + '</div>' +
+      '<div id="f-postoS" class="chips" style="flex-wrap:wrap;margin:-4px 0 10px" hidden></div>' +
       field(lab('f-immatricolazione', 'Immatricolazione'), inp('f-immatricolazione', b.immatricolazione, 'type="text" autocapitalize="characters"')) +
       '<div class="lbl">Motore</div>' +
       field(lab('f-motoreTipo', 'Installazione'), '<select id="f-motoreTipo">' + opts(TIPI_MOTORE, b.motoreTipo) + '</select>') +
@@ -9798,7 +9844,19 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
           .concat([S.db.collection('barche').doc(b.id)]);
         if (await delSeq(refs)) { closeSheet(); V.boatId = null; render(); toast('Barca eliminata'); }
       },
-      onOpen: function (f) { motInit(f, b); },
+      onOpen: function (f) {
+        motInit(f, b);
+        if (!sezOn('postogiusto') || !PORTO_ON()) return;
+        var pi = f.querySelector('#f-posto'), ps = f.querySelector('#f-postoS');
+        function sugg() { // A «Trova il posto giusto»: i posti liberi in cui entra, da toccare
+          var L = parseDec(val(f, 'f-lunghezza')), t = pi.value.trim(), mio = Porto.berthLabel(b.id || '');
+          var lib = L > 0 && (!t || (t !== mio && !Porto.libero(t)) || Porto.troppoLunga(t, { lunghezza: L })) ? Porto.liberiPer(L, parseDec(val(f, 'f-larghezza'))).slice(0, 8) : [];
+          ps.hidden = !lib.length;
+          ps.innerHTML = lib.length ? '<span class="cap" style="width:100%">Posti liberi dove entra (toccane uno: salvando, la barca va lì):</span>' + lib.map(function (q) { return '<button type="button" data-posto="' + esc(q.id) + '">' + esc(q.id) + '</button>'; }).join('') : '';
+        }
+        ps.addEventListener('click', function (e) { var x = e.target.closest('[data-posto]'); if (!x) return; pi.value = x.getAttribute('data-posto'); sugg(); });
+        ['f-posto', 'f-lunghezza', 'f-larghezza'].forEach(function (k) { f.querySelector('#' + k).addEventListener('input', sugg); }); sugg();
+      },
       onSubmit: async function (f) {
         var data = {
           nome: val(f, 'f-nome'), modello: val(f, 'f-modello'), tipo: val(f, 'f-tipo'), stato: val(f, 'f-stato'),
@@ -9816,16 +9874,95 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
           data.creato = data.modificato;
           var ref = S.db.collection('barche').doc(); S.pendingBoat = ref.id;
           var ok = await w(function () { return ref.set(data); });
+          if (ok && sezOn('postogiusto') && PORTO_ON() && data.posto && Porto.libero(data.posto)) await Porto.assign(data.posto, ref.id);
           if (ok) { V.tab = 'barche'; V.boatId = ref.id; V.boatLavAll = false; window.scrollTo(0, 0); render(); toast('Barca aggiunta'); }
           return ok;
         }
         var r2 = S.db.collection('barche').doc(b.id);
         var ok2 = await w(function () { return r2.update(data); });
+        if (ok2 && sezOn('postogiusto') && PORTO_ON() && data.posto && data.posto !== Porto.berthLabel(b.id) && Porto.libero(data.posto)) await Porto.assign(data.posto, b.id);
         if (ok2) toast('Scheda salvata');
         return ok2;
       }
     });
   }
+
+  /* ---------- Etichetta QR sulla barca (idea 3, sezione qrbarca) ----------
+     Il QR contiene l'indirizzo dell'app con #barca=<id>: inquadrato con la fotocamera del telefono apre l'app
+     sulla scheda della barca (serve essere entrati con il proprio account). */
+  function qrLink(id) { return location.origin + location.pathname + '#barca=' + encodeURIComponent(id); }
+  function qrHash() { var m = /[#&]barca=([^&]+)/.exec(location.hash || ''); return m ? decodeURIComponent(m[1]) : ''; }
+  function qrApri() {
+    var id = qrHash(); try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { location.hash = ''; }
+    var b = boatById(id); if (!b) { setTimeout(function () { toast('Questa barca non c’è più nell’app', true); }, 300); return; }
+    V.tab = 'barche'; V.boatId = b.id; V.boatLavAll = false; window.scrollTo(0, 0);
+  }
+  window.addEventListener('hashchange', function () { if (S.status === 'ready' && qrHash()) { qrApri(); render(); } });
+  async function qrSvg(id, px) {
+    if (!window.qrcode) await loadScript(QR_URL);
+    var q = window.qrcode(0, 'M'); q.addData(qrLink(id)); q.make();
+    var n = q.getModuleCount(), cell = Math.max(2, Math.floor(px / (n + 8)));
+    return q.createSvgTag({ cellSize: cell, margin: cell * 4, scalable: true });
+  }
+  function qrEtichetta(b, svg) {
+    return '<div class="et"><div class="qr">' + svg + '</div><div class="tx"><b>' + esc(b.nome || 'Barca') + '</b><span>' + esc([b.modello, (PORTO_ON() && Porto.berthLabel(b.id)) || b.posto].filter(Boolean).join(' · ')) + '</span><small>Inquadra con il telefono per aprire la scheda</small></div></div>';
+  }
+  async function qrStampa(list) {
+    var win = window.open('', '_blank'); if (!win) { toast('Il telefono ha bloccato la finestra di stampa: permetti i popup per questo sito.', true); return; }
+    win.document.write('<p style="font:16px sans-serif;padding:20px">Preparo le etichette…</p>');
+    try {
+      var parts = []; for (var i = 0; i < list.length; i++) parts.push(qrEtichetta(list[i], await qrSvg(list[i].id, 300)));
+      win.document.open();
+      win.document.write('<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Etichette QR</title><style>@page{size:A4;margin:10mm}body{margin:0;font-family:Arial,sans-serif;color:#000}' +
+        '.fg{display:grid;grid-template-columns:1fr 1fr;gap:6mm}.et{border:1px dashed #999;border-radius:3mm;padding:4mm;display:flex;gap:4mm;align-items:center;break-inside:avoid;height:58mm;box-sizing:border-box}' +
+        '.qr{width:48mm;height:48mm;flex:none}.qr svg{width:100%;height:100%}.tx{display:flex;flex-direction:column;gap:2mm;min-width:0}.tx b{font-size:16pt;word-break:break-word}.tx span{font-size:10pt}.tx small{font-size:8pt;color:#444}</style></head><body><div class="fg">' + parts.join('') + '</div><script>setTimeout(function(){print()},300)<\/script></body></html>');
+      win.document.close();
+    } catch (e) { win.close(); toast('Non riesco a preparare il QR: controlla di avere internet.', true); }
+  }
+  async function qrSheet(b) {
+    openSheet({ title: 'Etichetta QR · ' + (b.nome || 'Barca'), submitLabel: 'Stampa',
+      body: '<p class="context">Stampala e attaccala in un punto riparato (dentro un gavone, vicino al quadro). Chi la inquadra con il telefono apre questa scheda; senza account dell’app non vede niente.</p><div id="f-qrv" style="background:#fff;border-radius:10px;padding:10px;width:220px;height:220px;box-sizing:border-box;align-self:center;margin:0 auto 12px;color:#000">…</div>' +
+        field(lab('f-qrq', 'Cosa stampare'), '<select id="f-qrq">' + opts([['una', 'Solo questa barca'], ['tutte', 'Tutte le barche (' + S.boats.length + ', 8 per foglio A4)']], 'una') + '</select>'),
+      onOpen: function () { qrSvg(b.id, 240).then(function (svg) { var v = $('#f-qrv'); if (v) v.innerHTML = svg; }, function () { var v = $('#f-qrv'); if (v) v.textContent = 'Serve internet per disegnare il QR.'; }); },
+      onSubmit: async function (f) { var tutte = val(f, 'f-qrq') === 'tutte'; await qrStampa(tutte ? S.boats.slice().sort(byName) : [b]); return true; } });
+  }
+
+  /* ---------- Barca venduta (idea D): cambia proprietario e tiene la storia ----------
+     Il proprietario di prima resta in barca.proprietari (con la data della vendita) e nella storia della barca.
+     Si sceglie cosa fare del posto al porto, delle scadenze aperte e dell'accesso al portale del cliente di prima. */
+  function vendutaSheet(b) {
+    var FB = window.__NM_FB, berth = PORTO_ON() ? Porto.berthLabel(b.id) : '', scad = S.scadenze.filter(function (x) { return x.barcaId === b.id && !x.fatta; });
+    var clienti = S.isOwner && FB && FB.clientiBarca ? FB.clientiBarca(b.id) : [];
+    var body = '<p class="context">' + esc(b.nome || 'La barca') + (b.proprietario ? ' è di <b>' + esc(b.proprietario) + '</b>.' : ' non ha un proprietario segnato.') + ' Scrivi chi l’ha comprata: lavori, ricambi e storia restano alla barca, il proprietario di prima resta nella storia.</p>' +
+      field(lab('f-vnn', 'Nuovo proprietario: nome e cognome'), inp('f-vnn', '', 'type="text" autocapitalize="words" required')) +
+      '<div class="grid2">' + field(lab('f-vnt', 'Telefono'), inp('f-vnt', '', 'type="tel" inputmode="tel"')) + field(lab('f-vne', 'Email'), inp('f-vne', '', 'type="email" inputmode="email" autocapitalize="off"')) + '</div>' +
+      field(lab('f-vnd', 'Venduta il'), '<input id="f-vnd" type="date" value="' + todayISO() + '">') +
+      (berth ? field(lab('f-vnp', 'Posto al porto ' + berth), '<select id="f-vnp">' + opts([['tieni', 'Resta alla barca, a nome del nuovo proprietario'], ['libera', 'Si libera']], 'tieni') + '</select>') : '') +
+      (scad.length ? field(lab('f-vns', scad.length === 1 ? 'La scadenza aperta (' + (scad[0].tipo || 'scadenza') + ')' : 'Le ' + scad.length + ' scadenze aperte'), '<select id="f-vns">' + opts([['tieni', 'Restano alla barca'], ['togli', 'Vanno nel cestino']], 'tieni') + '</select>', 'Tagliandi e antivegetativa di solito restano: sono della barca.') : '') +
+      (clienti.length ? '<div class="lbl">Portale del cliente</div>' + clienti.map(function (id) { return '<label class="check"><input type="checkbox" class="f-vnc" value="' + esc(id) + '" checked> Togli la barca dal portale di ' + esc(FB.nomeUtente(id)) + '</label>'; }).join('') : '') +
+      (inVenditaB(b) ? '<p class="cap">Era in vendita: la tolgo dalla vendita.</p>' : '');
+    openSheet({
+      title: 'Barca venduta · ' + (b.nome || 'Barca'), body: body, submitLabel: 'Cambia proprietario',
+      onSubmit: async function (f) {
+        var nome = val(f, 'f-vnn'), dt = val(f, 'f-vnd') || todayISO(), now = new Date().toISOString();
+        if (!nome) { formErr('Scrivi il nome del nuovo proprietario.'); return false; }
+        var prima = (b.proprietari || []).slice();
+        if (b.proprietario || b.telefono || b.email) prima.push({ nome: b.proprietario || '—', telefono: b.telefono || '', email: b.email || '', fino: dt, da: S.myId || '' });
+        var up = { proprietario: nome, telefono: val(f, 'f-vnt'), email: val(f, 'f-vne'), proprietari: prima, venduta: { il: dt, da: b.proprietario || '', a: nome }, modificato: now };
+        if (inVenditaB(b)) up.vendita = Object.assign({}, b.vendita, { attiva: false, vendutaIl: dt });
+        var r = S.db.collection('barche').doc(b.id);
+        if (!(await w(function () { return r.update(up); }))) return false;
+        var pv = val(f, 'f-vnp');
+        if (berth && pv === 'libera') await Porto.release(b.id);
+        else if (berth) { var pr = S.db.collection('posti').doc(berth); await w(function () { return pr.update({ cliente: nome, telefono: up.telefono, modificato: now }); }); }
+        if (val(f, 'f-vns') === 'togli') await delSeq(scad.map(function (x) { return S.db.collection('scadenze').doc(x.id); }));
+        var via = Array.prototype.filter.call(f.querySelectorAll('.f-vnc'), function (c) { return c.checked; }).map(function (c) { return c.value; });
+        if (via.length && FB && FB.staccaClienti) { try { await FB.staccaClienti(b.id, via); } catch (e) { toast('Non sono riuscito a togliere la barca dal portale: fallo da Altro › Utenti e permessi.', true); } }
+        toast('Proprietario cambiato: ora è di ' + nome); return true;
+      }
+    });
+  }
+  function inVenditaB(b) { return !!(b && b.vendita && b.vendita.attiva); }
 
   /* ---------- Unire due schede della stessa barca (solo amministratore) ----------
      Si sceglie il doppione e, nei campi diversi, quale valore tenere. Lavori, scadenze e tutto ciò che punta
@@ -11056,6 +11193,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'mag-carico': caricoSheet(); break;
       case 'nt-on': ntAttiva(); break;
       case 'nt-off': ntDisattiva(); break;
+      case 'nt-prova': ntProva(); break;
       case 'nt-cfg': ntCfgSave(); break;
       case 'side-edit': V.sideEdit = true; renderTabs(); break;
       case 'alt-edit': V.altroEdit = true; render(); break;
@@ -11225,6 +11363,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'new-boat': boatSheet(null); break;
       case 'edit-boat': var b = boatById(id); if (b) boatSheet(b); break;
       case 'boat-merge': var bm = boatById(id); if (bm && S.isOwner) mergePick(bm); break;
+      case 'boat-qr': var bq = boatById(id); if (bq) qrSheet(bq); break;
+      case 'boat-sold': var bv = boatById(id); if (bv && S.canWrite) vendutaSheet(bv); break;
       case 'new-prog': x = t.getAttribute('data-chi'); progSheet(null, x ? { pers: x === '__squadra' ? [] : [x] } : null); break;
       case 'edit-prog': x = S.prog.find(function (q) { return q.id === id; }); if (x) progSheet(x); break;
       case 'prog-tick': x = S.prog.find(function (q) { return q.id === id; }); if (x && S.canWrite) progTick(x); break;

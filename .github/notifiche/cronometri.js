@@ -27,6 +27,28 @@ function messaggio(c, barca, now) {
   };
 }
 
+// Notifiche di prova chieste dall'app (Altro › Notifiche › «Mandami una notifica di prova»): notifiche/{utente}.provaChiesta.
+// Si mandano a ogni giro, anche nel fine settimana; poi si segna provaFatta e com'è andata.
+function provaDaFare(n) { return !!(n && n.provaChiesta && (!n.provaFatta || n.provaFatta < n.provaChiesta)); }
+async function prove(admin, db) {
+  var s = await db.collection('notifiche').get(), fatte = 0;
+  for (var i = 0; i < s.docs.length; i++) {
+    var d = s.docs[i], n = d.data(); if (!provaDaFare(n)) continue;
+    var tokens = (n.tokens || []).slice(), ok = 0, morti = [];
+    if (tokens.length) {
+      var res = await admin.messaging().sendEachForMulticast({ tokens: tokens, data: { title: 'Notifica di prova', body: 'Arriva come gli avvisi veri: le notifiche funzionano su questo telefono.', url: './', tag: 'nm-prova-vera' }, webpush: { headers: { Urgency: 'high', TTL: '3600' } } });
+      res.responses.forEach(function (x, k) {
+        if (x.success) ok++;
+        else if (/registration-token-not-registered|invalid-registration-token|invalid-argument/.test((x.error && x.error.code) || '')) morti.push(tokens[k]);
+      });
+    }
+    var up = { provaFatta: new Date().toISOString(), provaEsito: ok ? 'arrivata a ' + ok + (ok === 1 ? ' dispositivo' : ' dispositivi') : 'nessun dispositivo l’ha ricevuta: spegni e riattiva le notifiche' };
+    if (morti.length) up.tokens = tokens.filter(function (t) { return morti.indexOf(t) < 0; });
+    await d.ref.update(up); fatte++;
+  }
+  if (fatte) console.log('Mandate ' + fatte + ' notifiche di prova.');
+}
+
 async function main() {
   var admin = require('firebase-admin');
   if (!process.env.FIREBASE_SERVICE_ACCOUNT) { console.log('Manca il segreto FIREBASE_SERVICE_ACCOUNT: avvisi non attivi.'); return; }
@@ -44,6 +66,7 @@ async function unaAzienda(admin, root, azDoc, now, r) {
   var db = azDoc.ref;
   async function tutti(c) { if (c === 'utenti') { var su = await root.collection('utenti').where('azienda', '==', azDoc.id).get(), ou = []; su.forEach(function (d) { ou.push(Object.assign({ id: d.id }, d.data())); }); return ou; } var s = await db.collection(c).get(), out = []; s.forEach(function (d) { var x = d.data(); if (!x._del) out.push(Object.assign({ id: d.id }, x)); }); return out; }
 
+  await prove(admin, db);
   var cfgDoc = await db.collection('impostazioni').doc('notifiche').get(), cfg = cfgDoc.exists ? cfgDoc.data() : {};
   if (r.festivo && !cfg.weekend) { console.log('Sabato o domenica: niente avvisi.'); return; }
 
@@ -72,5 +95,5 @@ async function unaAzienda(admin, root, azDoc, now, r) {
   console.log('Mandati ' + inviati + ' avvisi per ' + lista.length + ' cronometri dimenticati.');
 }
 
-module.exports = { dimenticato: dimenticato, daAvvisare: daAvvisare, messaggio: messaggio };
+module.exports = { provaDaFare: provaDaFare, dimenticato: dimenticato, daAvvisare: daAvvisare, messaggio: messaggio };
 if (require.main === module) main().catch(function (e) { console.error(e); process.exit(1); });
