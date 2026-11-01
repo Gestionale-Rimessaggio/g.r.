@@ -116,7 +116,7 @@
     '#nmcr .pill{display:inline-block;font-size:.78rem;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.1);color:#c9ccd6;margin-left:6px;font-weight:500}#nmcr .note{color:#9a9daa;font-size:.9rem;margin:12px 4px}' +
     /* computer e tablet: il pannello lascia libero il menù a sinistra dell'app (largo 236px) */
     '@media (min-width:768px) and (min-height:500px){#nmpan{left:236px}}' +
-    '#nmmsg{position:fixed;top:calc(env(safe-area-inset-top) + 64px);left:10px;right:10px;z-index:100000;display:flex;justify-content:center}#nmmsg .it{max-width:520px;width:100%;box-sizing:border-box;background:#1e3a5f;color:#fff;border:1px solid #2f8ff0;border-radius:14px;padding:12px 14px;font:15px/1.45 -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.3)}#nmmsg .ok{margin-top:8px;border:0;border-radius:10px;background:#2f8ff0;color:#fff;padding:8px 14px;font:inherit;cursor:pointer}#nmcr select.b{appearance:auto}' +
+    '#nmmsg,#nmabb{position:fixed;top:calc(env(safe-area-inset-top) + 64px);left:10px;right:10px;z-index:100000;display:flex;justify-content:center}#nmmsg .it,#nmabb .it{max-width:520px;width:100%;box-sizing:border-box;background:#1e3a5f;color:#fff;border:1px solid #2f8ff0;border-radius:14px;padding:12px 14px;font:15px/1.45 -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.3)}#nmmsg .ok,#nmabb .ok{margin-top:8px;border:0;border-radius:10px;background:#2f8ff0;color:#fff;padding:8px 14px;font:inherit;cursor:pointer}#nmcr select.b{appearance:auto}#nmabb{top:auto;bottom:calc(env(safe-area-inset-bottom) + 84px)}#nmabb .it{background:#4a3a12;border-color:#ffb020}#nmabb .ok{background:#ffb020;color:#2a1f00}' +
     '#nmatt{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 76px);right:10px;left:10px;z-index:100001;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}' +
     '#nmatt .it{pointer-events:auto;position:relative;max-width:420px;width:100%;box-sizing:border-box;background:#2b2c33;color:#fff;border-radius:14px;padding:10px 40px 10px 14px;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.3)}#nmatt .x{position:absolute;top:4px;right:4px;width:32px;height:32px;border:0;background:none;color:#c9cbe0;font-size:20px;line-height:1;cursor:pointer}' +
     '#nmatt .it b{display:block}#nmatt .it span{color:#c9cbe0}#nmattv{width:100%;text-align:left}#nmattv .ar{display:block;padding:10px 0;border-top:1px solid #2a2d55}#nmattv .ar:first-child{border-top:0}#nmattv .ar b{display:block}#nmattv .ar div{color:#b7bad8;font-size:.9rem}' +
@@ -549,6 +549,50 @@
       '<button class="lnk" id="nm-out">Esci</button>');
     $('#nm-out', o).onclick = logout;
   }
+  /* ---------- prova e abbonamento: aziende/{az}.scade (ultimo giorno, AAAA-MM-GG) e scadeMs (fine di quel giorno, per le regole) ---------- */
+  var PROVA_GG = 30;
+  function oggiISO() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function piuGiorni(g, n) { var d = new Date(Date.parse(g + 'T12:00:00Z') + n * 864e5); return d.toISOString().slice(0, 10); }
+  function fineGiorno(g) { return Date.parse(g + 'T23:59:59+01:00'); }
+  function giorniA(g) { return Math.round((Date.parse(g + 'T12:00:00Z') - Date.parse(oggiISO() + 'T12:00:00Z')) / 864e5); }
+  function dataIt(g) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(g || ''); return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] : ''; }
+  function azScaduta(A) { return !!(A && A.scadeMs && Date.now() > A.scadeMs); }
+  setInterval(function () { if (started && AZD && azScaduta(AZD)) location.reload(); }, 10 * 60 * 1000);
+  function showScaduto(x) {
+    var adm = x.stato === 'attivo' && x.ruolo === 'admin', cosa = AZD && AZD.abbonata ? 'L’abbonamento' : 'Il periodo di prova';
+    var o = overlay('<h2>Abbonamento scaduto</h2><p>' + cosa + ' di <b>' + esc((AZD && AZD.nome) || 'la tua azienda') + '</b> è finito il ' + esc(dataIt(AZD && AZD.scade)) + '. ' +
+      (adm ? 'I dati restano salvati e non vengono cancellati: per continuare a usare l’app contatta il gestore del servizio. Intanto puoi scaricare una copia di tutti i dati.</p><button class="btn" id="nm-scar">Scarica i dati</button><p id="nm-scar-st" style="margin-top:8px"></p>'
+        : 'I dati restano salvati. Per informazioni parla con l’amministratore della tua azienda.</p>') + '<button class="lnk" id="nm-out">Esci</button>');
+    $('#nm-out', o).onclick = logout;
+    var b = $('#nm-scar', o); if (b) b.onclick = function () { scaricaScaduto(x.azienda, b, $('#nm-scar-st', o)); };
+  }
+  // la stessa copia di Altro › Copia dei dati (senza foto): si recupera con «Recupera ciò che manca»
+  async function scaricaScaduto(az, b, st) {
+    b.disabled = true; var ref = fs.collection('aziende').doc(az), coll = {}, conteggi = {}, tot = 0, cs = COLLS.filter(function (c) { return c !== 'foto'; });
+    try {
+      for (var i = 0; i < cs.length; i++) {
+        st.textContent = 'Scarico ' + (i + 1) + ' di ' + cs.length + '…';
+        var s = await ref.collection(cs[i]).get(), m = {}, n = 0;
+        s.docs.forEach(function (d) { if (cs[i] === 'impostazioni' && d.id === 'backup') return; m[d.id] = d.data(); n++; });
+        coll[cs[i]] = m; conteggi[cs[i]] = n; tot += n;
+      }
+      var file = { app: 'Gestionale cantiere', tipo: 'Copia dei dati', formato: 1, creata: nowISO(), creataDa: (MEX && MEX.nome) || '', voci: tot, conteggi: conteggi, collezioni: coll };
+      var blob = new Blob([JSON.stringify(file, function (k, v) { return v && typeof v.toDate === 'function' ? v.toDate().toISOString() : v; }, 1)], { type: 'application/json' }), u = URL.createObjectURL(blob), l = document.createElement('a');
+      l.href = u; l.download = (String((AZD && AZD.nome) || 'Gestionale').replace(/[^A-Za-z0-9-]+/g, '') || 'Gestionale') + '-copia-' + oggiISO() + '.json'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 5000);
+      st.textContent = 'Scaricato: ' + tot + ' voci.';
+    } catch (e) { st.textContent = 'Non riuscito (' + errOf(e).code + '). Riprova.'; }
+    b.disabled = false;
+  }
+  // in Home, agli amministratori: gli ultimi 7 giorni prima della scadenza (si chiude per quel giorno)
+  function avvisoAbb() {
+    var el = $('#nmabb'), A = AZD, d = A && A.scade && A.scadeMs ? giorniA(A.scade) : null, visto = '';
+    try { visto = localStorage.getItem('gr-abb-visto') || ''; } catch (e) { }
+    if (!ME || ME.ruolo !== 'admin' || ME.assist || d == null || d > 7 || d < 0 || visto === oggiISO() + A.scade) { if (el) el.remove(); return; }
+    ensureCss(); if (!el) { el = document.createElement('div'); el.id = 'nmabb'; document.body.appendChild(el); }
+    el.innerHTML = '<div class="it"><b>' + (A.abbonata ? 'L’abbonamento' : 'La prova') + ' finisce ' + (d === 0 ? 'oggi' : d === 1 ? 'domani' : 'tra ' + d + ' giorni') + '</b> (' + esc(dataIt(A.scade)) + ').<br>Dopo, l’app si blocca finché non rinnovi; i dati restano salvati. Per continuare contatta il gestore del servizio.<br><button class="ok">Ho capito</button></div>';
+  }
+  document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('#nmabb .ok'); if (!b) return; try { localStorage.setItem('gr-abb-visto', oggiISO() + (AZD && AZD.scade)); } catch (x) { } var el = $('#nmabb'); if (el) el.remove(); });
+
   function showBlocked(perche) {
     var o = overlay('<h2>Accesso sospeso</h2><p>' + (perche === 'azienda' ? 'La tua azienda non è attiva in questo momento. Per informazioni contatta il gestore del servizio.' :
       perche === 'nessuna' ? 'Il tuo account non è collegato a nessuna azienda attiva.' : 'Il tuo account non è attivo. Parla con un amministratore della tua azienda.') + '</p><button class="lnk" id="nm-out">Esci</button>');
@@ -582,7 +626,7 @@
     if (!AZ_UNSUB || AZ_UNSUB.az !== x.azienda || (AZD === null && AZ_UNSUB.st !== x.stato)) {
       if (AZ_UNSUB) AZ_UNSUB();
       AZD = undefined;
-      var un = fs.collection('aziende').doc(x.azienda).onSnapshot(function (d) { AZD = d.exists ? d.data() : null; decidi(); if ($('#nmpan')) renderPanel(); }, function () { AZD = null; decidi(); });
+      var un = fs.collection('aziende').doc(x.azienda).onSnapshot(function (d) { AZD = d.exists ? d.data() : null; decidi(); if (started) avvisoAbb(); if ($('#nmpan')) renderPanel(); }, function () { AZD = null; decidi(); });
       un.az = x.azienda; un.st = x.stato; AZ_UNSUB = un;
     }
     decidi();
@@ -596,6 +640,7 @@
       if (AZD && AZD.stato === 'in_attesa') showWait(x, true); else showBlocked(AZD ? 'azienda' : 'nessuna');
       return;
     }
+    if (azScaduta(AZD)) { if (started) { location.reload(); return; } showScaduto(x); return; }
     AZ = x.azienda;
     if (x.stato === 'attivo' && x.ruolo === 'cliente') { if (started) { location.reload(); return; } if (!CLIENTE) { ME = x; showCliente(x); } return; }
     if (CLIENTE) { location.reload(); return; }
@@ -618,7 +663,7 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 
   function afterStart() {
-    msgServizio();
+    msgServizio(); avvisoAbb();
     UT_UNSUB = fs.collection('utenti').where('azienda', '==', AZ).onSnapshot(function (s) {
       var m = {}; s.docs.forEach(function (d) { m[d.id] = d.data(); }); UT = m; if ($('#nmpan')) renderPanel(); schedulePortale();
     }, function () { });
@@ -1046,11 +1091,11 @@
       var k = CR.vista.slice(3), A = CR.az[k], last = crUltimo(k), e7 = crErr7(k), nota = CR.note[k];
       var ult = {}; ((CR.att[k] || {}).list || []).forEach(function (x) { if (crTipo(x) === 'accessi' && !ult[x.uid]) ult[x.uid] = x.il; });
       h += '<div class="top"><button class="back" data-cr="home">‹ Aziende</button><h3>' + esc(A.nome || 'Azienda') + '</h3><span style="min-width:64px"></span></div>' +
-        '<div class="grp"><div class="u"><div class="nm">' + esc(A.adminNome || 'Amministratore') + '</div><div class="em">' + esc((A.stato || '') + ' · codice ' + (codBello(A.codice) || '—') + ' · ' + (A.assistenza ? 'assistenza permessa' : 'assistenza non permessa')) + '<br>' + crSpazio(A) +
+        '<div class="grp"><div class="u"><div class="nm">' + esc(A.adminNome || 'Amministratore') + '</div><div class="em">' + esc((A.stato || '') + ' · codice ' + (codBello(A.codice) || '—') + ' · ' + (A.assistenza ? 'assistenza permessa' : 'assistenza non permessa')) + '<br>' + crAbb(A) + '<br>' + crSpazio(A) +
         '<br>Ultimo accesso: ' + esc(last ? (last.nome || '') + ', ' + crQuando(last.il) : 'nessuno') + (e7 ? ' · <span style="color:#ff8a80">' + e7 + (e7 === 1 ? ' errore' : ' errori') + ' in 7 giorni</span>' : '') + '</div>' +
         '<div class="acts">' + (A.telefono ? '<a class="b" style="text-decoration:none;color:inherit;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:9px 12px" href="tel:' + esc(String(A.telefono).replace(/[^\d+]/g, '')) + '">Chiama</a>' : '') +
         (A.email ? '<a class="b" style="text-decoration:none;color:inherit;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:9px 12px" href="mailto:' + esc(A.email) + '">Email</a>' : '') +
-        '<button class="b pri" data-cr="rep" data-id="' + k + '">Report</button><button class="b" data-cr="quota" data-id="' + k + '">Quota spazio</button>' +
+        '<button class="b pri" data-cr="rep" data-id="' + k + '">Report</button><button class="b" data-cr="pagato" data-id="' + k + '">Segna pagato</button>' + (!A.abbonata ? '<button class="b" data-cr="prova" data-id="' + k + '">Giorni di prova</button>' : '') + '<button class="b" data-cr="quota" data-id="' + k + '">Quota spazio</button>' +
         (A.assistenza ? '<button class="b" data-cr="entra" data-id="' + k + '">Entra per assistenza</button>' : '') +
         '<button class="b" data-cr="scarica" data-id="' + k + '"' + (CR.scarico ? ' disabled' : '') + '>Scarica i dati</button><button class="b red" data-cr="sosp" data-id="' + k + '">Sospendi</button></div>' +
         (CR.scarico ? '<div class="em" style="margin-top:8px">' + esc(CR.scarico) + '</div>' : '') + '</div></div>' +
@@ -1071,7 +1116,7 @@
           acts = '<button class="b pri" data-cr="ok" data-id="' + kk + '">Approva</button><button class="b red" data-cr="no" data-id="' + kk + '">Rifiuta</button>';
         } else if (st === 'attiva') {
           var last = crUltimo(kk), e7 = crErr7(kk), R = CR.att[kk], np = crPersone(kk).length, na = crPersone(kk, 'in_attesa').length;
-          info = esc(np + (np === 1 ? ' persona' : ' persone') + (na ? ' (+' + na + ' in attesa)' : '')) + ' · ' + crSpazio(a) + '<br>' +
+          info = crAbb(a) + '<br>' + esc(np + (np === 1 ? ' persona' : ' persone') + (na ? ' (+' + na + ' in attesa)' : '')) + ' · ' + crSpazio(a) + '<br>' +
             esc('Ultimo accesso: ' + (R && R.loading ? '…' : last ? crQuando(last.il) : 'nessuno')) + (e7 ? ' · <span style="color:#ff8a80">' + e7 + (e7 === 1 ? ' errore' : ' errori') + ' in 7 giorni</span>' : '');
           acts = '<button class="b pri" data-cr="scheda" data-id="' + kk + '">Apri</button><button class="b" data-cr="rep" data-id="' + kk + '">Report</button>';
         } else {
@@ -1116,13 +1161,31 @@
     for (var i = 0; i < 4; i++) {
       var c = a.codice || codNuovo(), b = fs.batch(), now = nowISO();
       if (!a.codice) b.set(fs.collection('codici').doc(c), { azienda: k, creato: now });
-      b.update(fs.collection('aziende').doc(k), { stato: 'attiva', codice: c, approvata: now, modificato: now });
+      var up = { stato: 'attiva', codice: c, approvata: now, modificato: now };
+      if (!a.scade) { up.scade = piuGiorni(oggiISO(), PROVA_GG); up.scadeMs = fineGiorno(up.scade); up.abbonata = false; } // prova di 30 giorni dall'approvazione
+      b.update(fs.collection('aziende').doc(k), up);
       if (a.admin && CR.ut[a.admin]) b.update(fs.collection('utenti').doc(a.admin), { stato: 'attivo', modificato: now });
-      try { await b.commit(); toast((a.nome || 'Azienda') + ' approvata. Codice: ' + codBello(c)); return; } catch (e) { if (a.codice || i === 3) { toast('Non riuscito: ' + errOf(e).code); return; } }
+      try { await b.commit(); toast((a.nome || 'Azienda') + ' approvata. Codice: ' + codBello(c) + (a.scade ? '' : ' · prova di ' + PROVA_GG + ' giorni')); return; } catch (e) { if (a.codice || i === 3) { toast('Non riuscito: ' + errOf(e).code); return; } }
     }
   }
   // Spazio di ogni azienda: lo misura ogni mattina l'invio delle notifiche (aziende/{az}.spazioMb); la quota la decide il gestore (100 MB se non scritta)
   var QUOTA0 = 100;
+  // prova e abbonamento, una riga: in prova / abbonata fino al…, in rosso se scaduta, in giallo negli ultimi 7 giorni
+  function crAbb(a) {
+    if (!a.scade) return 'Senza scadenza';
+    var d = giorniA(a.scade), t = (a.abbonata ? 'Abbonata' : 'In prova') + ' fino al ' + dataIt(a.scade);
+    if (azScaduta(a)) return '<span style="color:#ff8a80">' + (a.abbonata ? 'Abbonamento scaduto' : 'Prova finita') + ' il ' + esc(dataIt(a.scade)) + ': app bloccata</span>';
+    return '<span' + (d <= 7 ? ' style="color:#ffb020"' : '') + '>' + esc(t + (d <= 7 ? ' (' + (d === 0 ? 'oggi' : d === 1 ? 'domani' : 'tra ' + d + ' giorni') + ')' : '')) + '</span>';
+  }
+  function crScade(k, g, abb, msg) {
+    var up = g ? { scade: g, scadeMs: fineGiorno(g), abbonata: abb, modificato: nowISO() } : { scade: FV.delete(), scadeMs: FV.delete(), abbonata: abb, modificato: nowISO() };
+    fs.collection('aziende').doc(k).update(up).then(function () { toast(msg); }, function (e) { toast('Non riuscito: ' + errOf(e).code); });
+  }
+  function leggiData(v) {
+    var m = /^\s*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})\s*$/.exec(v || ''); if (!m) return null;
+    var y = +m[3] < 100 ? 2000 + +m[3] : +m[3], g = y + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2), d = new Date(g + 'T12:00:00Z');
+    return isNaN(d) || d.getUTCDate() !== +m[1] ? null : g;
+  }
   function crQuota(a) { return a.quotaMb > 0 ? a.quotaMb : QUOTA0; }
   function crSpazio(a) {
     if (a.spazioMb == null) return 'Spazio: non ancora misurato';
@@ -1165,6 +1228,22 @@
     else if (k === 'riatt') crStato(id, 'attiva', 'Azienda riattivata');
     else if (k === 'no') { if (confirm('Rifiutare la richiesta di ' + (a.nome || 'questa azienda') + '?')) crStato(id, 'rifiutata', 'Richiesta rifiutata'); }
     else if (k === 'sosp') { if (confirm('Sospendere ' + (a.nome || 'questa azienda') + '? Nessuno dell’azienda potrà entrare finché non la riattivi. I dati restano.')) crStato(id, 'sospesa', 'Azienda sospesa'); }
+    else if (k === 'prova') {
+      var base = String(a.approvata || nowISO()).slice(0, 10), gg0 = a.scade ? giorniA(a.scade) - giorniA(base) : PROVA_GG;
+      var v = prompt('Giorni di prova per ' + (a.nome || 'questa azienda') + ', contati dall’approvazione del ' + dataIt(base) + ' (oggi ' + gg0 + ').', String(gg0));
+      if (v == null) return; var n = Math.round(parseFloat(String(v).replace(',', '.')));
+      if (!(n >= 1 && n <= 365)) { toast('Scrivi un numero di giorni tra 1 e 365'); return; }
+      var g = piuGiorni(base, n); crScade(id, g, false, 'In prova fino al ' + dataIt(g));
+    }
+    else if (k === 'pagato') {
+      var prop = dataIt(piuGiorni(a.scade && !azScaduta(a) ? a.scade : oggiISO(), 365));
+      var v2 = prompt('Pagato: abbonata fino al giorno (GG/MM/AAAA).\nLascia vuoto per togliere la scadenza (l’azienda non si blocca mai).', prop);
+      if (v2 == null) return;
+      if (!v2.trim()) { if (confirm('Togliere la scadenza a ' + (a.nome || 'questa azienda') + '? Non si bloccherà mai.')) crScade(id, null, true, 'Senza scadenza'); return; }
+      var g2 = leggiData(v2); if (!g2) { toast('Scrivi la data come 31/12/2027'); return; }
+      if (g2 < oggiISO()) { toast('La data è già passata'); return; }
+      crScade(id, g2, true, 'Abbonata fino al ' + dataIt(g2));
+    }
     else if (k === 'quota') {
       var v = prompt('Spazio per le foto di ' + (a.nome || 'questa azienda') + ', in MB (oggi ' + crQuota(a) + '). Tutte le aziende insieme stanno in 1024 MB.', String(crQuota(a)));
       if (v == null) return; var q = Math.round(parseFloat(String(v).replace(',', '.')));

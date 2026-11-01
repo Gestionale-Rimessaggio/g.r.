@@ -12,7 +12,12 @@ service cloud.firestore {
     function creatore() { return signedIn() && exists(/databases/$(database)/documents/creatori/$(request.auth.uid)); }
     function azienda(a) { return get(/databases/$(database)/documents/aziende/$(a)).data; }
     // chi lavora (o è cliente) in un'azienda attiva ed è stato approvato
-    function attivo(a) { return signedIn() && exists(profilo()) && me().get('azienda', '') == a && me().stato == 'attivo' && azienda(a).stato == 'attiva'; }
+    function attivo0(a) { return signedIn() && exists(profilo()) && me().get('azienda', '') == a && me().stato == 'attivo' && azienda(a).stato == 'attiva'; }
+    // prova o abbonamento: dopo la scadenza (scadeMs, fine dell'ultimo giorno) l'app è bloccata; i dati restano
+    function inRegola(a) { return azienda(a).get('scadeMs', 0) == 0 || azienda(a).scadeMs > request.time.toMillis(); }
+    function attivo(a) { return attivo0(a) && inRegola(a); }
+    // ad azienda scaduta l'amministratore può solo leggere, per scaricare la copia dei dati
+    function adminScaduto(a) { return attivo0(a) && me().ruolo == 'admin'; }
     function staff(a) { return attivo(a) && me().ruolo in ['base', 'editor', 'admin']; }
     function cliente(a) { return attivo(a) && me().ruolo == 'cliente'; }
     function admin(a) { return attivo(a) && me().ruolo == 'admin'; }
@@ -65,7 +70,8 @@ service cloud.firestore {
         && corto(request.resource.data, 'adminNome', 60) && corto(request.resource.data, 'email', 254) && corto(request.resource.data, 'telefono', 30)
         && getAfter(profilo()).data.azienda == a;
       // il gestore approva, sospende o rifiuta, dà il codice e la quota; il permesso di assistenza e l'amministratore non li tocca
-      allow update: if (creatore() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stato', 'codice', 'approvata', 'quotaMb', 'modificato'])
+      allow update: if (creatore() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stato', 'codice', 'approvata', 'quotaMb', 'modificato', 'scade', 'scadeMs', 'abbonata'])
+          && (!('scadeMs' in request.resource.data) || request.resource.data.scadeMs is int)
           && (!('codice' in request.resource.data) || getAfter(/databases/$(database)/documents/codici/$(request.resource.data.codice)).data.azienda == a))
         || (admin(a) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['codice', 'assistenza', 'modificato'])
           && (!('codice' in request.resource.data) || getAfter(/databases/$(database)/documents/codici/$(request.resource.data.codice)).data.azienda == a));
@@ -131,7 +137,8 @@ service cloud.firestore {
         function soloAdmin() { return coll == 'impostazioni' && id in ['aspetto', 'sezioni']; }
 
         // i PIN del tablet (impronte di 4 cifre, facili da ricavare): ognuno legge solo il suo; tutti solo amministratori, gestore in assistenza e tablet
-        allow read: if staffA(a) && datiCantiere() && (coll != 'pin' || adminA(a) || tablet(a) || resource.data.get('utente', '') == request.auth.uid);
+        allow read: if (staffA(a) && datiCantiere() && (coll != 'pin' || adminA(a) || tablet(a) || resource.data.get('utente', '') == request.auth.uid))
+          || (datiCantiere() && adminScaduto(a));
         allow create: if datiCantiere() && (adminA(a) || (!soloAdmin() && staff(a) && !cancellato(nuovo()) && proprio(nuovo()) && ferieOk(nuovo()) && autoreOk(nuovo())));
         allow update: if datiCantiere() && (adminA(a) || (!soloAdmin() && staff(a) && (
           cancellato(nuovo()) ? (cancellato(resource.data) || puoCancellare(resource.data))

@@ -26,7 +26,7 @@ async function alGitHub(titolo, testo) {
   console.log('Segnalazione su GitHub:', titolo, r.status);
 }
 
-var TIPI_AVVISO = { richiesta: 'Nuova azienda da approvare', errori: 'Errori ripetuti in un’azienda', inattiva: 'Un’azienda non entra da 30 giorni', spazio: 'Spazio quasi pieno' };
+var TIPI_AVVISO = { abbonamento: 'Prova o abbonamento in scadenza', richiesta: 'Nuova azienda da approvare', errori: 'Errori ripetuti in un’azienda', inattiva: 'Un’azienda non entra da 30 giorni', spazio: 'Spazio quasi pieno' };
 
 // un avviso al gestore: nel pannello sempre, sul telefono se iscritto, altrimenti su GitHub
 async function avvisa(admin, root, a) {
@@ -94,6 +94,34 @@ async function monitoring(admin, da, a) {
   } catch (e) { console.log('Monitoring non letto:', e.message); return { errore: 'lettura' }; }
 }
 
+// Prova e abbonamento: 7 giorni prima della scadenza un avviso al gestore e sul telefono agli amministratori
+// dell'azienda (una volta per ogni data di scadenza); il giorno dopo la scadenza un avviso al gestore.
+function dataIt(g) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(g || ''); return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] : g; }
+function giorniTra(da, a) { return Math.round((Date.parse(a + 'T12:00:00Z') - Date.parse(da + 'T12:00:00Z')) / 864e5); }
+async function abbonamento(admin, root, A, oggi) {
+  var x = A.data(), nome = x.nome || A.id, cosa = x.abbonata ? 'L’abbonamento' : 'La prova';
+  if (x.stato !== 'attiva' || !x.scade || !x.scadeMs) return;
+  var d = giorniTra(oggi, x.scade);
+  if (oraRoma(new Date()).ora < '08:00') return; // niente telefoni che suonano all'alba
+  if (d >= 0 && d <= 7 && x.avvisoScade !== x.scade) {
+    await A.ref.update({ avvisoScade: x.scade });
+    await avvisa(admin, root, { tipo: 'abbonamento', azienda: A.id, nome: nome, titolo: nome + ': ' + cosa.toLowerCase() + ' finisce il ' + dataIt(x.scade), testo: 'Se hanno pagato, apri l’azienda e tocca «Segna pagato».' });
+    var ut = await root.collection('utenti').where('azienda', '==', A.id).get(), adm = {};
+    ut.forEach(function (u) { var y = u.data(); if (y.stato === 'attivo' && y.ruolo === 'admin') adm[u.id] = 1; });
+    var no = await A.ref.collection('notifiche').get(), n = 0;
+    for (var i = 0; i < no.docs.length; i++) {
+      var z = no.docs[i].data(), tokens = (z.tokens || []).slice(); if (z._del || !adm[z.utente || no.docs[i].id] || !tokens.length) continue;
+      var res = await admin.messaging().sendEachForMulticast({ tokens: tokens, data: { title: nome + ' · ' + cosa.toLowerCase() + ' finisce il ' + dataIt(x.scade), body: 'Dopo, l’app si blocca finché non rinnovi; i dati restano salvati. Per continuare contatta il gestore del servizio.', url: './', tag: 'gr-abbonamento' }, webpush: { headers: { Urgency: 'high', TTL: '86400' } } });
+      res.responses.forEach(function (r) { if (r.success) n++; });
+    }
+    console.log('Avviso scadenza a ' + n + ' telefoni di amministratori.');
+  }
+  if (d < 0 && x.avvisoScaduta !== x.scade) {
+    await A.ref.update({ avvisoScaduta: x.scade });
+    await avvisa(admin, root, { tipo: 'abbonamento', azienda: A.id, nome: nome, titolo: nome + ': ' + (x.abbonata ? 'abbonamento scaduto' : 'prova finita') + ', app bloccata', testo: 'Scaduta il ' + dataIt(x.scade) + '. Entra solo l’amministratore, per scaricare i dati. Per riattivarla: «Segna pagato».' });
+  }
+}
+
 // Ogni ora: aziende nuove in attesa ed errori ripetuti (oltre 5 nelle ultime 24 ore, un avviso al giorno per azienda)
 async function main() {
   var admin = require('firebase-admin');
@@ -106,6 +134,7 @@ async function main() {
       await A.ref.update({ avvisatoGestore: new Date().toISOString() });
       nuove.push({ tipo: 'richiesta', azienda: A.id, nome: nome, titolo: 'Nuova azienda da approvare: ' + nome, testo: (x.adminNome || '') + ' · ' + (x.email || '') + (x.telefono ? ' · tel. ' + x.telefono : '') });
     }
+    await abbonamento(admin, root, A, oggi);
     if (x.stato === 'attiva' && x.avvisoErrori !== oggi) {
       var s = await A.ref.collection('attivita').where('il', '>=', new Date(Date.now() - 864e5).toISOString()).get(), n = 0;
       s.forEach(function (d) { if (String(d.data().cosa || '').indexOf('⚠') === 0) n++; });
@@ -119,5 +148,5 @@ async function main() {
   } else for (var j = 0; j < nuove.length; j++) await avvisa(admin, root, nuove[j]);
 }
 
-module.exports = { avvisa: avvisa, consumi: consumi, mezzanotte: mezzanotte };
+module.exports = { avvisa: avvisa, consumi: consumi, mezzanotte: mezzanotte, giorniTra: giorniTra };
 if (require.main === module) main().catch(function (e) { console.error(e); process.exit(1); });
