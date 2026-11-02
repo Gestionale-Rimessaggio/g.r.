@@ -49,6 +49,11 @@ service cloud.firestore {
       allow write: if creatore() && request.resource.data.keys().hasOnly(['titolo', 'righe', 'il', 'nascosta'])
         && corto(request.resource.data, 'titolo', 60) && (!('righe' in request.resource.data) || (request.resource.data.righe is list && request.resource.data.righe.size() <= 12));
     }
+    // Pacchetto di partenza delle aziende nuove (categorie, scadenze, checklist, rifiuti): lo legge chi è entrato, lo scrive solo il gestore
+    match /pacchetto/{id} {
+      allow read: if signedIn();
+      allow write: if creatore();
+    }
     match /messaggioServizio/{id} {
       allow read: if signedIn();
       allow write: if creatore();

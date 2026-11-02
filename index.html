@@ -2275,6 +2275,24 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   // Categorie modificabili dall'amministratore (Altro › Categorie). Quelle rinominate o tolte restano come
   // «alias», così le regole del testo e lo storico portano alla categoria nuova (o ad «Altro»)
   var CAT_DEF = CATEGORIE.slice();
+  /* Pacchetto di partenza (idea N12): al primo ingresso dell'amministratore di un'azienda vuota mette categorie, checklist,
+     tipi di scadenze e rifiuti preparati dal gestore (pacchetto/attuale, in nm-fb.js). Una volta sola: lo segna in impostazioni/pacchetto. */
+  function tipiScad() { var x = S.pacCfg && !S.pacCfg._del && Array.isArray(S.pacCfg.tipiScadenza) ? S.pacCfg.tipiScadenza : []; return TIPI_SCADENZA.concat(x.filter(function (t) { return TIPI_SCADENZA.indexOf(t) < 0; })); }
+  async function pacCheck() {
+    var FB = window.__NM_FB;
+    if (S.pacRun || !FB || !FB.pacchetto || !S.isOwner || !S.canWrite || S.status !== 'ready' || !S.got.impostazioni || !S.got.modelli || (S.pacCfg && !S.pacCfg._del)) return;
+    S.pacRun = true;
+    var now = new Date().toISOString(), vuota = !S.boats.length && !(S.modelli || []).length && !(S.catCfg && !S.catCfg._del), P = null;
+    if (vuota) { try { P = await FB.pacchetto(); } catch (e) { P = null; } }
+    var mark = { il: now, applicato: !!P, tipiScadenza: P ? P.tipiScadenza || [] : [] };
+    if (P) {
+      for (var i = 0; i < (P.checklist || []).length; i++) { var c = P.checklist[i], rm = S.db.collection('modelli').doc(); await w(function () { return rm.set({ nome: c.nome, voci: c.voci, creato: now, modificato: now }); }); }
+      if ((P.categorie || []).length) { var rc = S.db.collection('impostazioni').doc('categorie'); await w(function () { return rc.set({ lista: P.categorie.filter(function (x) { return x !== 'Altro'; }), modificato: now }); }); }
+      if ((P.rifiuti || []).length && !(S.rifCfg && !S.rifCfg._del)) { var rr = S.db.collection('impostazioni').doc('rifiuti'); await w(function () { return rr.set({ tipi: P.rifiuti, ditte: { d1: 'Ditta dei rifiuti', olio: 'Ditta dell’olio' }, modificato: now }); }); }
+    }
+    var rp = S.db.collection('impostazioni').doc('pacchetto');
+    if (await w(function () { return rp.set(mark); })) { S.pacCfg = mark; if (P) toast('Ho preparato categorie, checklist e rifiuti più usati: puoi cambiarli quando vuoi.'); }
+  }
   function catApply() {
     var c = S.catCfg, l = c && Array.isArray(c.lista) && c.lista.length ? c.lista.filter(function (x) { return x && x !== 'Altro'; }) : CAT_DEF.filter(function (x) { return x !== 'Altro'; });
     CATEGORIE.length = 0; l.forEach(function (x) { CATEGORIE.push(x); }); CATEGORIE.push('Altro');
@@ -10549,7 +10567,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function scadSheet(s, presetBoat, presetDate) {
     var isNew = !s; s = s || { barcaId: presetBoat || '', data: presetDate || '' };
     var body =
-      '<datalist id="tipi-scad">' + TIPI_SCADENZA.map(function (t) { return '<option value="' + esc(t) + '">'; }).join('') + '</datalist>' +
+      '<datalist id="tipi-scad">' + tipiScad().map(function (t) { return '<option value="' + esc(t) + '">'; }).join('') + '</datalist>' +
       '<datalist id="mod-scad">' + scadModelli().map(function (t) { return '<option value="' + esc(t) + '">'; }).join('') + '</datalist>' +
       aiFillBtn('scad', 'Leggi dalla foto (etichetta o documento)') +
       field(lab('f-barca', 'Barca'), boatSelect(s.barcaId)) +
@@ -11929,8 +11947,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     sub('conferme', function (x) { S.conf = toMap(x); });
     db.collection('impostazioni').onSnapshot(function (snap) {
       var m = null, b = null, ly = {}, asp = null;
-      var pm0 = S.portoMio; S.portoMio = null;
-      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'vernice') S.vnCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'porto') S.portoMio = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
+      var pm0 = S.portoMio; S.portoMio = null; S.got.impostazioni = true;
+      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'pacchetto') S.pacCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'vernice') S.vnCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'porto') S.portoMio = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
       var mc = m !== S.mapCfg; S.mapCfg = m; S.bkInfo = b; S.layouts = ly; S.aspetto = asp;
       if (NM_MARCA.dalDatabase(asp) && V.asp) NM_MARCA.prova(V.asp); // l'aspetto scelto vale subito per tutti
       if ((V.tab === 'mappa' && (mc || pm0 !== S.portoMio)) || V.tab === 'aspetto' || V.tab === 'backup' || V.tab === 'batterie' || V.tab === 'rifiuti' || V.tab === 'notifiche' || V.tab === 'categorie' || V.tab === 'home' || V.tab === 'barche' || V.tab === 'pannello' || V.tab === 'riepiloghi') { if (!LY.drag) render(); }
@@ -11938,7 +11956,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     sub('magazzino', function (x) { S.mag = x; });
     sub('movimenti', function (x) { S.mov = x; });
     sub('vari', function (x) { S.vari = x; });
-    sub('modelli', function (x) { S.modelli = x; });
+    sub('modelli', function (x) { S.modelli = x; S.got.modelli = true; setTimeout(pacCheck, 1500); });
     sub('checkBarca', function (x) { S.ckBarca = toMap(x); });
     sub('checklist', function (x) { S.check = x; });
     sub('opModelli', function (x) { S.opModelli = x; });
@@ -11979,7 +11997,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         if (c == null) S.writeUnknown = true;
       } else S.writeUnknown = true;
     } catch (e) { S.writeUnknown = true; }
-    render(); resolveNames(); progPulizia();
+    render(); resolveNames(); progPulizia(); setTimeout(pacCheck, 2500);
   }
   var nameReq = 0;
   async function resolveNames() {

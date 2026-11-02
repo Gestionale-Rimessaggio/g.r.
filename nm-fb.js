@@ -1074,6 +1074,59 @@
   function crNovScrivi(id, data, msg) {
     fs.collection('novita').doc(id).set(Object.assign({ il: nowISO() }, data), { merge: true }).then(function () { CR.novEd = null; CR.nov = undefined; toast(msg); crRender(); }, function (er) { toast('Non riuscito: ' + errOf(er).code); });
   }
+  /* ---------- Pacchetto di partenza delle aziende nuove (idea N12, pacchetto/attuale) ----------
+     Un'azienda nuova parte con categorie, tipi di scadenze, checklist e rifiuti più usati invece che dal vuoto.
+     Il gestore lo cambia qui; l'app lo applica una volta sola, al primo ingresso dell'amministratore di un'azienda vuota. */
+  var PACK_DEF = {
+    categorie: ['Motore', 'Elettrico ed elettronica', 'Impianti di bordo', 'Carena e antivegetativa', 'Carrozzeria e lucidatura', 'Coperta e attrezzatura', 'Varo e alaggio', 'Trasferimento', 'Rimessaggio', 'Gestione cantiere'],
+    tipiScadenza: ['Tagliando motore', 'Antivegetativa', 'Sostituzione anodi', 'Girante pompa acqua mare', 'Assicurazione', 'Revisione zattera', 'Estintori', 'Dotazioni di sicurezza', 'Fine contratto rimessaggio', 'Varo programmato'],
+    checklist: [
+      { nome: 'Tagliando motore entrobordo', voci: ['Olio motore e filtro', 'Filtro gasolio e prefiltro', 'Girante pompa acqua mare', 'Anodi dello scambiatore', 'Cinghie', 'Liquido di raffreddamento', 'Filtro aria', 'Perdite e fascette'] },
+      { nome: 'Tagliando fuoribordo', voci: ['Olio motore e filtro', 'Olio del piede', 'Girante', 'Candele', 'Anodi', 'Filtro benzina', 'Ingrassaggio', 'Elica e copiglia'] },
+      { nome: 'Rimessaggio invernale', voci: ['Lavaggio carena', 'Antigelo nel circuito', 'Batterie scollegate e in carica', 'Acqua dolce svuotata', 'Serbatoio pieno con additivo', 'Cuscini e vele a terra', 'Telo di copertura', 'Foto della barca'] },
+      { nome: 'Preparazione al varo', voci: ['Antivegetativa', 'Anodi nuovi', 'Prese a mare e passascafo', 'Batterie montate e cariche', 'Motore in moto e scarico acqua', 'Pompe di sentina', 'Luci di navigazione', 'Dotazioni di sicurezza a bordo'] },
+      { nome: 'Consegna al cliente', voci: ['Pulizia interna ed esterna', 'Prova motore', 'Strumenti accesi', 'Chiavi consegnate', 'Roba in deposito restituita'] }
+    ],
+    rifiuti: [
+      { id: 'contenitori', nome: 'Contenitori vuoti di sostanze pericolose', cer: '15 01 10*', cont: 'Big bag', unita: 'pz', kgU: 0.5, ditta: 'd1', es: 'latte di antivegetativa, barattoli di vernice, taniche' },
+      { id: 'spray', nome: 'Bombolette spray', cer: '15 01 11*', cont: 'Big bag', unita: 'pz', kgU: 0.25, ditta: 'd1' },
+      { id: 'stracci', nome: 'Carta e stracci sporchi', cer: '15 02 02*', cont: 'Big bag', unita: 'sacchetto', kgU: 2, ditta: 'd1', es: 'stracci, carta assorbente, panni sporchi d’olio o vernice' },
+      { id: 'filtri-aria', nome: 'Filtri aria', cer: '15 02 02*', cont: 'Big bag', unita: 'pz', kgU: 0.5, ditta: 'd1' },
+      { id: 'filtri-olio', nome: 'Filtri olio e gasolio', cer: '16 01 07*', cont: 'Fusto ermetico filtri', unita: 'pz', kgU: 0.7, ditta: 'd1' },
+      { id: 'antigelo', nome: 'Liquidi antigelo', cer: '16 01 14*', cont: 'Fusto ermetico antigelo', unita: 'l', kgU: 1.1, ditta: 'd1' },
+      { id: 'batterie', nome: 'Batterie al piombo', cer: '16 06 01*', cont: 'Batterie', unita: 'pz', kgU: 22, dare: true, ditta: 'd1' },
+      { id: 'zinco', nome: 'Zinco (anodi)', cer: '17 04 04', cont: 'Zinco', unita: 'pz', kgU: 1, dare: true, ditta: 'd1', es: 'anodi sostituiti' },
+      { id: 'olio', nome: 'Olio motore esausto', cer: '13 02 05*', cont: 'Cisternetta olio', unita: 'l', kgU: 0.9, ditta: 'olio' }
+    ]
+  };
+  function pacchetto() {
+    return fs.collection('pacchetto').doc('attuale').get().then(function (d) { var x = d.exists ? d.data() : null; return x && !x._del ? Object.assign({}, PACK_DEF, x) : PACK_DEF; }, function () { return PACK_DEF; });
+  }
+  function righe(s) { return String(s || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
+  function crPackHtml() {
+    if (CR.pack === undefined) { CR.pack = null; pacchetto().then(function (p) { CR.pack = p; crRender(); }); }
+    var P = CR.pack; if (!P) return '<p class="note">Carico…</p>';
+    if (!CR.packEd) return '<div class="grp"><div class="u"><div class="em">' + P.categorie.length + ' categorie · ' + P.tipiScadenza.length + ' tipi di scadenze · ' + P.checklist.length + ' checklist (' + esc(P.checklist.map(function (c) { return c.nome; }).join(', ')) + ') · ' + P.rifiuti.length + ' rifiuti</div>' +
+      '<div class="acts"><button class="b pri" data-cr="pack-mod">Modifica</button></div><div class="em">Lo ricevono le aziende nuove al primo ingresso dell’amministratore; quelle che hanno già dati non cambiano.</div></div></div>';
+    return '<div class="grp"><div class="u"><div class="nm">Categorie dei lavori, una per riga</div><textarea id="cr-pk-c" rows="6" style="' + TA + '">' + esc(P.categorie.join('\n')) + '</textarea>' +
+      '<div class="nm" style="margin-top:10px">Tipi di scadenze, uno per riga</div><textarea id="cr-pk-s" rows="6" style="' + TA + '">' + esc(P.tipiScadenza.join('\n')) + '</textarea>' +
+      '<div class="nm" style="margin-top:10px">Checklist: una riga con # e il nome, sotto le voci</div><textarea id="cr-pk-k" rows="12" style="' + TA + '">' + esc(P.checklist.map(function (c) { return '# ' + c.nome + '\n' + c.voci.join('\n'); }).join('\n\n')) + '</textarea>' +
+      '<div class="nm" style="margin-top:10px">Rifiuti: nome | codice CER | unità (pz, l, kg, sacchetto)</div><textarea id="cr-pk-r" rows="8" style="' + TA + '">' + esc(P.rifiuti.map(function (r) { return [r.nome, r.cer || '', r.unita || 'pz'].join(' | '); }).join('\n')) + '</textarea>' +
+      '<div class="acts"><button class="b pri" data-cr="pack-salva">Salva</button><button class="b" data-cr="pack-annulla">Annulla</button>' + (P !== PACK_DEF ? '<button class="b red" data-cr="pack-def">Torna a quello di partenza</button>' : '') + '</div></div></div>';
+  }
+  function crPackSalva() {
+    var cat = righe(($('#cr-pk-c') || {}).value).filter(function (x) { return x !== 'Altro'; }), sc = righe(($('#cr-pk-s') || {}).value), ck = [], cur = null, old = {};
+    righe(($('#cr-pk-k') || {}).value).forEach(function (r) { if (r.charAt(0) === '#') { cur = { nome: r.replace(/^#+\s*/, ''), voci: [] }; if (cur.nome) ck.push(cur); } else if (cur) cur.voci.push(r); });
+    (CR.pack.rifiuti || []).forEach(function (r) { old[r.nome] = r; });
+    var rf = righe(($('#cr-pk-r') || {}).value).map(function (r, i) {
+      var p = r.split('|').map(function (x) { return x.trim(); }), o = old[p[0]] || {};
+      return Object.assign({}, o, { id: o.id || ('r' + i), nome: p[0], cer: p[1] || '', unita: /^(pz|l|kg|sacchetto)$/.test(p[2] || '') ? p[2] : (o.unita || 'pz'), cont: o.cont || 'Altro', kgU: o.kgU || 1, ditta: o.ditta || (/olio/i.test(p[0]) ? 'olio' : 'd1') });
+    }).filter(function (r) { return r.nome; });
+    if (!cat.length) { toast('Scrivi almeno una categoria'); return; }
+    ck = ck.filter(function (c) { return c.voci.length; });
+    fs.collection('pacchetto').doc('attuale').set({ categorie: cat, tipiScadenza: sc, checklist: ck, rifiuti: rf, modificato: nowISO() })
+      .then(function () { CR.pack = undefined; CR.packEd = false; toast('Pacchetto salvato'); crRender(); }, function (er) { toast('Non riuscito: ' + errOf(er).code); });
+  }
   function crMsgHtml() {
     var m = CR.msg && CR.msg.attivo ? CR.msg : null;
     return '<div class="grp"><div class="u">' + (m ? '<div class="nm">In Home di tutte le aziende dal ' + esc(crQuando(m.il)) + '</div><div class="em">' + esc(m.testo) + '</div>' : '<div class="em">Nessun messaggio attivo.</div>') +
@@ -1104,7 +1157,7 @@
     if (!CR.on || started) return;
     var o = $('#nmcr'); if (!o) { hideOverlay(); o = document.createElement('div'); o.id = 'nmcr'; document.body.appendChild(o); }
     var ae = document.activeElement, fid = ae && o.contains(ae) && ae.id ? ae.id : '', sel = fid && ae.selectionStart != null ? [ae.selectionStart, ae.selectionEnd] : null, keep = {};
-    ['cr-msg', 'cr-nota', 'cr-nov-t', 'cr-nov-r'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
+    ['cr-msg', 'cr-nota', 'cr-nov-t', 'cr-nov-r', 'cr-pk-c', 'cr-pk-s', 'cr-pk-k', 'cr-pk-r'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
     var ids = Object.keys(CR.az).sort(function (a, b) { return String(CR.az[b].creato || '').localeCompare(String(CR.az[a].creato || '')); });
     var h = '<div class="in">';
     if (CR.vista && CR.vista.indexOf('rep:') === 0 && CR.az[CR.vista.slice(4)]) {
@@ -1181,6 +1234,7 @@
         sec('Sospese', by('sospesa')) + sec('Rifiutate', by('rifiutata')) +
         '<h4>Novità in app</h4>' + crNovHtml() +
         '<h4>Messaggio a tutte le aziende</h4>' + crMsgHtml() +
+        '<h4>Pacchetto di partenza delle aziende nuove</h4>' + crPackHtml() +
         (!ids.length && !CR.err ? '<p class="note">Ancora nessuna azienda. Quando un’azienda si registra dal sito, la sua richiesta compare qui.</p>' : '') +
         '<p class="note">Approvando un’azienda, chi l’ha registrata diventa il suo amministratore e l’azienda riceve il suo codice per far entrare colleghi e clienti. Nei dati di un’azienda entri solo se ha acceso «Permetti assistenza» in Altro › Utenti e permessi.</p>';
     }
@@ -1256,6 +1310,10 @@
     else if (k === 'push') crPush(id === 'on');
     else if (k === 'nota') { var tx = (($('#cr-nota') || {}).value || '').trim(); fs.collection('servizio').doc('note').collection('aziende').doc(id).set({ testo: tx, modificato: nowISO() }).then(function () { CR.note[id] = tx; toast('Nota salvata'); crRender(); }, function (er) { toast('Non riuscito: ' + errOf(er).code); }); }
     else if (k === 'scarica') crScarica(id);
+    else if (k === 'pack-mod') { CR.packEd = true; crRender(); }
+    else if (k === 'pack-annulla') { CR.packEd = false; crRender(); }
+    else if (k === 'pack-salva') crPackSalva();
+    else if (k === 'pack-def') { if (confirm('Rimettere il pacchetto di partenza preparato all’inizio?')) fs.collection('pacchetto').doc('attuale').delete().then(function () { CR.pack = undefined; CR.packEd = false; toast('Pacchetto rimesso come all’inizio'); crRender(); }); }
     else if (k === 'msg-pub') {
       var mt = (($('#cr-msg') || {}).value || '').trim(); if (!mt) { toast('Scrivi il messaggio'); return; }
       if (!confirm('Pubblicare questo messaggio in Home a tutte le aziende?\n\n' + mt)) return;
@@ -1980,6 +2038,7 @@
       prova: function (uid, pin) { var x = pinDi(uid); return x ? pinHash(uid, pin).then(function (h) { return h === x.hash; }) : Promise.resolve(false); },
       persone: function () { var L = LIVE.pin, m = (L && L.map) || {}; return Object.keys(m).filter(function (id) { return pinDi(id) && UT[id] && UT[id].stato === 'attivo' && UT[id].ruolo !== 'cliente' && !UT[id].tablet; }).map(function (id) { return { id: id, nome: UT[id].nome || '' }; }); }
     },
+    pacchetto: pacchetto,
     azienda: function () { return { nome: (AZD && AZD.nome) || '', assist: !!(ME && ME.assist) }; } // l'azienda in uso (per la procedura guidata)
   };
 })();
