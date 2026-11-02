@@ -28,6 +28,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js?i=1" integrity="sha384-Ke0FJhH7LyRqDxZ0wt+/OXV38yfQVu7g9VPEEGjYmB4RVOY/ta04uecRhsMwT7V3" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check-compat.js?i=1" integrity="sha384-Tsd7RAB2e2isM7pHHNFd4hZbrHBtszy6x4HCQqkLDM7PTHvRAjrMZKBOP2ntQDqc" crossorigin="anonymous"></script>
 <script src="config.js"></script>
+<script src="prova.js"></script>
 <script>
 /* Aspetto dell'azienda: nome, i due colori della sfumatura, logo d'apertura e logo in alto nella Home.
    Valori di base: quelli di NM_ASPETTO in config.js (il sito di ogni azienda ha il suo), altrimenti un aspetto neutro.
@@ -1127,7 +1128,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     boatView: null, resRange: 'anno', oreMonth: todayISO().slice(0, 7), oreOpen: null, magQ: '', magGroup: 'tipo', progDay: null, progView: 'ora', panPer: 'sett', panBy: 'persona', variDone: false, rifTab: 'deposito', rifEuro: false, scShowDone: false, prevFilter: 'aperti' };
   var SHEET = { onDelete: null, foto: [], run: null };
   function CLD() { return window.__NM_DEMO || window.__NM_FB || window.claude; } // prova: dati sul dispositivo · sito proprio: Firebase · altrimenti Claude
-  function blobSrc(id) { return window.__NM_FB ? window.__NM_FB.photoSrc(id) : '/_blob/' + id; }
+  function blobSrc(id) { return window.__NM_DEMO && window.__NM_DEMO.photoSrc ? window.__NM_DEMO.photoSrc(id) : window.__NM_FB ? window.__NM_FB.photoSrc(id) : '/_blob/' + id; }
 
   function boatById(id) { for (var i = 0; i < S.boats.length; i++) if (S.boats[i].id === id) return S.boats[i]; return null; }
   function boatLabel(b) { return b ? (b.nome || 'Senza nome') + (b.posto ? ' · ' + b.posto : '') : 'Barca eliminata'; }
@@ -1530,7 +1531,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       Math.round(c.spazioMb || 0) + ' MB di foto su ' + (c.spazioQuota || 100) + ' MB dell’azienda', '', '<button type="button" class="btn" data-act="tab" data-tab="backup">Vedi le foto non più usate</button>');
   }
   function viewHome() {
-    var h = (window.__NM_DEMO ? '<div class="banner"><p><b>Versione di prova.</b> Puoi toccare e modificare tutto: i dati sono di esempio e restano solo su questo dispositivo.</p><div class="acts"><button type="button" class="link" data-act="demo-reset">Ricomincia da capo</button></div></div>' : '') + exampleBanner();
+    var h = (window.__NM_DEMO ? '<div class="banner"><p><b>Versione di prova.</b> Puoi toccare e modificare tutto: i dati sono di esempio, restano solo in questa finestra e spariscono quando la chiudi. Per usare l’app con i tuoi dati, esci dalla prova e registra la tua azienda.</p><div class="acts"><button type="button" class="link" data-act="demo-reset">Ricomincia da capo</button><button type="button" class="link" data-act="demo-esci">Esci dalla prova</button></div></div>' : '') + exampleBanner();
     if (!S.boats.length) {
       return h + secH('Per iniziare') + emptyCard(I.boat, 'Nessuna barca registrata', 'Aggiungi la prima barca, poi inserisci lavori e scadenze: tagliandi, antivegetativa, assicurazioni.', ['new-boat', 'Aggiungi barca']);
     }
@@ -11616,6 +11617,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'b-sort': var bk = t.getAttribute('data-k'); V.bSortDir = V.bSort === bk ? -(V.bSortDir || 1) : 1; V.bSort = bk; renderBoatList(); break;
       case 'b-filt': V.bFilt = t.getAttribute('data-v'); renderBoatList(); break;
       case 'demo-reset': if (window.__NM_DEMO && window.__NM_DEMO.reset) window.__NM_DEMO.reset(); break;
+      case 'demo-esci': if (window.__NM_DEMO && window.__NM_DEMO.esci) window.__NM_DEMO.esci(); break;
       case 'pan-per': V.panPer = t.getAttribute('data-p'); render(); break;
       case 'pan-by': V.panBy = t.getAttribute('data-b'); render(); break;
       case 'go-porto-tab': M.prevTab = V.tab; M.prevBoat = null; V.tab = 'mappa'; V.boatId = null; M.area = 'porto'; if (M.three) dispose3D(); M.mounted = null; Porto.unmount(); window.scrollTo(0, 0); render(); break;

@@ -148,6 +148,7 @@
     setTimeout(function () { if (d.parentNode) d.remove(); }, 3800);
   }
 
+  if (window.__NM_DEMO) return; // «Prova senza registrarti» (prova.js): niente accesso né database, i dati restano nella finestra
   if (!CFG || !CFG.apiKey || /INSERISCI/.test(CFG.apiKey) || typeof firebase === 'undefined') {
     window.__NM_FB = { use: function () { return new Promise(function () { }); }, photoSrc: function () { return GIF0; }, altroRows: function () { return []; }, open: function () { } };
     var showCfg = function () {
@@ -464,13 +465,15 @@
       '<form id="nm-login"><label for="nm-em">Email</label><input id="nm-em" type="email" autocomplete="username" inputmode="email" required>' +
       '<label for="nm-pw">Password</label>' + pwField('nm-pw', 'current-password') +
       '<button class="btn" type="submit">Accedi</button><div class="err" id="nm-err">' + esc(msg || '') + '</div></form>' +
-      '<button class="lnk" id="nm-goreg">Prima volta? Crea il tuo account</button><button class="lnk" id="nm-goreset">Password dimenticata</button>');
+      '<button class="lnk" id="nm-goreg">Prima volta? Crea il tuo account</button><button class="lnk" id="nm-goreset">Password dimenticata</button>' +
+      '<button class="btn" id="nm-prova" type="button" style="margin-top:22px;background:transparent;border:1px solid rgba(255,255,255,.35)">Prova senza registrarti</button><p class="nm-prova-n" style="font-size:13px;opacity:.75;margin-top:6px;text-align:center">Un cantiere di esempio da toccare e modificare: non si salva nulla e sparisce quando chiudi la finestra.</p>');
     var f = $('#nm-login', o);
     f.addEventListener('submit', function (e) {
       e.preventDefault(); busy(f, true); $('#nm-err').textContent = '';
       auth.signInWithEmailAndPassword($('#nm-em').value.trim(), $('#nm-pw').value).catch(function (er) { busy(f, false); $('#nm-err').textContent = authErr(er); });
     });
     $('#nm-goreg', o).onclick = showRegister; $('#nm-goreset', o).onclick = showReset;
+    $('#nm-prova', o).onclick = function () { try { sessionStorage.setItem('nm-prova', '1'); } catch (e) { location.href = location.pathname + '?prova'; return; } location.reload(); };
   }
   // Codice dell'azienda: 8 tra lettere e numeri, senza quelli che si confondono (0 O 1 I L); si mostra come K7P4-M2QX
   var COD_ABC = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
