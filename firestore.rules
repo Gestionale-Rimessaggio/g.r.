@@ -65,7 +65,7 @@ service cloud.firestore {
     function raccolteCantiere() {
       return ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
         'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'deposito', 'programma', 'cariche', 'posti', 'richieste',
-        'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente', 'verbali'];
+        'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente', 'verbali', 'componenti', 'barattoli'];
     }
 
     match /aziende/{a} {
@@ -116,8 +116,9 @@ service cloud.firestore {
         allow create: if cliente(a) && request.resource.data.cliente == request.auth.uid
           && request.resource.data.barcaId in me().get('barche', [])
           && request.resource.data.stato == 'inviata'
-          && request.resource.data.tipo in ['varo', 'problema']
-          && request.resource.data.keys().hasOnly(['cliente', 'nome', 'barcaId', 'tipo', 'data', 'testo', 'foto', 'stato', 'creato'])
+          && request.resource.data.tipo in ['varo', 'problema', 'lavoro']
+          && request.resource.data.keys().hasOnly(['cliente', 'nome', 'barcaId', 'tipo', 'data', 'testo', 'foto', 'stato', 'creato', 'scadId'])
+          && request.resource.data.get('scadId', '') is string && request.resource.data.get('scadId', '').size() <= 60
           && request.resource.data.get('testo', '') is string && request.resource.data.get('testo', '').size() <= 2000
           && request.resource.data.get('foto', []) is list && request.resource.data.get('foto', []).size() <= 3;
       }

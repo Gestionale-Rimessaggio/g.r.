@@ -6,7 +6,7 @@
   'use strict';
   var CFG = window.NM_FIREBASE_CONFIG || null;
   var COLLS = ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
-    'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'deposito', 'programma', 'cariche', 'posti', 'richieste', 'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente', 'verbali'];
+    'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'deposito', 'programma', 'cariche', 'posti', 'richieste', 'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente', 'verbali', 'componenti', 'barattoli'];
   var RUOLI = { base: 'Dipendente', editor: 'Dipendente', admin: 'Amministratore', cliente: 'Cliente' }; // «editor» era «Può cancellare»: ora vale come Dipendente
   var FULL_EVERY = 7 * 864e5;            // una rilettura completa a settimana per sicurezza
   var GIF0 = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
@@ -244,7 +244,7 @@
   }
   function emit(L) {
     var s = snapOf(L); L.subs.slice().forEach(function (x) { try { x.next(s); } catch (e) { console.error(e); errScrivi(e); } });
-    if (L.name === 'barche' || L.name === 'lavori' || L.name === 'posti' || L.name === 'deposito' || L.name === 'impostazioni' || L.name === 'preventivi') schedulePortale();
+    if (L.name === 'barche' || L.name === 'lavori' || L.name === 'posti' || L.name === 'deposito' || L.name === 'impostazioni' || L.name === 'preventivi' || L.name === 'scadenze') schedulePortale();
   }
   function docSnap(id, d) { return { id: id, exists: !!d, data: function () { return d ? clone(d) : undefined; } }; }
 
@@ -722,7 +722,7 @@
   /* ---------- cestino (solo amministratori) ---------- */
   var CEST = null, CEST_DAYS = 60;
   var CEST_NOMI = { barche: 'Barca', lavori: 'Lavoro o mansione', scadenze: 'Scadenza', vari: 'Varo o alaggio', magazzino: 'Ricambio', movimenti: 'Movimento di magazzino',
-    operazioni: 'Servizio', opModelli: 'Gruppo di servizi', mezzi: 'Mezzo', conferme: 'Giornata confermata', posti: 'Posto al porto', attrezzatura: 'Attrezzatura', deposito: 'Roba in deposito', programma: 'Programma',
+    operazioni: 'Servizio', opModelli: 'Gruppo di servizi', mezzi: 'Mezzo', conferme: 'Giornata confermata', posti: 'Posto al porto', attrezzatura: 'Attrezzatura', deposito: 'Roba in deposito', componenti: 'Componente a bordo', barattoli: 'Barattolo aperto', programma: 'Programma',
     cariche: 'Carica batterie', richieste: 'Richiesta', richiesteCliente: 'Richiesta del cliente', verbali: 'Verbale', rifiuti: 'Rifiuto', ritiri: 'Ritiro rifiuti', scadCantiere: 'Scadenza del cantiere', preventivi: 'Preventivo', assenze: 'Ferie o permesso', kit: 'Kit ricambi', inventari: 'Inventario', giri: 'Giro di controllo', cronometri: 'Cronometro', ditte: 'Ditta esterna',
     checklist: 'Checklist', modelli: 'Modello di checklist', checkBarca: 'Lista della barca', dipendenti: 'Dipendente', impostazioni: 'Impostazione' };
   function cestCutoff() { return new Date(Date.now() - CEST_DAYS * 864e5).toISOString(); }
@@ -1435,13 +1435,30 @@
      Altro › Richieste dei clienti e risponde. Il cliente vede inviata → ricevuta → confermata (o non possibile). */
   var RQ_ST = { inviata: ['Inviata', ''], vista: ['Ricevuta', 'lav'], confermata: ['Confermata', 'acqua'], no: ['Non possibile', ''] };
   function rqCard(bid) {
-    var mie = CL.req.filter(function (r) { return r.barcaId === bid; }).slice(0, 6);
+    var mie = CL.req.filter(function (r) { return r.barcaId === bid && r.tipo !== 'lavoro'; }).slice(0, 6);
     return '<h5>Chiedi al cantiere</h5><div class="rqb"><button class="rqbtn" data-cl="rq" data-t="varo" data-id="' + esc(bid) + '">Vorrei il varo il…</button><button class="rqbtn" data-cl="rq" data-t="problema" data-id="' + esc(bid) + '">Segnala un problema</button></div>' +
       mie.map(function (r) {
         var st = RQ_ST[r.stato] || RQ_ST.inviata;
-        return '<div class="lv" style="align-items:flex-start"><span style="flex:1">' + esc(r.tipo === 'varo' ? 'Varo il ' + dataLunga(r.data) : 'Problema: ' + String(r.testo || '').slice(0, 60)) +
+        return '<div class="lv" style="align-items:flex-start"><span style="flex:1">' + esc(r.tipo === 'varo' ? 'Varo il ' + dataLunga(r.data) : r.tipo === 'lavoro' ? 'Lavoro: ' + String(r.testo || '').slice(0, 60) : 'Problema: ' + String(r.testo || '').slice(0, 60)) +
           (r.risposta ? '<br><small>Il cantiere: ' + esc(r.risposta) + '</small>' : '') + '</span><span class="st ' + st[1] + '">' + st[0] + '</span></div>';
       }).join('');
+  }
+  function scCard(bid, d) {
+    var L = d.scadenze || []; if (!L.length) return '';
+    var mie = CL.req.filter(function (r) { return r.barcaId === bid && r.tipo === 'lavoro'; });
+    return '<h5>Scadenze della tua barca</h5>' + L.map(function (s) {
+      var gia = mie.find(function (r) { return r.scadId === s.id && r.stato !== 'no'; }), st = gia ? RQ_ST[gia.stato] || RQ_ST.inviata : null;
+      return '<div class="lv" style="align-items:center"><span style="flex:1">' + esc(s.tipo) + (s.modello ? ' <small>(' + esc(s.modello) + ')</small>' : '') + '<br><small' + (s.scaduta ? ' style="color:#ff8a80"' : '') + '>' + esc((s.scaduta ? 'Scaduta il ' : 'Scade il ') + dataLunga(s.data)) + '</small>' + (gia && gia.risposta ? '<br><small>Il cantiere: ' + esc(gia.risposta) + '</small>' : '') + '</span>' +
+        (gia ? '<span class="st ' + st[1] + '">' + st[0] + '</span>' : '<button class="rqbtn" style="flex:0 0 auto;min-width:0" data-cl="rqs" data-id="' + esc(bid) + '" data-s="' + esc(s.id) + '">Richiedi il lavoro</button>') + '</div>';
+    }).join('');
+  }
+  async function rqScad(bid, sid, btn) {
+    var d = CL.docs[bid] || {}, s = (d.scadenze || []).find(function (x) { return x.id === sid; }); if (!s) return;
+    btn.disabled = true; btn.textContent = 'Invio…';
+    try {
+      await fs.collection('richiesteCliente').doc(rid('r')).set({ cliente: ME.uid, nome: ME.nome || '', barcaId: bid, tipo: 'lavoro', data: s.data, testo: s.tipo + (s.modello ? ' (' + s.modello + ')' : ''), scadId: sid, foto: [], stato: 'inviata', creato: nowISO() });
+      toast('Richiesta inviata al cantiere');
+    } catch (e) { btn.disabled = false; btn.textContent = 'Richiedi il lavoro'; toast('Non sono riuscito a inviarla: controlla la connessione e riprova.'); }
   }
   function rqForm(bid, tipo) {
     var d = CL.docs[bid] || {}, o = document.createElement('div'); o.id = 'nmrc'; var x = $('#nmrc'); if (x) x.remove();
@@ -1495,6 +1512,7 @@
             '<div class="avb" aria-label="' + pc + '% fatto"><i style="width:' + pc + '%"></i></div><div class="upd" style="margin:4px 0 6px">Fatti ' + f + ' su ' + a.voci.length + ' (' + pc + '%)</div>' +
             a.voci.map(function (v) { return '<div class="lv"><span class="d">' + (v.s === 'fatto' ? '✅' : v.s === 'in_corso' ? '🔧' : '⬜') + '</span><span>' + esc(v.t) + (v.s === 'in_corso' ? ' <small>(in corso)</small>' : '') + '</span></div>'; }).join('');
         }).join('') +
+        scCard(id, d) +
         (d.richieste ? rqCard(id) : '') +
         '<h5>Lavori eseguiti</h5>' +
         (lav.length ? show.map(function (l) { return '<div class="lv"><span class="d">' + esc(dataCorta(l.data)) + '</span><span>' + esc(l.titolo) + '</span></div>'; }).join('') +
@@ -1507,6 +1525,7 @@
       '<li>Sotto ci sono le cose tue che il cantiere tiene in deposito (tender, cuscini, tendalini…), con le foto, e i lavori eseguiti, con la data.</li>' +
       '<li>Se il cantiere sta facendo i lavori di un preventivo, vedi quali sono fatti e quali mancano.</li>' +
       '<li>Con «Chiedi al cantiere» puoi chiedere il varo per un giorno o segnalare un problema con le foto: sotto vedi se è stata ricevuta e confermata.</li>' +
+      '<li>Se il cantiere li mostra, vedi anche le scadenze della barca (tagliando, antivegetativa, zattera…): con «Richiedi il lavoro» lo chiedi al cantiere senza telefonare.</li>' +
       '<li>La pagina si aggiorna da sola pochi secondi dopo ogni modifica del cantiere.</li>' +
       '<li>Se manca una barca o qualcosa non torna, chiama il cantiere.</li></ul></details>';
     h += '<button class="lnk" data-cl="pw">Cambia password</button><button class="lnk" data-cl="out">Esci</button>';
@@ -1520,6 +1539,7 @@
     else if (k === 'pw') auth.sendPasswordResetEmail(ME.email).then(function () { toast('Ti ho mandato l’email per cambiare la password.'); }, function (er) { toast(authErr(er)); });
     else if (k === 'more') { var id = t.getAttribute('data-id'); CL.all[id] = !CL.all[id]; renderCliente(); }
     else if (k === 'rq') rqForm(t.getAttribute('data-id'), t.getAttribute('data-t'));
+    else if (k === 'rqs') rqScad(t.getAttribute('data-id'), t.getAttribute('data-s'), t);
   });
 
   // Il cantiere prepara per ogni barca collegata a un cliente un riepilogo senza ore né nomi
@@ -1542,7 +1562,16 @@
       .slice(0, 100).map(function (l) { return { data: l.data || '', titolo: l.titolo || 'Lavoro' }; });
     var pid = Object.keys(P).filter(function (k) { return P[k].barcaId === bid; })[0], p = pid ? P[pid] : null;
     return { nome: b.nome || '', modello: b.modello || '', lunghezza: b.lunghezza || null, stato: b.stato || '', posto: b.posto || '',
-      porto: p ? { posto: pid, contratto: p.contratto || '', fino: p.fino || '' } : null, lavori: lav, deposito: depoPortale(bid), avanzamento: avPortale(bid), richieste: sezAccesa('richieste', false) };
+      porto: p ? { posto: pid, contratto: p.contratto || '', fino: p.fino || '' } : null, lavori: lav, deposito: depoPortale(bid), avanzamento: avPortale(bid), richieste: sezAccesa('richieste', false), scadenze: scadPortale(bid) };
+  }
+  // scadenze ricordate al cliente (idea X63, sezione scadcliente): solo tipo, modello e data,
+  // quelle scadute da meno di 90 giorni e quelle dei prossimi 60
+  function scadPortale(bid) {
+    if (!sezAccesa('scadcliente', false)) return [];
+    var SC = LIVE.scadenze ? LIVE.scadenze.map : {}, oggi = nowISO().slice(0, 10), da = new Date(Date.now() - 90 * 864e5).toISOString().slice(0, 10), a = new Date(Date.now() + 60 * 864e5).toISOString().slice(0, 10);
+    return Object.keys(SC).map(function (k) { return Object.assign({ id: k }, SC[k]); }).filter(function (s) { return s.barcaId === bid && !s.fatta && !s._del && s.data && s.data >= da && s.data <= a; })
+      .sort(function (x, y) { return String(x.data).localeCompare(String(y.data)); }).slice(0, 12)
+      .map(function (s) { return { id: s.id, tipo: s.tipo || 'Scadenza', modello: s.modello || '', data: s.data, scaduta: s.data < oggi }; });
   }
   // avanzamento dei lavori dei preventivi accettati (idea P5, Aspetto dell’app › sezioni): solo titoli e fatto/non fatto
   function avPortale(bid) {
@@ -1574,7 +1603,7 @@
   function fotoDi(s) { var o = []; (s && s.deposito || []).forEach(function (x) { (x.foto || []).forEach(function (f) { o.push(f); }); }); return o; }
   async function syncPortale() {
     var ids = linkedBoats(); if (!ids.length) return;
-    var need = ['barche', 'lavori', 'posti', 'deposito', 'impostazioni', 'portale', 'preventivi'];
+    var need = ['barche', 'lavori', 'posti', 'deposito', 'impostazioni', 'portale', 'preventivi', 'scadenze'];
     for (var i = 0; i < need.length; i++) { var L = live(need[i]); await L.start; await whenReady(L, 15000); }
     var cur = LIVE.portale.map;
     ids.forEach(function (bid) {
@@ -1597,7 +1626,7 @@
     magazzino: ['voce di magazzino', 'voci di magazzino'], movimenti: ['carico o scarico', 'carichi e scarichi'], operazioni: ['servizio di cantiere', 'servizi di cantiere'],
     opModelli: ['gruppo dei servizi', 'gruppi dei servizi'], mezzi: ['mezzo o carrello', 'mezzi e carrelli'], conferme: ['giornata confermata', 'giornate confermate'],
     dipendenti: ['nome dei dipendenti', 'nomi dei dipendenti'], impostazioni: ['misure della mappa', 'misure della mappa'], posti: ['posto al porto', 'posti al porto'],
-    attrezzatura: ['attrezzatura di bordo', 'attrezzature di bordo'], deposito: ['cosa in deposito', 'cose in deposito'], programma: ['voce del programma', 'voci del programma'], cariche: ['carica delle batterie', 'cariche delle batterie'],
+    attrezzatura: ['attrezzatura di bordo', 'attrezzature di bordo'], deposito: ['cosa in deposito', 'cose in deposito'], componenti: ['componente a bordo', 'componenti a bordo'], barattoli: ['barattolo aperto', 'barattoli aperti'], programma: ['voce del programma', 'voci del programma'], cariche: ['carica delle batterie', 'cariche delle batterie'],
     richieste: ['richiesta', 'richieste'], checklist: ['checklist', 'checklist'], checkBarca: ['lista per barca', 'liste per barca'], modelli: ['modello di checklist', 'modelli di checklist'],
     giri: ['giro di controllo', 'giri di controllo'], cronometri: ['cronometro', 'cronometri'], ditte: ['ditta esterna', 'ditte esterne'] };
   var IMP_KEY = null, IMP = null;
