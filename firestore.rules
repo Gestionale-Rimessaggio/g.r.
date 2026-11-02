@@ -49,6 +49,11 @@ service cloud.firestore {
       allow write: if creatore() && request.resource.data.keys().hasOnly(['titolo', 'righe', 'il', 'nascosta'])
         && corto(request.resource.data, 'titolo', 60) && (!('righe' in request.resource.data) || (request.resource.data.righe is list && request.resource.data.righe.size() <= 12));
     }
+    // Pacchetto di partenza delle aziende nuove (categorie, scadenze, checklist, rifiuti): lo legge chi è entrato, lo scrive solo il gestore
+    match /pacchetto/{id} {
+      allow read: if signedIn();
+      allow write: if creatore();
+    }
     match /messaggioServizio/{id} {
       allow read: if signedIn();
       allow write: if creatore();
@@ -60,7 +65,7 @@ service cloud.firestore {
     function raccolteCantiere() {
       return ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
         'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'deposito', 'programma', 'cariche', 'posti', 'richieste',
-        'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi'];
+        'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente', 'verbali'];
     }
 
     match /aziende/{a} {
@@ -98,6 +103,23 @@ service cloud.firestore {
       // Le foto della roba in deposito che compaiono nel portale (foto.portale = la barca): le apre solo il cliente di quella barca
       match /foto/{id} {
         allow get: if cliente(a) && resource.data.get('portale', '') in me().get('barche', []);
+        // le foto che il cliente allega a una sua richiesta (al massimo ~900 KB ciascuna)
+        allow create: if cliente(a) && request.resource.data.get('portale', '') in me().get('barche', [])
+          && request.resource.data.da == request.auth.uid
+          && request.resource.data.keys().hasOnly(['data', 'creato', 'da', 'portale'])
+          && request.resource.data.data is string && request.resource.data.data.size() < 900000;
+      }
+      // Richieste dei clienti dal portale (varo, problema): il cliente le scrive per le sue barche e le legge;
+      // l'azienda le legge e risponde (regola generale più sotto)
+      match /richiesteCliente/{rid} {
+        allow read: if cliente(a) && resource.data.cliente == request.auth.uid;
+        allow create: if cliente(a) && request.resource.data.cliente == request.auth.uid
+          && request.resource.data.barcaId in me().get('barche', [])
+          && request.resource.data.stato == 'inviata'
+          && request.resource.data.tipo in ['varo', 'problema']
+          && request.resource.data.keys().hasOnly(['cliente', 'nome', 'barcaId', 'tipo', 'data', 'testo', 'foto', 'stato', 'creato'])
+          && request.resource.data.get('testo', '') is string && request.resource.data.get('testo', '').size() <= 2000
+          && request.resource.data.get('foto', []) is list && request.resource.data.get('foto', []).size() <= 3;
       }
 
       // Cestino: ogni cancellazione ne lascia qui una copia (per 60 giorni).
@@ -152,7 +174,7 @@ service cloud.firestore {
         function autoreUguale() { return cancellato(resource.data) || nuovo().get('creatoDa', '') == resource.data.get('creatoDa', ''); }
         function datiCantiere() { return !(coll in ['portale', 'cestino', 'attivita', 'aiUso']); }
         // l'aspetto dell'app (nome dell'azienda, colori, loghi, luogo), le sezioni accese e il disegno del porto li cambia solo l'amministratore
-        function soloAdmin() { return coll == 'impostazioni' && id in ['aspetto', 'sezioni', 'porto']; }
+        function soloAdmin() { return coll == 'impostazioni' && id in ['aspetto', 'sezioni', 'porto', 'vernice']; }
 
         // i PIN del tablet (impronte di 4 cifre, facili da ricavare): ognuno legge solo il suo; tutti solo amministratori, gestore in assistenza e tablet
         allow read: if (staffA(a) && datiCantiere() && (coll != 'pin' || adminA(a) || tablet(a) || resource.data.get('utente', '') == request.auth.uid))

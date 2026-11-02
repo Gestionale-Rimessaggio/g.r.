@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-02",
+    "titolo": "Novembre 2026",
+    "righe": [
+      "Barche e clienti da Excel: in Barche l’amministratore tocca «Barche e clienti da Excel» e sceglie il file (.xlsx o .csv) del vecchio gestionale; le colonne si riconoscono da sole e prima di salvare vedi cosa entra.",
+      "Barca venduta: in fondo alla scheda della barca, «Barca venduta: cambia proprietario» scrive il nuovo proprietario; lavori e storia restano alla barca.",
+      "Notifiche: in Altro › Notifiche c’è «Mandami una notifica di prova», per controllare che il telefono le riceva.",
+      "Nuove sezioni da accendere in Altro › Aspetto dell’app, tra le sezioni (spente di base): Verbale di presa in carico all’alaggio e al varo, Etichetta QR sulla barca, Trova il posto giusto, Schede di sicurezza dei prodotti, Vernice per le carene, Avanzamento lavori al cliente, Richieste dei clienti dal portale."
+    ]
+  },
+  {
     "id": "2026-11-01-porto",
     "titolo": "Novembre 2026",
     "righe": [
