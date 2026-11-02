@@ -54,6 +54,27 @@ service cloud.firestore {
       allow read: if signedIn();
       allow write: if creatore();
     }
+    // Segnala o suggerisci (idea X12): chi lavora in un'azienda manda un problema o un'idea al gestore e rilegge solo le sue
+    match /segnalazioni/{id} {
+      allow read: if creatore() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow create: if signedIn() && exists(profilo()) && me().stato == 'attivo' && me().ruolo in ['base', 'editor', 'admin']
+        && request.resource.data.uid == request.auth.uid && request.resource.data.azienda == me().get('azienda', '')
+        && request.resource.data.stato == 'nuova' && request.resource.data.tipo in ['problema', 'idea']
+        && request.resource.data.keys().hasOnly(['uid', 'azienda', 'nomeAzienda', 'nome', 'tipo', 'testo', 'pagina', 'versione', 'dispositivo', 'stato', 'creato', 'foto'])
+        && corto(request.resource.data, 'testo', 2000) && corto(request.resource.data, 'nome', 80) && corto(request.resource.data, 'nomeAzienda', 80)
+        && corto(request.resource.data, 'pagina', 40) && corto(request.resource.data, 'versione', 40) && corto(request.resource.data, 'dispositivo', 200)
+        && corto(request.resource.data, 'foto', 400000);
+      allow update, delete: if creatore();
+    }
+    // Idee ai voti: le mette il gestore (senza il nome di chi le ha mandate); chi lavora nelle aziende le legge e vota solo per sé
+    match /ideeVoto/{id} {
+      allow read: if signedIn();
+      allow create, delete: if creatore();
+      allow update: if creatore() || (signedIn() && exists(profilo()) && me().stato == 'attivo' && me().ruolo in ['base', 'editor', 'admin']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['voti'])
+        && request.resource.data.voti is map
+        && request.resource.data.voti.diff(resource.data.get('voti', {})).affectedKeys().hasOnly([request.auth.uid]));
+    }
     match /messaggioServizio/{id} {
       allow read: if signedIn();
       allow write: if creatore();
@@ -65,7 +86,7 @@ service cloud.firestore {
     function raccolteCantiere() {
       return ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
         'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'deposito', 'programma', 'cariche', 'posti', 'richieste',
-        'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente', 'verbali'];
+        'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente', 'verbali', 'componenti', 'barattoli', 'noteColleghi'];
     }
 
     match /aziende/{a} {
@@ -116,8 +137,9 @@ service cloud.firestore {
         allow create: if cliente(a) && request.resource.data.cliente == request.auth.uid
           && request.resource.data.barcaId in me().get('barche', [])
           && request.resource.data.stato == 'inviata'
-          && request.resource.data.tipo in ['varo', 'problema']
-          && request.resource.data.keys().hasOnly(['cliente', 'nome', 'barcaId', 'tipo', 'data', 'testo', 'foto', 'stato', 'creato'])
+          && request.resource.data.tipo in ['varo', 'problema', 'lavoro']
+          && request.resource.data.keys().hasOnly(['cliente', 'nome', 'barcaId', 'tipo', 'data', 'testo', 'foto', 'stato', 'creato', 'scadId'])
+          && request.resource.data.get('scadId', '') is string && request.resource.data.get('scadId', '').size() <= 60
           && request.resource.data.get('testo', '') is string && request.resource.data.get('testo', '').size() <= 2000
           && request.resource.data.get('foto', []) is list && request.resource.data.get('foto', []).size() <= 3;
       }
@@ -174,7 +196,7 @@ service cloud.firestore {
         function autoreUguale() { return cancellato(resource.data) || nuovo().get('creatoDa', '') == resource.data.get('creatoDa', ''); }
         function datiCantiere() { return !(coll in ['portale', 'cestino', 'attivita', 'aiUso']); }
         // l'aspetto dell'app (nome dell'azienda, colori, loghi, luogo), le sezioni accese e il disegno del porto li cambia solo l'amministratore
-        function soloAdmin() { return coll == 'impostazioni' && id in ['aspetto', 'sezioni', 'porto', 'vernice']; }
+        function soloAdmin() { return coll == 'impostazioni' && id in ['aspetto', 'sezioni', 'porto', 'vernice', 'emergenze', 'reperibilita']; }
 
         // i PIN del tablet (impronte di 4 cifre, facili da ricavare): ognuno legge solo il suo; tutti solo amministratori, gestore in assistenza e tablet
         allow read: if (staffA(a) && datiCantiere() && (coll != 'pin' || adminA(a) || tablet(a) || resource.data.get('utente', '') == request.auth.uid))

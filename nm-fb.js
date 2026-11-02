@@ -6,7 +6,7 @@
   'use strict';
   var CFG = window.NM_FIREBASE_CONFIG || null;
   var COLLS = ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
-    'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'deposito', 'programma', 'cariche', 'posti', 'richieste', 'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente', 'verbali'];
+    'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'deposito', 'programma', 'cariche', 'posti', 'richieste', 'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente', 'verbali', 'componenti', 'barattoli', 'noteColleghi'];
   var RUOLI = { base: 'Dipendente', editor: 'Dipendente', admin: 'Amministratore', cliente: 'Cliente' }; // «editor» era «Può cancellare»: ora vale come Dipendente
   var FULL_EVERY = 7 * 864e5;            // una rilettura completa a settimana per sicurezza
   var GIF0 = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
@@ -244,7 +244,7 @@
   }
   function emit(L) {
     var s = snapOf(L); L.subs.slice().forEach(function (x) { try { x.next(s); } catch (e) { console.error(e); errScrivi(e); } });
-    if (L.name === 'barche' || L.name === 'lavori' || L.name === 'posti' || L.name === 'deposito' || L.name === 'impostazioni' || L.name === 'preventivi') schedulePortale();
+    if (L.name === 'barche' || L.name === 'lavori' || L.name === 'posti' || L.name === 'deposito' || L.name === 'impostazioni' || L.name === 'preventivi' || L.name === 'scadenze') schedulePortale();
   }
   function docSnap(id, d) { return { id: id, exists: !!d, data: function () { return d ? clone(d) : undefined; } }; }
 
@@ -722,7 +722,7 @@
   /* ---------- cestino (solo amministratori) ---------- */
   var CEST = null, CEST_DAYS = 60;
   var CEST_NOMI = { barche: 'Barca', lavori: 'Lavoro o mansione', scadenze: 'Scadenza', vari: 'Varo o alaggio', magazzino: 'Ricambio', movimenti: 'Movimento di magazzino',
-    operazioni: 'Servizio', opModelli: 'Gruppo di servizi', mezzi: 'Mezzo', conferme: 'Giornata confermata', posti: 'Posto al porto', attrezzatura: 'Attrezzatura', deposito: 'Roba in deposito', programma: 'Programma',
+    operazioni: 'Servizio', opModelli: 'Gruppo di servizi', mezzi: 'Mezzo', conferme: 'Giornata confermata', posti: 'Posto al porto', attrezzatura: 'Attrezzatura', deposito: 'Roba in deposito', componenti: 'Componente a bordo', barattoli: 'Barattolo aperto', noteColleghi: 'Nota a un collega', programma: 'Programma',
     cariche: 'Carica batterie', richieste: 'Richiesta', richiesteCliente: 'Richiesta del cliente', verbali: 'Verbale', rifiuti: 'Rifiuto', ritiri: 'Ritiro rifiuti', scadCantiere: 'Scadenza del cantiere', preventivi: 'Preventivo', assenze: 'Ferie o permesso', kit: 'Kit ricambi', inventari: 'Inventario', giri: 'Giro di controllo', cronometri: 'Cronometro', ditte: 'Ditta esterna',
     checklist: 'Checklist', modelli: 'Modello di checklist', checkBarca: 'Lista della barca', dipendenti: 'Dipendente', impostazioni: 'Impostazione' };
   function cestCutoff() { return new Date(Date.now() - CEST_DAYS * 864e5).toISOString(); }
@@ -1130,6 +1130,47 @@
     fs.collection('pacchetto').doc('attuale').set({ categorie: cat, tipiScadenza: sc, checklist: ck, rifiuti: rf, modificato: nowISO() })
       .then(function () { CR.pack = undefined; CR.packEd = false; toast('Pacchetto salvato'); crRender(); }, function (er) { toast('Non riuscito: ' + errOf(er).code); });
   }
+  /* ---------- Segnala o suggerisci (idea X12) ----------
+     Dall'app chi lavora in un'azienda manda un problema o un'idea (con una foto facoltativa): arriva qui con azienda,
+     persona, pagina, versione e dispositivo. Il gestore risponde, la segna risolta o la mette ai voti (ideeVoto):
+     le idee ai voti le vedono e votano tutti, così si capisce cosa chiedono davvero. */
+  var SG = { list: null, idee: null, risp: null };
+  function sgAvvia() {
+    if (SG.list !== null) return; SG.list = [];
+    fs.collection('segnalazioni').orderBy('creato', 'desc').limit(60).onSnapshot(function (s) { SG.list = s.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); crRender(); }, function () { });
+    fs.collection('ideeVoto').onSnapshot(function (s) { SG.idee = s.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); crRender(); }, function () { });
+  }
+  function sgVoti(x) { return Object.keys(x.voti || {}).filter(function (k) { return x.voti[k]; }).length; }
+  function crSegnHtml() {
+    sgAvvia();
+    var L = SG.list || [], aperte = L.filter(function (x) { return x.stato !== 'risolta'; }), idee = (SG.idee || []).slice().sort(function (a, b) { return sgVoti(b) - sgVoti(a); });
+    var h = '<div class="grp">' + (aperte.length ? aperte.slice(0, 20).map(function (x) {
+      return '<div class="u"><div class="nm">' + esc(x.tipo === 'idea' ? '💡 Idea' : '⚠ Problema') + ' · ' + esc(x.nomeAzienda || '') + '<span class="pill">' + esc(crQuando(x.creato)) + '</span></div>' +
+        '<div class="em" style="white-space:pre-wrap">' + esc(x.testo || '') + '</div><div class="em">' + esc([x.nome, x.pagina ? 'pagina ' + x.pagina : '', x.versione ? 'versione ' + x.versione : '', x.dispositivo].filter(Boolean).join(' · ')) + '</div>' +
+        (x.foto ? '<img alt="Foto allegata" src="' + esc(x.foto) + '" style="max-width:100%;max-height:220px;border-radius:10px;margin-top:6px">' : '') +
+        (x.risposta ? '<div class="em">La tua risposta: ' + esc(x.risposta) + '</div>' : '') +
+        (SG.risp === x.id ? '<textarea id="cr-sg-r" rows="3" maxlength="1000" style="' + TA + '" placeholder="La risposta che vede chi l’ha mandata">' + esc(x.risposta || '') + '</textarea><div class="acts"><button class="b pri" data-cr="sg-risp-ok" data-id="' + esc(x.id) + '">Invia la risposta</button><button class="b" data-cr="sg-risp-no">Annulla</button></div>'
+          : '<div class="acts"><button class="b" data-cr="sg-risp" data-id="' + esc(x.id) + '">Rispondi</button><button class="b" data-cr="sg-ok" data-id="' + esc(x.id) + '">Risolta</button>' + (x.tipo === 'idea' && !x.idea ? '<button class="b" data-cr="sg-voti" data-id="' + esc(x.id) + '">Metti ai voti</button>' : '') + '</div>') + '</div>';
+    }).join('') : '<div class="u"><div class="em">Nessuna segnalazione da guardare.</div></div>') + '</div>';
+    h += '<h4>Idee ai voti (' + idee.length + ')</h4><div class="grp">' + (idee.length ? idee.map(function (x) {
+      return '<div class="u"><div class="nm">' + esc(x.testo || '') + '<span class="pill">' + sgVoti(x) + (sgVoti(x) === 1 ? ' voto' : ' voti') + '</span></div><div class="acts"><button class="b red" data-cr="sg-togli" data-id="' + esc(x.id) + '">Togli dai voti</button></div></div>';
+    }).join('') : '<div class="u"><div class="em">Nessuna idea ai voti: con «Metti ai voti» su un’idea la vedono e votano tutte le aziende (senza nome di chi l’ha mandata).</div></div>') + '</div>';
+    return h;
+  }
+  // per l'app: manda, le proprie, le idee ai voti, vota
+  var SEGN = {
+    invia: function (d) {
+      if (!ME || !AZ) return Promise.reject({ code: 'no' });
+      var x = { uid: ME.uid, azienda: AZ, nomeAzienda: String((AZD && AZD.nome) || '').slice(0, 80), nome: String(ME.nome || ME.email || '').slice(0, 80), tipo: d.tipo === 'idea' ? 'idea' : 'problema',
+        testo: String(d.testo || '').slice(0, 2000), pagina: String(d.pagina || '').slice(0, 40), versione: String(d.versione || '').slice(0, 40), dispositivo: String(navigator.userAgent || '').slice(0, 200), stato: 'nuova', creato: nowISO() };
+      if (d.foto) x.foto = d.foto;
+      return fs.collection('segnalazioni').doc(rid('s')).set(x);
+    },
+    mie: function () { if (!ME) return Promise.resolve([]); return fs.collection('segnalazioni').where('uid', '==', ME.uid).get().then(function (s) { return s.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }).sort(function (a, b) { return String(b.creato).localeCompare(String(a.creato)); }); }); },
+    idee: function () { return fs.collection('ideeVoto').get().then(function (s) { return s.docs.map(function (d) { var x = d.data(); return { id: d.id, testo: x.testo || '', voti: sgVoti(x), mio: !!(ME && x.voti && x.voti[ME.uid]) }; }); }); },
+    vota: function (id, on) { var u = {}; u['voti.' + ME.uid] = on ? true : firebase.firestore.FieldValue.delete(); return fs.collection('ideeVoto').doc(id).update(u); },
+    shrink: function (file) { return shrink(file, 1100, 0.6).then(function (b) { return b.size > 280 * 1024 ? shrink(b, 800, 0.5) : b; }).then(blobToDataUrl); }
+  };
   function crMsgHtml() {
     var m = CR.msg && CR.msg.attivo ? CR.msg : null;
     return '<div class="grp"><div class="u">' + (m ? '<div class="nm">In Home di tutte le aziende dal ' + esc(crQuando(m.il)) + '</div><div class="em">' + esc(m.testo) + '</div>' : '<div class="em">Nessun messaggio attivo.</div>') +
@@ -1160,7 +1201,7 @@
     if (!CR.on || started) return;
     var o = $('#nmcr'); if (!o) { hideOverlay(); o = document.createElement('div'); o.id = 'nmcr'; document.body.appendChild(o); }
     var ae = document.activeElement, fid = ae && o.contains(ae) && ae.id ? ae.id : '', sel = fid && ae.selectionStart != null ? [ae.selectionStart, ae.selectionEnd] : null, keep = {};
-    ['cr-msg', 'cr-nota', 'cr-nov-t', 'cr-nov-r', 'cr-pk-c', 'cr-pk-s', 'cr-pk-k', 'cr-pk-r'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
+    ['cr-msg', 'cr-nota', 'cr-sg-r', 'cr-nov-t', 'cr-nov-r', 'cr-pk-c', 'cr-pk-s', 'cr-pk-k', 'cr-pk-r'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
     var ids = Object.keys(CR.az).sort(function (a, b) { return String(CR.az[b].creato || '').localeCompare(String(CR.az[a].creato || '')); });
     var h = '<div class="in">';
     if (CR.vista && CR.vista.indexOf('rep:') === 0 && CR.az[CR.vista.slice(4)]) {
@@ -1235,6 +1276,7 @@
           '<div class="chips">' + [['nome', 'Nome'], ['spazio', 'Spazio'], ['accesso', 'Ultimo accesso'], ['errori', 'Errori']].map(function (c) { return '<button class="b' + (CR.ord === c[0] ? ' pri' : '') + '" data-cr="ord" data-id="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>' : '') +
         (att.length ? '<div class="grp" style="margin-top:10px">' + att.map(row).join('') + '</div>' : by('attiva').length ? '<p class="note">Nessuna azienda trovata.</p>' : '') +
         sec('Sospese', by('sospesa')) + sec('Rifiutate', by('rifiutata')) +
+        '<h4>Segnalazioni e idee dalle aziende' + ((SG.list || []).filter(function (x) { return x.stato !== 'risolta'; }).length ? ' (' + SG.list.filter(function (x) { return x.stato !== 'risolta'; }).length + ')' : '') + '</h4>' + crSegnHtml() +
         '<h4>Novità in app</h4>' + crNovHtml() +
         '<h4>Messaggio a tutte le aziende</h4>' + crMsgHtml() +
         '<h4>Pacchetto di partenza delle aziende nuove</h4>' + crPackHtml() +
@@ -1332,6 +1374,12 @@
     else if (k === 'nov-annulla') { CR.novEd = null; crRender(); }
     else if (k === 'nov-nascondi') { if (confirm('Nascondere questa novità? Chi non l’ha ancora vista non la vedrà.')) crNovScrivi(id, { nascosta: true }, 'Novità nascosta'); }
     else if (k === 'nov-vedi') crNovScrivi(id, { nascosta: false }, 'Novità rimessa');
+    else if (k === 'sg-risp') { SG.risp = id; crRender(); }
+    else if (k === 'sg-risp-no') { SG.risp = null; crRender(); }
+    else if (k === 'sg-risp-ok') { var rv = String(($('#cr-sg-r') || {}).value || '').trim().slice(0, 1000); fs.collection('segnalazioni').doc(id).update({ risposta: rv, rispostaIl: nowISO(), stato: 'risposta' }).then(function () { SG.risp = null; toast('Risposta inviata'); crRender(); }, function (er) { toast('Non riuscito: ' + errOf(er).code); }); }
+    else if (k === 'sg-ok') fs.collection('segnalazioni').doc(id).update({ stato: 'risolta', risoltaIl: nowISO() }).then(function () { toast('Segnata come risolta'); }, function (er) { toast('Non riuscito: ' + errOf(er).code); });
+    else if (k === 'sg-voti') { var sx = (SG.list || []).find(function (x) { return x.id === id; }); if (sx) fs.collection('ideeVoto').doc(rid('i')).set({ testo: String(sx.testo || '').slice(0, 300), creato: nowISO(), voti: {} }).then(function () { return fs.collection('segnalazioni').doc(id).update({ idea: true }); }).then(function () { toast('Messa ai voti: la vedono tutte le aziende'); }, function (er) { toast('Non riuscito: ' + errOf(er).code); }); }
+    else if (k === 'sg-togli') { if (confirm('Togliere questa idea dai voti?')) fs.collection('ideeVoto').doc(id).delete().then(function () { toast('Tolta dai voti'); }, function (er) { toast('Non riuscito: ' + errOf(er).code); }); }
     else if (k === 'nov-salva') {
       var tt = (($('#cr-nov-t') || {}).value || '').trim(), rr = (($('#cr-nov-r') || {}).value || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 12);
       if (!rr.length) { toast('Scrivi almeno una novità'); return; }
@@ -1435,13 +1483,30 @@
      Altro › Richieste dei clienti e risponde. Il cliente vede inviata → ricevuta → confermata (o non possibile). */
   var RQ_ST = { inviata: ['Inviata', ''], vista: ['Ricevuta', 'lav'], confermata: ['Confermata', 'acqua'], no: ['Non possibile', ''] };
   function rqCard(bid) {
-    var mie = CL.req.filter(function (r) { return r.barcaId === bid; }).slice(0, 6);
+    var mie = CL.req.filter(function (r) { return r.barcaId === bid && r.tipo !== 'lavoro'; }).slice(0, 6);
     return '<h5>Chiedi al cantiere</h5><div class="rqb"><button class="rqbtn" data-cl="rq" data-t="varo" data-id="' + esc(bid) + '">Vorrei il varo il…</button><button class="rqbtn" data-cl="rq" data-t="problema" data-id="' + esc(bid) + '">Segnala un problema</button></div>' +
       mie.map(function (r) {
         var st = RQ_ST[r.stato] || RQ_ST.inviata;
-        return '<div class="lv" style="align-items:flex-start"><span style="flex:1">' + esc(r.tipo === 'varo' ? 'Varo il ' + dataLunga(r.data) : 'Problema: ' + String(r.testo || '').slice(0, 60)) +
+        return '<div class="lv" style="align-items:flex-start"><span style="flex:1">' + esc(r.tipo === 'varo' ? 'Varo il ' + dataLunga(r.data) : r.tipo === 'lavoro' ? 'Lavoro: ' + String(r.testo || '').slice(0, 60) : 'Problema: ' + String(r.testo || '').slice(0, 60)) +
           (r.risposta ? '<br><small>Il cantiere: ' + esc(r.risposta) + '</small>' : '') + '</span><span class="st ' + st[1] + '">' + st[0] + '</span></div>';
       }).join('');
+  }
+  function scCard(bid, d) {
+    var L = d.scadenze || []; if (!L.length) return '';
+    var mie = CL.req.filter(function (r) { return r.barcaId === bid && r.tipo === 'lavoro'; });
+    return '<h5>Scadenze della tua barca</h5>' + L.map(function (s) {
+      var gia = mie.find(function (r) { return r.scadId === s.id && r.stato !== 'no'; }), st = gia ? RQ_ST[gia.stato] || RQ_ST.inviata : null;
+      return '<div class="lv" style="align-items:center"><span style="flex:1">' + esc(s.tipo) + (s.modello ? ' <small>(' + esc(s.modello) + ')</small>' : '') + '<br><small' + (s.scaduta ? ' style="color:#ff8a80"' : '') + '>' + esc((s.scaduta ? 'Scaduta il ' : 'Scade il ') + dataLunga(s.data)) + '</small>' + (gia && gia.risposta ? '<br><small>Il cantiere: ' + esc(gia.risposta) + '</small>' : '') + '</span>' +
+        (gia ? '<span class="st ' + st[1] + '">' + st[0] + '</span>' : '<button class="rqbtn" style="flex:0 0 auto;min-width:0" data-cl="rqs" data-id="' + esc(bid) + '" data-s="' + esc(s.id) + '">Richiedi il lavoro</button>') + '</div>';
+    }).join('');
+  }
+  async function rqScad(bid, sid, btn) {
+    var d = CL.docs[bid] || {}, s = (d.scadenze || []).find(function (x) { return x.id === sid; }); if (!s) return;
+    btn.disabled = true; btn.textContent = 'Invio…';
+    try {
+      await fs.collection('richiesteCliente').doc(rid('r')).set({ cliente: ME.uid, nome: ME.nome || '', barcaId: bid, tipo: 'lavoro', data: s.data, testo: s.tipo + (s.modello ? ' (' + s.modello + ')' : ''), scadId: sid, foto: [], stato: 'inviata', creato: nowISO() });
+      toast('Richiesta inviata al cantiere');
+    } catch (e) { btn.disabled = false; btn.textContent = 'Richiedi il lavoro'; toast('Non sono riuscito a inviarla: controlla la connessione e riprova.'); }
   }
   function rqForm(bid, tipo) {
     var d = CL.docs[bid] || {}, o = document.createElement('div'); o.id = 'nmrc'; var x = $('#nmrc'); if (x) x.remove();
@@ -1473,6 +1538,9 @@
   function renderCliente() {
     if (!CLIENTE || !ME) return;
     var h = '<h2>Ciao ' + esc(String(ME.nome || '').split(' ')[0]) + '</h2><p>La tua barca al cantiere ' + esc(nomeAz()) + ', sempre aggiornata.</p>';
+    var rpOggi = nowISO().slice(0, 10), rpL = []; CL.ids.forEach(function (id) { var d = CL.docs[id]; if (d && (d.reperibili || []).length && !rpL.length) rpL = d.reperibili; });
+    var rp = rpL.filter(function (t) { return t.dal <= rpOggi && t.al >= rpOggi; })[0] || rpL.filter(function (t) { return t.dal > rpOggi && t.dal <= new Date(Date.now() + 3 * 864e5).toISOString().slice(0, 10); })[0];
+    if (rp) h += '<div class="card"><p style="margin:0">' + (rp.dal <= rpOggi ? 'Reperibile per le urgenze' : 'Reperibile per le urgenze da ' + esc(dataLunga(rp.dal))) + (rp.al > rp.dal ? ' fino a ' + esc(dataLunga(rp.al)) : '') + ': <b>' + esc(rp.nome || 'il cantiere') + '</b> · <a href="tel:' + esc(String(rp.tel).replace(/[^\d+]/g, '')) + '">' + esc(rp.tel) + '</a></p></div>';
     if (!CL.ids.length) h += '<div class="card"><p style="margin:0">Il cantiere sta collegando la tua barca al tuo account. Appena fatto, la trovi qui.</p></div>';
     CL.ids.forEach(function (id) {
       var d = CL.docs[id];
@@ -1495,6 +1563,7 @@
             '<div class="avb" aria-label="' + pc + '% fatto"><i style="width:' + pc + '%"></i></div><div class="upd" style="margin:4px 0 6px">Fatti ' + f + ' su ' + a.voci.length + ' (' + pc + '%)</div>' +
             a.voci.map(function (v) { return '<div class="lv"><span class="d">' + (v.s === 'fatto' ? '✅' : v.s === 'in_corso' ? '🔧' : '⬜') + '</span><span>' + esc(v.t) + (v.s === 'in_corso' ? ' <small>(in corso)</small>' : '') + '</span></div>'; }).join('');
         }).join('') +
+        scCard(id, d) +
         (d.richieste ? rqCard(id) : '') +
         '<h5>Lavori eseguiti</h5>' +
         (lav.length ? show.map(function (l) { return '<div class="lv"><span class="d">' + esc(dataCorta(l.data)) + '</span><span>' + esc(l.titolo) + '</span></div>'; }).join('') +
@@ -1507,6 +1576,8 @@
       '<li>Sotto ci sono le cose tue che il cantiere tiene in deposito (tender, cuscini, tendalini…), con le foto, e i lavori eseguiti, con la data.</li>' +
       '<li>Se il cantiere sta facendo i lavori di un preventivo, vedi quali sono fatti e quali mancano.</li>' +
       '<li>Con «Chiedi al cantiere» puoi chiedere il varo per un giorno o segnalare un problema con le foto: sotto vedi se è stata ricevuta e confermata.</li>' +
+      '<li>Se il cantiere li mostra, vedi anche le scadenze della barca (tagliando, antivegetativa, zattera…): con «Richiedi il lavoro» lo chiedi al cantiere senza telefonare.</li>' +
+      '<li>Se il cantiere ha un reperibile per il fine settimana o i festivi, in alto vedi chi è e il numero da chiamare per le urgenze.</li>' +
       '<li>La pagina si aggiorna da sola pochi secondi dopo ogni modifica del cantiere.</li>' +
       '<li>Se manca una barca o qualcosa non torna, chiama il cantiere.</li></ul></details>';
     h += '<button class="lnk" data-cl="pw">Cambia password</button><button class="lnk" data-cl="out">Esci</button>';
@@ -1520,6 +1591,7 @@
     else if (k === 'pw') auth.sendPasswordResetEmail(ME.email).then(function () { toast('Ti ho mandato l’email per cambiare la password.'); }, function (er) { toast(authErr(er)); });
     else if (k === 'more') { var id = t.getAttribute('data-id'); CL.all[id] = !CL.all[id]; renderCliente(); }
     else if (k === 'rq') rqForm(t.getAttribute('data-id'), t.getAttribute('data-t'));
+    else if (k === 'rqs') rqScad(t.getAttribute('data-id'), t.getAttribute('data-s'), t);
   });
 
   // Il cantiere prepara per ogni barca collegata a un cliente un riepilogo senza ore né nomi
@@ -1542,7 +1614,24 @@
       .slice(0, 100).map(function (l) { return { data: l.data || '', titolo: l.titolo || 'Lavoro' }; });
     var pid = Object.keys(P).filter(function (k) { return P[k].barcaId === bid; })[0], p = pid ? P[pid] : null;
     return { nome: b.nome || '', modello: b.modello || '', lunghezza: b.lunghezza || null, stato: b.stato || '', posto: b.posto || '',
-      porto: p ? { posto: pid, contratto: p.contratto || '', fino: p.fino || '' } : null, lavori: lav, deposito: depoPortale(bid), avanzamento: avPortale(bid), richieste: sezAccesa('richieste', false) };
+      porto: p ? { posto: pid, contratto: p.contratto || '', fino: p.fino || '' } : null, lavori: lav, deposito: depoPortale(bid), avanzamento: avPortale(bid), richieste: sezAccesa('richieste', false), scadenze: scadPortale(bid), reperibili: repPortale() };
+  }
+  // scadenze ricordate al cliente (idea X63, sezione scadcliente): solo tipo, modello e data,
+  // quelle scadute da meno di 90 giorni e quelle dei prossimi 60
+  function scadPortale(bid) {
+    if (!sezAccesa('scadcliente', false)) return [];
+    var SC = LIVE.scadenze ? LIVE.scadenze.map : {}, oggi = nowISO().slice(0, 10), da = new Date(Date.now() - 90 * 864e5).toISOString().slice(0, 10), a = new Date(Date.now() + 60 * 864e5).toISOString().slice(0, 10);
+    return Object.keys(SC).map(function (k) { return Object.assign({ id: k }, SC[k]); }).filter(function (s) { return s.barcaId === bid && !s.fatta && !s._del && s.data && s.data >= da && s.data <= a; })
+      .sort(function (x, y) { return String(x.data).localeCompare(String(y.data)); }).slice(0, 12)
+      .map(function (s) { return { id: s.id, tipo: s.tipo || 'Scadenza', modello: s.modello || '', data: s.data, scaduta: s.data < oggi }; });
+  }
+  // reperibilità (sezione reperibilita, spenta di base): nome e numero dei turni da oggi in poi, il portale mostra quello in corso
+  function repPortale() {
+    if (!sezAccesa('reperibilita', false)) return [];
+    var I = LIVE.impostazioni ? LIVE.impostazioni.map : {}, c = I.reperibilita, oggi = nowISO().slice(0, 10);
+    if (!c || c._del || !Array.isArray(c.turni)) return [];
+    return c.turni.filter(function (t) { return t && t.al >= oggi && t.tel; }).sort(function (a, b) { return String(a.dal).localeCompare(String(b.dal)); }).slice(0, 6)
+      .map(function (t) { return { dal: t.dal, al: t.al, nome: String((UT[t.uid] && UT[t.uid].nome) || '').split(' ')[0], tel: t.tel }; });
   }
   // avanzamento dei lavori dei preventivi accettati (idea P5, Aspetto dell’app › sezioni): solo titoli e fatto/non fatto
   function avPortale(bid) {
@@ -1574,7 +1663,7 @@
   function fotoDi(s) { var o = []; (s && s.deposito || []).forEach(function (x) { (x.foto || []).forEach(function (f) { o.push(f); }); }); return o; }
   async function syncPortale() {
     var ids = linkedBoats(); if (!ids.length) return;
-    var need = ['barche', 'lavori', 'posti', 'deposito', 'impostazioni', 'portale', 'preventivi'];
+    var need = ['barche', 'lavori', 'posti', 'deposito', 'impostazioni', 'portale', 'preventivi', 'scadenze'];
     for (var i = 0; i < need.length; i++) { var L = live(need[i]); await L.start; await whenReady(L, 15000); }
     var cur = LIVE.portale.map;
     ids.forEach(function (bid) {
@@ -1597,7 +1686,7 @@
     magazzino: ['voce di magazzino', 'voci di magazzino'], movimenti: ['carico o scarico', 'carichi e scarichi'], operazioni: ['servizio di cantiere', 'servizi di cantiere'],
     opModelli: ['gruppo dei servizi', 'gruppi dei servizi'], mezzi: ['mezzo o carrello', 'mezzi e carrelli'], conferme: ['giornata confermata', 'giornate confermate'],
     dipendenti: ['nome dei dipendenti', 'nomi dei dipendenti'], impostazioni: ['misure della mappa', 'misure della mappa'], posti: ['posto al porto', 'posti al porto'],
-    attrezzatura: ['attrezzatura di bordo', 'attrezzature di bordo'], deposito: ['cosa in deposito', 'cose in deposito'], programma: ['voce del programma', 'voci del programma'], cariche: ['carica delle batterie', 'cariche delle batterie'],
+    attrezzatura: ['attrezzatura di bordo', 'attrezzature di bordo'], deposito: ['cosa in deposito', 'cose in deposito'], componenti: ['componente a bordo', 'componenti a bordo'], barattoli: ['barattolo aperto', 'barattoli aperti'], noteColleghi: ['nota a un collega', 'note ai colleghi'], programma: ['voce del programma', 'voci del programma'], cariche: ['carica delle batterie', 'cariche delle batterie'],
     richieste: ['richiesta', 'richieste'], checklist: ['checklist', 'checklist'], checkBarca: ['lista per barca', 'liste per barca'], modelli: ['modello di checklist', 'modelli di checklist'],
     giri: ['giro di controllo', 'giri di controllo'], cronometri: ['cronometro', 'cronometri'], ditte: ['ditta esterna', 'ditte esterne'] };
   var IMP_KEY = null, IMP = null;
@@ -2042,6 +2131,7 @@
       persone: function () { var L = LIVE.pin, m = (L && L.map) || {}; return Object.keys(m).filter(function (id) { return pinDi(id) && UT[id] && UT[id].stato === 'attivo' && UT[id].ruolo !== 'cliente' && !UT[id].tablet; }).map(function (id) { return { id: id, nome: UT[id].nome || '' }; }); }
     },
     pacchetto: pacchetto,
+    segnala: SEGN,
     azienda: function () { return { nome: (AZD && AZD.nome) || '', assist: !!(ME && ME.assist) }; } // l'azienda in uso (per la procedura guidata)
   };
 })();
