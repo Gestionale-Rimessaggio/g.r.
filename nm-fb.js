@@ -6,7 +6,7 @@
   'use strict';
   var CFG = window.NM_FIREBASE_CONFIG || null;
   var COLLS = ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
-    'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'deposito', 'programma', 'cariche', 'posti', 'richieste', 'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente', 'verbali', 'componenti', 'barattoli'];
+    'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'deposito', 'programma', 'cariche', 'posti', 'richieste', 'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente', 'verbali', 'componenti', 'barattoli', 'noteColleghi'];
   var RUOLI = { base: 'Dipendente', editor: 'Dipendente', admin: 'Amministratore', cliente: 'Cliente' }; // «editor» era «Può cancellare»: ora vale come Dipendente
   var FULL_EVERY = 7 * 864e5;            // una rilettura completa a settimana per sicurezza
   var GIF0 = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
@@ -722,7 +722,7 @@
   /* ---------- cestino (solo amministratori) ---------- */
   var CEST = null, CEST_DAYS = 60;
   var CEST_NOMI = { barche: 'Barca', lavori: 'Lavoro o mansione', scadenze: 'Scadenza', vari: 'Varo o alaggio', magazzino: 'Ricambio', movimenti: 'Movimento di magazzino',
-    operazioni: 'Servizio', opModelli: 'Gruppo di servizi', mezzi: 'Mezzo', conferme: 'Giornata confermata', posti: 'Posto al porto', attrezzatura: 'Attrezzatura', deposito: 'Roba in deposito', componenti: 'Componente a bordo', barattoli: 'Barattolo aperto', programma: 'Programma',
+    operazioni: 'Servizio', opModelli: 'Gruppo di servizi', mezzi: 'Mezzo', conferme: 'Giornata confermata', posti: 'Posto al porto', attrezzatura: 'Attrezzatura', deposito: 'Roba in deposito', componenti: 'Componente a bordo', barattoli: 'Barattolo aperto', noteColleghi: 'Nota a un collega', programma: 'Programma',
     cariche: 'Carica batterie', richieste: 'Richiesta', richiesteCliente: 'Richiesta del cliente', verbali: 'Verbale', rifiuti: 'Rifiuto', ritiri: 'Ritiro rifiuti', scadCantiere: 'Scadenza del cantiere', preventivi: 'Preventivo', assenze: 'Ferie o permesso', kit: 'Kit ricambi', inventari: 'Inventario', giri: 'Giro di controllo', cronometri: 'Cronometro', ditte: 'Ditta esterna',
     checklist: 'Checklist', modelli: 'Modello di checklist', checkBarca: 'Lista della barca', dipendenti: 'Dipendente', impostazioni: 'Impostazione' };
   function cestCutoff() { return new Date(Date.now() - CEST_DAYS * 864e5).toISOString(); }
@@ -1538,6 +1538,9 @@
   function renderCliente() {
     if (!CLIENTE || !ME) return;
     var h = '<h2>Ciao ' + esc(String(ME.nome || '').split(' ')[0]) + '</h2><p>La tua barca al cantiere ' + esc(nomeAz()) + ', sempre aggiornata.</p>';
+    var rpOggi = nowISO().slice(0, 10), rpL = []; CL.ids.forEach(function (id) { var d = CL.docs[id]; if (d && (d.reperibili || []).length && !rpL.length) rpL = d.reperibili; });
+    var rp = rpL.filter(function (t) { return t.dal <= rpOggi && t.al >= rpOggi; })[0] || rpL.filter(function (t) { return t.dal > rpOggi && t.dal <= new Date(Date.now() + 3 * 864e5).toISOString().slice(0, 10); })[0];
+    if (rp) h += '<div class="card"><p style="margin:0">' + (rp.dal <= rpOggi ? 'Reperibile per le urgenze' : 'Reperibile per le urgenze da ' + esc(dataLunga(rp.dal))) + (rp.al > rp.dal ? ' fino a ' + esc(dataLunga(rp.al)) : '') + ': <b>' + esc(rp.nome || 'il cantiere') + '</b> · <a href="tel:' + esc(String(rp.tel).replace(/[^\d+]/g, '')) + '">' + esc(rp.tel) + '</a></p></div>';
     if (!CL.ids.length) h += '<div class="card"><p style="margin:0">Il cantiere sta collegando la tua barca al tuo account. Appena fatto, la trovi qui.</p></div>';
     CL.ids.forEach(function (id) {
       var d = CL.docs[id];
@@ -1574,6 +1577,7 @@
       '<li>Se il cantiere sta facendo i lavori di un preventivo, vedi quali sono fatti e quali mancano.</li>' +
       '<li>Con «Chiedi al cantiere» puoi chiedere il varo per un giorno o segnalare un problema con le foto: sotto vedi se è stata ricevuta e confermata.</li>' +
       '<li>Se il cantiere li mostra, vedi anche le scadenze della barca (tagliando, antivegetativa, zattera…): con «Richiedi il lavoro» lo chiedi al cantiere senza telefonare.</li>' +
+      '<li>Se il cantiere ha un reperibile per il fine settimana o i festivi, in alto vedi chi è e il numero da chiamare per le urgenze.</li>' +
       '<li>La pagina si aggiorna da sola pochi secondi dopo ogni modifica del cantiere.</li>' +
       '<li>Se manca una barca o qualcosa non torna, chiama il cantiere.</li></ul></details>';
     h += '<button class="lnk" data-cl="pw">Cambia password</button><button class="lnk" data-cl="out">Esci</button>';
@@ -1610,7 +1614,7 @@
       .slice(0, 100).map(function (l) { return { data: l.data || '', titolo: l.titolo || 'Lavoro' }; });
     var pid = Object.keys(P).filter(function (k) { return P[k].barcaId === bid; })[0], p = pid ? P[pid] : null;
     return { nome: b.nome || '', modello: b.modello || '', lunghezza: b.lunghezza || null, stato: b.stato || '', posto: b.posto || '',
-      porto: p ? { posto: pid, contratto: p.contratto || '', fino: p.fino || '' } : null, lavori: lav, deposito: depoPortale(bid), avanzamento: avPortale(bid), richieste: sezAccesa('richieste', false), scadenze: scadPortale(bid) };
+      porto: p ? { posto: pid, contratto: p.contratto || '', fino: p.fino || '' } : null, lavori: lav, deposito: depoPortale(bid), avanzamento: avPortale(bid), richieste: sezAccesa('richieste', false), scadenze: scadPortale(bid), reperibili: repPortale() };
   }
   // scadenze ricordate al cliente (idea X63, sezione scadcliente): solo tipo, modello e data,
   // quelle scadute da meno di 90 giorni e quelle dei prossimi 60
@@ -1620,6 +1624,14 @@
     return Object.keys(SC).map(function (k) { return Object.assign({ id: k }, SC[k]); }).filter(function (s) { return s.barcaId === bid && !s.fatta && !s._del && s.data && s.data >= da && s.data <= a; })
       .sort(function (x, y) { return String(x.data).localeCompare(String(y.data)); }).slice(0, 12)
       .map(function (s) { return { id: s.id, tipo: s.tipo || 'Scadenza', modello: s.modello || '', data: s.data, scaduta: s.data < oggi }; });
+  }
+  // reperibilità (sezione reperibilita, spenta di base): nome e numero dei turni da oggi in poi, il portale mostra quello in corso
+  function repPortale() {
+    if (!sezAccesa('reperibilita', false)) return [];
+    var I = LIVE.impostazioni ? LIVE.impostazioni.map : {}, c = I.reperibilita, oggi = nowISO().slice(0, 10);
+    if (!c || c._del || !Array.isArray(c.turni)) return [];
+    return c.turni.filter(function (t) { return t && t.al >= oggi && t.tel; }).sort(function (a, b) { return String(a.dal).localeCompare(String(b.dal)); }).slice(0, 6)
+      .map(function (t) { return { dal: t.dal, al: t.al, nome: String((UT[t.uid] && UT[t.uid].nome) || '').split(' ')[0], tel: t.tel }; });
   }
   // avanzamento dei lavori dei preventivi accettati (idea P5, Aspetto dell’app › sezioni): solo titoli e fatto/non fatto
   function avPortale(bid) {
@@ -1674,7 +1686,7 @@
     magazzino: ['voce di magazzino', 'voci di magazzino'], movimenti: ['carico o scarico', 'carichi e scarichi'], operazioni: ['servizio di cantiere', 'servizi di cantiere'],
     opModelli: ['gruppo dei servizi', 'gruppi dei servizi'], mezzi: ['mezzo o carrello', 'mezzi e carrelli'], conferme: ['giornata confermata', 'giornate confermate'],
     dipendenti: ['nome dei dipendenti', 'nomi dei dipendenti'], impostazioni: ['misure della mappa', 'misure della mappa'], posti: ['posto al porto', 'posti al porto'],
-    attrezzatura: ['attrezzatura di bordo', 'attrezzature di bordo'], deposito: ['cosa in deposito', 'cose in deposito'], componenti: ['componente a bordo', 'componenti a bordo'], barattoli: ['barattolo aperto', 'barattoli aperti'], programma: ['voce del programma', 'voci del programma'], cariche: ['carica delle batterie', 'cariche delle batterie'],
+    attrezzatura: ['attrezzatura di bordo', 'attrezzature di bordo'], deposito: ['cosa in deposito', 'cose in deposito'], componenti: ['componente a bordo', 'componenti a bordo'], barattoli: ['barattolo aperto', 'barattoli aperti'], noteColleghi: ['nota a un collega', 'note ai colleghi'], programma: ['voce del programma', 'voci del programma'], cariche: ['carica delle batterie', 'cariche delle batterie'],
     richieste: ['richiesta', 'richieste'], checklist: ['checklist', 'checklist'], checkBarca: ['lista per barca', 'liste per barca'], modelli: ['modello di checklist', 'modelli di checklist'],
     giri: ['giro di controllo', 'giri di controllo'], cronometri: ['cronometro', 'cronometri'], ditte: ['ditta esterna', 'ditte esterne'] };
   var IMP_KEY = null, IMP = null;

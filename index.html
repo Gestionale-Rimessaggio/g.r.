@@ -1082,7 +1082,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     can: svg('<path d="M6 7h12l-1 13H7z"/><path d="M5 7h14M9 7V4h6v3"/>'),
     cross: svg('<path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/>')
   };
-  var ALTRO = ['altro', 'segnala', 'rubrica', 'richiestecl', 'vernice', 'programma', 'pannello', 'riepiloghi', 'batterie', 'scadenze', 'vari', 'giro', 'ditte', 'magazzino', 'preventivi', 'rifiuti', 'scadcantiere', 'assenze', 'misure', 'ore', 'operazioni', 'backup', 'notifiche', 'categorie', 'aspetto', 'controllo'];
+  var ALTRO = ['altro', 'emergenze', 'reperibilita', 'notecolleghi', 'segnala', 'rubrica', 'richiestecl', 'vernice', 'programma', 'pannello', 'riepiloghi', 'batterie', 'scadenze', 'vari', 'giro', 'ditte', 'magazzino', 'preventivi', 'rifiuti', 'scadcantiere', 'assenze', 'misure', 'ore', 'operazioni', 'backup', 'notifiche', 'categorie', 'aspetto', 'controllo'];
   function NOME() { return NM_MARCA.nome(); } // il nome dell'azienda (Altro › Aspetto)
   var LOGO_IMG = document.createElement('img'); LOGO_IMG.className = 'logo';
   function logoHome() { LOGO_IMG.alt = NOME(); LOGO_IMG.src = document.getElementById('scritta-src').getAttribute('src'); }
@@ -1565,6 +1565,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var cards = [], no = lyOpz('home', 'primo').no || [], push = function (k, c) { if (c && no.indexOf(k) < 0) cards.push(c); };
     push('crono', crHome()); push('giro', giroHome()); push('fuori', lfHome());
     push('spazio', spazioHome()); push('mezzi', ctrlHome()); push('rif', rifSogliaHome());
+    ncHome(push); repHome(push); push('mani', maniHome()); push('emerg', emHome());
     var pend = myPendingDays();
     if (pend.length) push('conferme', featCard('soon', I.check, pend.length === 1 ? 'Conferma la tua giornata' : 'Hai ' + pend.length + ' giornate da confermare',
       cap(fmtDayLong(pend[0])) + (pend.length > 1 ? ' e altre' : ''), '', '<button type="button" class="btn" data-act="go-scheda" data-d="' + pend[0] + '">Vai alla scheda lavoro</button>'));
@@ -1662,7 +1663,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     return h + lyRender('home', [
       { id: 'cerca', t: 'Cerca', sub: 'barca, cliente, articolo, lavoro', z: ['l'], d: 'l', h: gqBar },
       { id: 'primo', t: 'In primo piano', sub: 'gli avvisi da guardare subito', z: sec, d: 'l', h: primo, opz: [['crono', 'Cronometri in corso o dimenticati'], ['giro', 'Giro di controllo'], ['fuori', 'Barche fuori in ritardo o che rientrano oggi'],
-        ['conferme', 'Giornate da confermare'], ['spazio', 'Spazio quasi pieno (amministratori)'], ['mezzi', 'Mezzi fermi o da controllare'], ['vari', 'Vari e alaggi di oggi e domani'], ['scad', 'Scadenze delle barche'], ['ferie', 'Ferie e permessi'], ['scadc', 'Scadenze del cantiere'], ['batt', 'Batterie da caricare'], ['mag', 'Ricambi da riordinare'], ['rif', 'Rifiuti oltre la soglia']] },
+        ['conferme', 'Giornate da confermare'], ['spazio', 'Spazio quasi pieno (amministratori)'], ['mezzi', 'Mezzi fermi o da controllare'], ['vari', 'Vari e alaggi di oggi e domani'], ['scad', 'Scadenze delle barche'], ['ferie', 'Ferie e permessi'], ['scadc', 'Scadenze del cantiere'], ['batt', 'Batterie da caricare'], ['mag', 'Ricambi da riordinare'], ['rif', 'Rifiuti oltre la soglia'], ['note', 'Note dei colleghi'], ['reper', 'Reperibilità'], ['mani', 'Tempi tra le mani'], ['emerg', 'Primo soccorso da controllare']] },
       { id: 'meteo', t: 'Meteo', sub: 'vento e mare dei prossimi giorni', z: sec, d: 'l', h: metHome },
       { id: 'prog', t: 'Programma di oggi', z: sec, d: 'l', h: homeProgHtml },
       { id: 'breve', t: 'In breve', sub: 'scadenze, lavorazioni, barche, lavori del mese', z: ['l'], d: 'l', h: breve },
@@ -2118,6 +2119,12 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var atb = S.attr.filter(function (x) { return x.barcaId === b.id; }).sort(function (x, y) { return String(x.tipo || x.nome || '').localeCompare(String(y.tipo || y.nome || ''), 'it'); });
     h += secH('Attrezzatura di bordo', S.canWrite ? 'new-attr' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
     h += atb.length ? '<div class="group">' + atb.map(attrRow).join('') + '</div>' : '<div class="notice">Niente segnato. Aggiungi salpancora, verricelli, cuscineria, tendalino, teli e coperture: marca, misure e colori restano qui per la prossima volta.</div>';
+
+    if (ncOn()) {
+    var ncb = ncTutte().filter(function (n) { return n.barcaId === b.id && (n.per === S.myId || n.creatoDa === S.myId); }).slice(0, 6);
+    h += secH('Note ai colleghi' + (ncb.length ? ' (' + ncb.length + ')' : ''), S.canWrite ? 'nc-new' : '', '+ Scrivi', ' data-boat="' + esc(b.id) + '"');
+    h += ncb.length ? '<div class="group">' + ncb.map(function (n) { return ncRow(n, n.creatoDa === S.myId && n.per !== S.myId); }).join('') + '</div>' : '<div class="notice">Nessuna nota su questa barca. Con «Scrivi» ne lasci una a un collega: la trova in Home.</div>';
+    }
 
     var cpb = compOf(b.id);
     h += secH('Componenti a bordo' + (cpb.length ? ' (' + cpb.length + ')' : ''), S.canWrite ? 'new-comp' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
@@ -2831,6 +2838,197 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       await a.invia({ tipo: V.sgTipo === 'idea' ? 'idea' : 'problema', testo: t, foto: SGV.foto || '', pagina: V.sgDa || '', versione: document.lastModified ? new Date(document.lastModified).toISOString().slice(0, 16).replace('T', ' ') : '' });
       V.sgTesto = ''; SGV.foto = ''; SGV.carica = 0; SGV.mie = null; toast('Inviata, grazie! La risposta la trovi qui.'); render();
     } catch (e) { if (b) { b.disabled = false; b.textContent = 'Invia'; } toast('Non sono riuscito a inviarla: controlla la connessione e riprova.', true); }
+  }
+  /* ---------- Sezioni solo di questa app, spente di base (idee del 2 novembre) ----------
+     X28 tempimani: ore tra una mano e l'altra · X31 notecolleghi: note a un collega con «letto»
+     X40 emergenze: numeri, punto di raccolta, cassetta di primo soccorso · reperibilita: turni di fine settimana e festivi
+     (X32 conflitti è nella finestra del programma: progConflitti) */
+  function maniOn() { return sezOn('tempimani'); }
+  function maniQuando(ms) {
+    var d = new Date(ms), iso = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()), t = todayISO();
+    return (iso === t ? 'oggi' : iso === addDays(t, 1) ? 'domani' : iso === addDays(t, -1) ? 'ieri' : fmtDate(iso)) + ' alle ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+  // l'ultima mano di ogni prodotto su ogni barca negli ultimi 10 giorni: dagli scarichi per barca e dai ricambi delle lavorazioni
+  function maniList() {
+    if (!maniOn()) return [];
+    var art = {}; S.mag.forEach(function (m) { if (num(m.oreMani) > 0) art[m.id] = m; });
+    if (!Object.keys(art).length) return [];
+    var lim = Date.now() - 10 * 864e5, last = {};
+    function add(bid, aid, t) { if (!bid || !aid || !art[aid] || !t) return; var ms = Date.parse(t); if (!(ms > lim)) return; var k = bid + '|' + aid; if (!last[k] || last[k].ms < ms) last[k] = { b: bid, a: aid, ms: ms }; }
+    S.mov.forEach(function (x) { if (x.tipo === 'scarico' && x.barcaId) add(x.barcaId, x.articoloId, x.creato || (x.data ? x.data + 'T12:00' : '')); });
+    S.lavori.forEach(function (l) { if (l.annullata) return; (l.ricambi || []).forEach(function (r) { add(l.barcaId, r.articoloId, l.creato && String(l.creato).slice(0, 10) === l.data ? l.creato : (l.data ? l.data + 'T17:00' : '')); }); });
+    return Object.keys(last).map(function (k) { var x = last[k], m = art[x.a], b = boatById(x.b); return b ? { b: b, m: m, ms: x.ms, pronta: x.ms + num(m.oreMani) * 36e5 } : null; })
+      .filter(Boolean).sort(function (a, c) { return a.pronta - c.pronta; });
+  }
+  function maniVisibili() { var now = Date.now(); return maniList().filter(function (x) { return x.pronta > now - 48 * 36e5; }); }
+  function maniHome() {
+    var l = maniVisibili(), now = Date.now(); if (!l.length) return '';
+    var pr = l.filter(function (x) { return x.pronta <= now; });
+    return featCard(pr.length ? 'ok' : 'soon', I.brush, pr.length ? (pr.length === 1 ? 'Una barca pronta per la mano successiva' : pr.length + ' barche pronte per la mano successiva') : 'Mani che stanno asciugando',
+      l.slice(0, 3).map(function (x) { return x.b.nome + ' · ' + x.m.nome + (x.pronta <= now ? ' (pronta)' : ' (' + maniQuando(x.pronta) + ')'); }).join(', '), '',
+      '<button type="button" class="btn sec" data-act="mani-vedi">Vedi tutte</button>');
+  }
+  function maniSheet() {
+    var l = maniVisibili(), now = Date.now();
+    var h = '<p class="context" style="margin-top:0">Quando un prodotto con le «ore prima della mano successiva» (nell’articolo del magazzino) viene scaricato su una barca o messo in una lavorazione, qui vedi da che ora si può ridare la mano.</p>';
+    h += l.length ? '<div class="group">' + l.map(function (x) {
+      var ok = x.pronta <= now;
+      return '<button type="button" class="row" data-act="open-boat" data-id="' + esc(x.b.id) + '"><span class="main"><span class="title">' + esc(x.b.nome || 'Barca') + '</span><span class="sub">' + esc(x.m.nome + ' · ultima mano ' + maniQuando(x.ms)) + '</span></span><span class="side"><span class="pill ' + (ok ? 'ok' : 'soon') + '">' + esc(ok ? 'Pronta' : 'Da ' + maniQuando(x.pronta)) + '</span></span></button>';
+    }).join('') + '</div>' : '<div class="notice">Nessuna mano negli ultimi giorni con un prodotto che ha le ore scritte.</div>';
+    openSheet({ title: 'Tempi tra le mani', menu: true, body: h });
+  }
+
+  function ncOn() { return sezOn('notecolleghi'); }
+  function ncTutte() { return (S.noteC || []).filter(function (n) { return !n._del; }).sort(function (a, b) { return String(b.creato || '').localeCompare(String(a.creato || '')); }); }
+  function ncDaLeggere() { return ncOn() && S.myId ? ncTutte().filter(function (n) { return n.per === S.myId && !n.letto; }) : []; }
+  function ncDove(n) { var b = n.barcaId ? boatById(n.barcaId) : null; return b ? b.nome || 'Barca' : ''; }
+  function ncHome(push) {
+    ncDaLeggere().slice(0, 3).forEach(function (n) {
+      var b = n.barcaId ? boatById(n.barcaId) : null;
+      push('note', featCard('acc', I.clip, 'Nota da ' + nameOf(n.creatoDa) + (b ? ' · ' + (b.nome || 'barca') : ''), n.testo || '', '<div class="feat-status">' + esc(fmtDate(String(n.creato || '').slice(0, 10))) + '</div>',
+        '<button type="button" class="btn" data-act="nc-letto" data-id="' + esc(n.id) + '">Letto</button>' + (b ? '<button type="button" class="btn sec" data-act="open-boat" data-id="' + esc(b.id) + '">Apri scheda</button>' : '')));
+    });
+  }
+  function ncRow(n, mia) {
+    var dove = ncDove(n), sub = [(mia ? 'A ' + nameOf(n.per) : 'Da ' + nameOf(n.creatoDa)), dove, fmtDate(String(n.creato || '').slice(0, 10))].filter(Boolean).join(' · ');
+    var st = mia ? (n.letto ? '<span class="pill ok">Letta ' + esc(fmtDate(String(n.letto).slice(0, 10))) + '</span>' : '<span class="pill soon">Non ancora letta</span>')
+      : (n.letto ? '<span class="pill ok">Letta</span>' : '<button type="button" class="chk" data-act="nc-letto" data-id="' + esc(n.id) + '">' + I.check + 'Letto</button>');
+    return '<div class="row"><span class="main"><span class="title" style="font-weight:500;white-space:normal">' + esc(n.testo || '') + '</span><span class="sub">' + esc(sub) + '</span>' +
+      (mia ? '<span class="status">' + st + ' <button type="button" class="link" data-act="nc-del" data-id="' + esc(n.id) + '">Togli</button></span>' : '') + '</span>' + (mia ? '' : '<span class="side">' + st + '</span>') + '</div>';
+  }
+  function viewNoteColleghi() {
+    var all = ncTutte(), per = all.filter(function (n) { return n.per === S.myId; }), mie = all.filter(function (n) { return n.creatoDa === S.myId && n.per !== S.myId; });
+    var h = '<p class="context" style="margin-top:12px">Una nota per un collega, anche legata a una barca: la trova in Home finché non tocca «Letto», e tu vedi quando l’ha letta.</p>';
+    if (S.canWrite) h += '<button type="button" class="btn" data-act="nc-new" style="width:100%;margin-top:12px">' + I.plus + 'Scrivi una nota a un collega</button>';
+    h += secH('Per te' + (per.length ? ' (' + per.length + ')' : ''));
+    h += per.length ? '<div class="group">' + per.sort(function (a, b) { return (a.letto ? 1 : 0) - (b.letto ? 1 : 0); }).slice(0, 40).map(function (n) { return ncRow(n, false); }).join('') + '</div>' : '<div class="notice">Nessuna nota per te.</div>';
+    if (mie.length) h += secH('Che hai mandato') + '<div class="group">' + mie.slice(0, 40).map(function (n) { return ncRow(n, true); }).join('') + '</div>';
+    return h;
+  }
+  function ncSheet(preset) {
+    var p = preset || {}, people = progPeople().filter(function (id) { return id !== S.myId; }), boats = S.boats.slice().sort(byName);
+    if (!people.length) { toast('Non ci sono altri colleghi a cui scrivere.', true); return; }
+    openSheet({ title: 'Nota per un collega', submitLabel: 'Invia',
+      body: field(lab('f-ncp', 'Per chi'), '<select id="f-ncp">' + people.map(function (id) { return '<option value="' + esc(id) + '">' + esc(nameOf(id)) + '</option>'; }).join('') + '</select>') +
+        field(lab('f-ncb', 'Barca (facoltativa)'), '<select id="f-ncb"><option value="">Nessuna</option>' + boats.map(function (b) { return '<option value="' + esc(b.id) + '"' + (b.id === p.barcaId ? ' selected' : '') + '>' + esc(boatLabel(b)) + '</option>'; }).join('') + '</select>') +
+        field(lab('f-nct', 'La nota'), '<textarea id="f-nct" required maxlength="1000" placeholder="es. la chiave della Lulu è nel cassetto dell’ufficio, il cliente passa giovedì"></textarea>'),
+      onSubmit: async function (f) {
+        var t = val(f, 'f-nct'); if (!t) { formErr('Scrivi la nota.'); return false; }
+        var now = new Date().toISOString(), r = S.db.collection('noteColleghi').doc();
+        if (!(await w(function () { return r.set({ per: val(f, 'f-ncp'), barcaId: val(f, 'f-ncb'), testo: t, letto: '', creato: now, creatoDa: S.myId || '' }); }))) return false;
+        toast('Nota inviata a ' + nameOf(val(f, 'f-ncp'))); return true;
+      } });
+  }
+  async function ncLetto(id) { var r = S.db.collection('noteColleghi').doc(id); if (await w(function () { return r.update({ letto: new Date().toISOString() }); })) toast('Segnata come letta'); }
+
+  function emOn() { return sezOn('emergenze'); }
+  var EM_BASE = [['Numero unico di emergenza', '112'], ['Ambulanza', '118'], ['Vigili del fuoco', '115'], ['Guardia costiera (emergenze in mare)', '1530']];
+  function emCfg() { var c = S.emCfg; return c && !c._del ? c : {}; }
+  function emNumeri() {
+    var c = emCfg(), l = Array.isArray(c.numeri) ? c.numeri.slice() : EM_BASE.map(function (x) { return { n: x[0], t: x[1] }; });
+    if (!Array.isArray(c.numeri) && sezOn('rifiuti')) { var dt = rifDittaTel('d1'); if (dt) l.push({ n: 'Ditta dei rifiuti (' + rifDittaNome('d1') + ')', t: dt }); }
+    return l.filter(function (x) { return x && x.t; });
+  }
+  function emKitStato(k) { if (!k.scade) return null; var t = todayISO(); return k.scade < t ? 'late' : k.scade <= addDays(t, 30) ? 'soon' : 'ok'; }
+  function emKitDaFare() { return emOn() ? (emCfg().kit || []).filter(function (k) { var s = emKitStato(k); return s === 'late' || s === 'soon'; }) : []; }
+  function emHome() {
+    var l = emKitDaFare(); if (!l.length || !S.canWrite) return '';
+    var sc = l.filter(function (k) { return emKitStato(k) === 'late'; }).length;
+    return featCard(sc ? 'late' : 'soon', I.cross, sc ? 'Primo soccorso: ' + (sc === 1 ? 'una cosa scaduta' : sc + ' cose scadute') : 'Primo soccorso: cose che scadono entro 30 giorni',
+      l.slice(0, 3).map(function (k) { return k.cosa + ' (' + fmtDate(k.scade) + ')'; }).join(', '), '', '<button type="button" class="btn sec" data-act="tab" data-tab="emergenze">Apri emergenze</button>');
+  }
+  function viewEmergenze() {
+    var c = emCfg(), nn = emNumeri(), kit = (c.kit || []).slice().sort(function (a, b) { return String(a.scade || '9').localeCompare(String(b.scade || '9')); });
+    var h = '<p class="context" style="margin-top:12px">In caso di emergenza: tocca il numero per chiamare.</p>';
+    h += '<div class="group" style="margin-top:12px">' + nn.map(function (x) {
+      return '<a class="row" style="text-decoration:none;color:inherit" href="tel:' + esc(String(x.t).replace(/[^\d+]/g, '')) + '"><span class="ic-circle late">' + I.tel + '</span><span class="main"><span class="title">' + esc(x.n || 'Numero') + '</span><span class="sub">' + esc(x.t) + '</span></span><span class="side"><span class="pill late">Chiama</span></span></a>';
+    }).join('') + '</div>';
+    h += secH('Punto di raccolta') + '<div class="notice">' + (c.raccolta ? esc(c.raccolta) : 'Non ancora scritto' + (S.isOwner ? ': tocca «Modifica» qui sotto.' : '.')) + '</div>';
+    if (c.note) h += secH('Cosa fare') + '<div class="notice" style="white-space:pre-line">' + esc(c.note) + '</div>';
+    h += secH('Cassetta di primo soccorso') + (kit.length ? '<div class="group">' + kit.map(function (k) {
+      var s = emKitStato(k);
+      return '<div class="row"><span class="main"><span class="title">' + esc(k.cosa || '') + '</span>' + (k.dove ? '<span class="sub">' + esc(k.dove) + '</span>' : '') + '</span><span class="side">' + (k.scade ? '<span class="pill ' + s + '">' + (s === 'late' ? 'Scaduta ' : 'Scade ') + esc(fmtDate(k.scade)) + '</span>' : '') + '</span></div>';
+    }).join('') + '</div>' : '<div class="notice">Nessun contenuto segnato.</div>');
+    if (S.isOwner) h += '<button type="button" class="btn sec" data-act="em-edit" style="width:100%;margin-top:14px">Modifica numeri, punto di raccolta e cassetta</button>';
+    return h;
+  }
+  function emRigaN(x) { return '<div class="grid2 em-r"><input class="em-n" type="text" placeholder="Chi" value="' + esc(x.n || '') + '"><input class="em-t" type="tel" placeholder="Numero" value="' + esc(x.t || '') + '"></div>'; }
+  function emRigaK(x) { return '<div class="grid2 em-k"><input class="em-c" type="text" placeholder="es. Disinfettante" value="' + esc(x.cosa || '') + '"><input class="em-s" type="date" aria-label="Scade il" value="' + esc(x.scade || '') + '"></div>'; }
+  function emSheet() {
+    var c = emCfg(), nn = emNumeri(), kit = c.kit || [];
+    openSheet({ title: 'Emergenze',
+      body: '<div class="lbl" style="margin-top:0">Numeri (lascia vuoto il numero per toglierlo)</div><div id="em-nl">' + nn.concat([{}]).map(emRigaN).join('') + '</div><button type="button" class="link self-start" id="em-na">＋ Un altro numero</button>' +
+        '<p class="cap">Mettete anche il titolare, il responsabile della sicurezza e il medico competente.</p>' +
+        field(lab('f-emr', 'Punto di raccolta'), '<textarea id="f-emr" rows="2" placeholder="es. Cancello d’ingresso, lato strada">' + esc(c.raccolta || '') + '</textarea>') +
+        field(lab('f-emno', 'Cosa fare (facoltativo)'), '<textarea id="f-emno" rows="3" placeholder="es. Estintori: uno per capannone e uno sul pontile. Interruttore generale nel quadro vicino all’ufficio.">' + esc(c.note || '') + '</textarea>') +
+        '<div class="lbl">Cassetta di primo soccorso: cosa c’è e quando scade</div><div id="em-kl">' + kit.concat([{}]).map(emRigaK).join('') + '</div><button type="button" class="link self-start" id="em-ka">＋ Un’altra cosa</button>',
+      onOpen: function (f) {
+        f.querySelector('#em-na').addEventListener('click', function () { f.querySelector('#em-nl').insertAdjacentHTML('beforeend', emRigaN({})); });
+        f.querySelector('#em-ka').addEventListener('click', function () { f.querySelector('#em-kl').insertAdjacentHTML('beforeend', emRigaK({})); });
+      },
+      onSubmit: async function (f) {
+        var numeri = Array.prototype.map.call(f.querySelectorAll('.em-r'), function (r) { return { n: r.querySelector('.em-n').value.trim().slice(0, 80), t: r.querySelector('.em-t').value.trim().slice(0, 30) }; }).filter(function (x) { return x.t; });
+        var k = Array.prototype.map.call(f.querySelectorAll('.em-k'), function (r) { return { cosa: r.querySelector('.em-c').value.trim().slice(0, 80), scade: r.querySelector('.em-s').value || '' }; }).filter(function (x) { return x.cosa; });
+        var d = { numeri: numeri, raccolta: val(f, 'f-emr'), note: val(f, 'f-emno'), kit: k, modificato: new Date().toISOString() }, r = S.db.collection('impostazioni').doc('emergenze');
+        if (await w(function () { return r.set(d); })) { S.emCfg = d; toast('Emergenze salvate'); return true; } return false;
+      } });
+  }
+
+  function repOn() { return sezOn('reperibilita'); }
+  function repTurni() { var c = S.repCfg; return (c && !c._del && Array.isArray(c.turni) ? c.turni : []).slice().sort(function (a, b) { return String(a.dal).localeCompare(String(b.dal)); }); }
+  function repDi(day) { return repTurni().filter(function (t) { return t.dal <= day && t.al >= day; })[0] || null; }
+  function repSabato() { var t = todayISO(), d = new Date(isoToUTC(t)).getUTCDay(); return addDays(t, d === 6 ? 0 : d === 0 ? -1 : 6 - d); }
+  function repTel(t) { return t.tel || ''; }
+  function repHome(push) {
+    if (!repOn()) return;
+    var t0 = todayISO(), ora = repDi(t0), sab = repSabato(), fine = repDi(sab), wd = new Date(isoToUTC(t0)).getUTCDay();
+    var vicino = ora || ((wd === 4 || wd === 5) && fine);
+    if (vicino) {
+      var io = vicino.uid === S.myId;
+      push('reper', featCard(io ? 'soon' : 'acc', I.tel, io ? (ora ? 'Sei reperibile tu' : 'Questo fine settimana sei reperibile tu') : 'Reperibile' + (ora ? '' : ' nel fine settimana') + ': ' + nameOf(vicino.uid),
+        (vicino.dal === vicino.al ? fmtDayLong(vicino.dal) : 'dal ' + fmtDayLong(vicino.dal) + ' al ' + fmtDayLong(vicino.al)) + (repTel(vicino) ? ' · ' + repTel(vicino) : ''), '',
+        (repTel(vicino) && !io ? '<a class="btn" href="tel:' + esc(lfTel(repTel(vicino))) + '">' + I.tel + 'Chiama</a>' : '') + '<button type="button" class="btn sec" data-act="tab" data-tab="reperibilita">Turni</button>'));
+    } else if ((wd === 4 || wd === 5) && S.isOwner && !fine) {
+      push('reper', featCard('soon', I.tel, 'Manca il reperibile per il fine settimana', 'Sabato ' + fmtDate(sab) + ' e domenica: nessuno segnato', '', '<button type="button" class="btn" data-act="rep-new" data-d="' + sab + '">Segna il turno</button>'));
+    }
+  }
+  function viewReperibilita() {
+    var t0 = todayISO(), tt = repTurni(), ora = repDi(t0), dopo = tt.filter(function (t) { return t.al >= t0 && t !== ora; }), prima = tt.filter(function (t) { return t.al < t0; }).reverse().slice(0, 4);
+    var h = '<p class="context" style="margin-top:12px">Chi risponde al telefono nei fine settimana e nei festivi. Il numero si vede in Home' + (sezOn('richieste') || sezOn('scadcliente') || sezOn('avanzamento') ? ' e nel portale dei clienti' : ' e, se avete clienti collegati, nel loro portale') + '; il giovedì e il venerdì l’app ricorda chi è di turno.</p>';
+    h += '<div class="group" style="margin-top:12px"><div class="row"><span class="ic-circle ' + (ora ? 'ok' : '') + '">' + I.tel + '</span><span class="main"><span class="title">' + (ora ? 'Adesso: ' + esc(nameOf(ora.uid)) : 'Adesso nessuno di turno') + '</span>' + (ora ? '<span class="sub">' + esc([repTel(ora), 'fino a ' + fmtDayLong(ora.al)].filter(Boolean).join(' · ')) + '</span>' : '') + '</span>' + (ora && repTel(ora) ? '<span class="side"><a class="btn sec rb-b" href="tel:' + esc(lfTel(repTel(ora))) + '">' + I.tel + 'Chiama</a></span>' : '') + '</div></div>';
+    if (S.isOwner) h += '<div class="rif-acts" style="margin-top:12px"><button type="button" class="btn" data-act="rep-new" data-d="' + repSabato() + '">' + I.plus + 'Turno del fine settimana</button><button type="button" class="btn sec" data-act="rep-new">Altri giorni (festivi, ponti)</button></div>';
+    function riga(t) { return '<' + (S.isOwner ? 'button type="button" data-act="rep-edit" data-id="' + esc(t.id) + '"' : 'div') + ' class="row"><span class="main"><span class="title">' + esc(nameOf(t.uid)) + '</span><span class="sub">' + esc([t.dal === t.al ? fmtDayLong(t.dal) : fmtDayLong(t.dal) + ' – ' + fmtDayLong(t.al), repTel(t), t.note].filter(Boolean).join(' · ')) + '</span></span></' + (S.isOwner ? 'button' : 'div') + '>'; }
+    h += secH('Prossimi turni') + (dopo.length ? '<div class="group">' + dopo.map(riga).join('') + '</div>' : '<div class="notice">Nessun turno segnato.</div>');
+    if (prima.length) h += secH('Ultimi turni') + '<div class="group">' + prima.map(riga).join('') + '</div>';
+    return h;
+  }
+  function repSheet(t, dal) {
+    var isNew = !t, people = progPeople(), tel0 = {};
+    repTurni().forEach(function (x) { if (x.tel) tel0[x.uid] = x.tel; });
+    t = t || { dal: dal || todayISO(), al: dal ? addDays(dal, 1) : todayISO(), uid: people[0] || '' };
+    openSheet({ title: isNew ? 'Turno di reperibilità' : 'Turno', item: isNew ? null : t,
+      body: field(lab('f-rpu', 'Chi'), '<select id="f-rpu">' + people.map(function (id) { return '<option value="' + esc(id) + '"' + (id === t.uid ? ' selected' : '') + '>' + esc(nameOf(id)) + '</option>'; }).join('') + '</select>') +
+        '<div class="grid2">' + field(lab('f-rpd', 'Dal'), inp('f-rpd', t.dal, 'type="date" required')) + field(lab('f-rpa', 'Al'), inp('f-rpa', t.al, 'type="date" required')) + '</div>' +
+        field(lab('f-rpt', 'Numero da chiamare'), inp('f-rpt', t.tel || tel0[t.uid] || '', 'type="tel" placeholder="es. 333 1234567"'), 'Lo vedono i colleghi e i clienti nel portale.') +
+        field(lab('f-rpn', 'Note (facoltative)'), inp('f-rpn', t.note || '', 'type="text" placeholder="es. solo urgenze in porto"')),
+      onOpen: function (f) { var u = f.querySelector('#f-rpu'), tl = f.querySelector('#f-rpt'); u.addEventListener('change', function () { if (tel0[u.value]) tl.value = tel0[u.value]; }); },
+      onDelete: isNew ? null : async function () { if (await repSalva(repTurni().filter(function (x) { return x.id !== t.id; }))) { closeSheet(); toast('Turno tolto'); } },
+      onSubmit: async function (f) {
+        var d = { id: t.id || ('t' + Date.now().toString(36)), uid: val(f, 'f-rpu'), dal: val(f, 'f-rpd'), al: val(f, 'f-rpa'), tel: val(f, 'f-rpt').slice(0, 30), note: val(f, 'f-rpn').slice(0, 120) };
+        if (!d.uid || !d.dal || !d.al) { formErr('Scegli chi e i giorni.'); return false; }
+        if (d.al < d.dal) { formErr('Il giorno «Al» viene prima di «Dal».'); return false; }
+        var lim = addDays(todayISO(), -120), l = repTurni().filter(function (x) { return x.id !== d.id && x.al >= lim; }).concat([d]);
+        if (!(await repSalva(l))) return false; toast('Turno salvato'); return true;
+      } });
+  }
+  async function repSalva(l) { var d = { turni: l, modificato: new Date().toISOString() }, r = S.db.collection('impostazioni').doc('reperibilita'); if (await w(function () { return r.set(d); })) { S.repCfg = d; render(); return true; } return false; }
+
+  // X32 Avviso di conflitto: nella finestra del programma, mentre scegli le persone, chi è in ferie o già impegnato
+  function progConflitti(x) {
+    if (!sezOn('conflitti') || !x.data) return [];
+    var l = progOf(x.data), w = progWarn(x, l);
+    if (!progSpan(x)) progPers(x).forEach(function (id) { var n = l.filter(function (y) { return y.id !== x.id && !y.fatto && progPers(y).indexOf(id) >= 0; }).length; if (n) w.push(nameOf(id) + ' ha già ' + (n === 1 ? 'un’altra cosa' : n + ' cose') + ' quel giorno'); });
+    return w;
   }
   function viewDitte() {
     var all = lfDitte().filter(function (d) { return rbTipo(d) === 'esterna'; }), h = '<p class="context" style="margin-top:12px">Le ditte a cui date i lavori: velaio, tappezziere, elettricista… Nella lavorazione, scegliendo la ditta, il telefono si compila da solo.</p>';
@@ -6409,7 +6607,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         '<div class="grid2">' + field(lab('f-pdu', 'Durata in ore (facoltativa)'), inp('f-pdu', num(x.durata) != null ? String(x.durata).replace('.', ',') : '', 'type="text" inputmode="decimal" placeholder="es. 1,5"') + '<span class="hint" id="f-pduHint" hidden></span>') +
         field(lab('f-pn', 'Persone previste'), inp('f-pn', num(x.nPers) != null ? String(x.nPers) : '', 'type="text" inputmode="numeric" placeholder="es. 2"')) + '</div>' +
         '<div class="lbl">Chi ci va (se lo sai)</div><div class="chips wrap" id="f-pp">' + people.map(function (id) { return '<button type="button" data-pp="' + esc(id) + '" aria-pressed="' + (pers.indexOf(id) >= 0) + '">' + esc(id === S.myId ? 'Io · ' + nameOf(id) : nameOf(id)) + '</button>'; }).join('') + '</div>' +
-        '<span class="hint" id="f-ppHint">Nessuno scelto = la squadra, chiunque sia libero.</span>' +
+        '<span class="hint" id="f-ppHint">Nessuno scelto = la squadra, chiunque sia libero.</span>' + (sezOn('conflitti') ? '<div class="notice t-late" id="f-ppWarn" hidden style="margin:6px 0 10px"></div>' : '') +
         field(lab('f-pb', 'Barca (facoltativa)'), '<select id="f-pb"><option value="">Nessuna / cantiere</option>' + boats.map(function (b) { return '<option value="' + esc(b.id) + '"' + (b.id === x.barcaId ? ' selected' : '') + '>' + esc(boatLabel(b)) + '</option>'; }).join('') + '</select>') +
         '<button type="button" class="link self-start" id="f-pmoreB"' + (more ? ' hidden' : '') + '>＋ Mezzi, dove, materiali, urgenza, cliente da avvisare</button>' +
         '<div id="f-pmore"' + (more ? '' : ' hidden') + '>' +
@@ -6434,7 +6632,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         var pl = f.querySelector('#f-pl'), pt = f.querySelector('#f-pt'), pb = f.querySelector('#f-pb'), du = f.querySelector('#f-pdu'), pn = f.querySelector('#f-pn'), auto = '', autoD = '';
         function tog(box, attr) { box.addEventListener('click', function (e) { var c = e.target.closest('[' + attr + ']'); if (c) { c.setAttribute('aria-pressed', String(c.getAttribute('aria-pressed') !== 'true')); ppHint(); } }); }
         function ppHint() { var k = f.querySelectorAll('#f-pp [aria-pressed="true"]').length, n = parseIntS(pn.value), hh = $('#f-ppHint'); if (hh) hh.textContent = !k ? 'Nessuno scelto = la squadra, chiunque sia libero.' : n > k ? 'Scelte ' + k + ' su ' + n + ': ne manca' + (n - k === 1 ? ' 1' : 'no ' + (n - k)) + '.' : k + (k === 1 ? ' persona scelta.' : ' persone scelte.'); }
-        tog(f.querySelector('#f-pp'), 'data-pp'); tog(f.querySelector('#f-pm'), 'data-pm'); pn.addEventListener('input', ppHint); ppHint();
+        function bozza() { return { id: x.id, data: f.querySelector('#f-pd').value, ora: f.querySelector('#f-po').value, durata: parseDec(du.value), pers: Array.prototype.map.call(f.querySelectorAll('#f-pp [aria-pressed="true"]'), function (c) { return c.getAttribute('data-pp'); }), mezzi: Array.prototype.map.call(f.querySelectorAll('#f-pm [aria-pressed="true"]'), function (c) { return c.getAttribute('data-pm'); }) }; }
+        function cfl() { var wb = $('#f-ppWarn'); if (!wb) return; var l = progConflitti(bozza()); wb.hidden = !l.length; wb.textContent = l.length ? '⚠ ' + l.join(' · ') : ''; }
+        if (sezOn('conflitti')) { ['#f-pd', '#f-po', '#f-pdu'].forEach(function (s) { f.querySelector(s).addEventListener('change', cfl); }); f.querySelector('#f-pp').addEventListener('click', function () { setTimeout(cfl, 0); }); f.querySelector('#f-pm').addEventListener('click', function () { setTimeout(cfl, 0); }); }
+        tog(f.querySelector('#f-pp'), 'data-pp'); tog(f.querySelector('#f-pm'), 'data-pm'); pn.addEventListener('input', ppHint); ppHint(); cfl();
         f.querySelector('#f-pmoreB').addEventListener('click', function () { f.querySelector('#f-pmore').hidden = false; f.querySelector('#f-pmoreB').hidden = true; });
         pb.addEventListener('change', function () { var b = boatById(pb.value), tl = $('#f-paTel'); if (tl) { tl.hidden = !(b && b.telefono); tl.innerHTML = b && b.telefono ? 'Telefono: <a href="tel:' + esc(b.telefono) + '">' + esc(b.telefono) + '</a>' : ''; } });
         if (pl) pl.addEventListener('change', function () {
@@ -6456,6 +6657,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         if (lk === '' && f.querySelector('#f-pl')) { d.opId = ''; d.lavId = ''; }
         if (!d.testo) { formErr('Scrivi cosa c’è da fare.'); return false; }
         if (!d.data) { formErr('Scegli il giorno.'); return false; }
+        var cw = progConflitti(Object.assign({ id: x.id }, d)); if (cw.length && !confirm('Attenzione: ' + cw.join('; ') + '.\n\nSalvare lo stesso?')) return false;
         if (d.nPers != null && d.nPers > 0 && d.pers.length > d.nPers) d.nPers = d.pers.length;
         var ok;
         if (isNew) {
@@ -8444,9 +8646,14 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['barattoli', 'Barattoli aperti e avanzi', 'quanto resta e dove sono vernici e resine aperte, e dopo quanti mesi non vanno più usate (spento di base)'],
     ['varianti', 'Preventivi con varianti', 'due o tre scelte affiancate nello stesso preventivo; quella scelta dal cliente diventa il lavoro (spento di base)'],
     ['scadcliente', 'Scadenze ricordate al cliente', 'nel portale il cliente vede le scadenze della barca con il tasto «Richiedi il lavoro» (spento di base)'],
+    ['tempimani', 'Tempi tra le mani', 'nell’articolo del magazzino le ore prima della mano successiva; in Home le barche pronte per la mano dopo (spento di base)'],
+    ['notecolleghi', 'Note ai colleghi', 'una nota per un collega, anche su una barca: la trova in Home finché non tocca «Letto» (spento di base)'],
+    ['conflitti', 'Avviso di conflitto nel programma', 'mentre scegli chi fa un lavoro, ti avvisa se è in ferie o già impegnato (spento di base)'],
+    ['emergenze', 'Emergenze', 'numeri da chiamare, punto di raccolta, cassetta di primo soccorso con le scadenze (spento di base)'],
+    ['reperibilita', 'Reperibilità', 'turni dei fine settimana e festivi; il numero in Home e nel portale dei clienti, promemoria il venerdì (spento di base)'],
     ['novita', 'Cosa c’è di nuovo', 'dopo un aggiornamento dell’app, una finestra con le novità, una volta a ognuno'],
     ['portomio', 'Porto disegnato da voi', 'la mappa del porto: i vostri pontili e posti sopra la foto, con Porto e posti barca (spento di base: senza, il Porto è l’elenco dei posti)']];
-  var SEZ_OFF = ['tablet', 'controllo', 'deposito', 'portomio', 'postogiusto', 'qrbarca', 'schede', 'vernice', 'avanzamento', 'richieste', 'verbale', 'targhetta', 'stagioni', 'depositi', 'consumo', 'barattoli', 'varianti', 'scadcliente']; // sezioni spente finché l'amministratore non le accende
+  var SEZ_OFF = ['tablet', 'controllo', 'deposito', 'portomio', 'postogiusto', 'qrbarca', 'schede', 'vernice', 'avanzamento', 'richieste', 'verbale', 'targhetta', 'stagioni', 'depositi', 'consumo', 'barattoli', 'varianti', 'scadcliente', 'tempimani', 'notecolleghi', 'conflitti', 'emergenze', 'reperibilita']; // sezioni spente finché l'amministratore non le accende
   // riquadri di Home e Pannello che appartengono a una sezione (spariscono se le loro sezioni sono tutte spente)
   var SEZ_BLOCCHI = { w_mag: ['magazzino'], w_porto: ['porto'], w_rif: ['rifiuti'], w_batt: ['batterie'], vari: ['vari'], prog: ['programma'], meteo: ['meteo'],
     contr: ['porto'], riord: ['magazzino', 'batterie'], serv: ['operazioni'], magb: ['magazzino', 'batterie'] };
@@ -8733,6 +8940,9 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       S.isOwner ? ['aspetto', I.brush, 'vio', 'Aspetto dell’app', 'Nome dell’azienda, colori dello sfondo e loghi', ''] : null,
       ['rubrica', I.tel, 'acc', 'Rubrica', 'Fornitori, ditte esterne, ditta dei rifiuti: chiama o scrivi con un tocco', ''],
       ['segnala', I.help, 'acc', 'Segnala o suggerisci', 'Un problema o un’idea per l’app: arriva a chi gestisce il servizio', ''],
+      ['notecolleghi', I.clip, 'acc', 'Note ai colleghi', 'Una nota per un collega, anche su una barca, con «letto»', (ncDaLeggere().length ? '<span class="pill acc">' + ncDaLeggere().length + ' da leggere</span>' : '')],
+      ['reperibilita', I.tel, 'vio', 'Reperibilità', 'Chi risponde al telefono nei fine settimana e nei festivi', (repDi(todayISO()) ? '<span class="pill">' + esc(nameOf(repDi(todayISO()).uid)) + '</span>' : '')],
+      ['emergenze', I.cross, 'late', 'Emergenze', 'Numeri da chiamare, punto di raccolta e cassetta di primo soccorso', (emKitDaFare().length ? '<span class="pill soon">' + emKitDaFare().length + ' da controllare</span>' : '')],
       ['backup', I.dl, 'ok', 'Copia dei dati', 'Scarica una copia di tutto o recupera ciò che è stato cancellato', '']
     ];
     rows = rows.filter(function (r) { return r && sezOn(r[0]) && (r[0] !== 'richiestecl' || rqcOn()); });
@@ -8771,7 +8981,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['barche', 'Barche'], ['lavori', 'Lavorazioni e mansioni'], ['scadenze', 'Scadenze'], ['vari', 'Vari e alaggi'],
     ['magazzino', 'Ricambi del magazzino'], ['movimenti', 'Carichi e scarichi di magazzino'], ['operazioni', 'Servizi di cantiere'],
     ['opModelli', 'Gruppi dei servizi'], ['mezzi', 'Mezzi e carrelli'], ['conferme', 'Giornate confermate'],
-    ['dipendenti', 'Nomi dei dipendenti'], ['impostazioni', 'Misure della mappa'], ['posti', 'Posti al porto'], ['attrezzatura', 'Attrezzatura di bordo'], ['deposito', 'Roba del cliente in deposito'], ['componenti', 'Componenti a bordo'], ['barattoli', 'Barattoli aperti'], ['verbali', 'Verbali di presa in carico'], ['programma', 'Programma dei lavori'], ['cariche', 'Cariche delle batterie'], ['richieste', 'Richieste di chi cerca una barca'], ['rifiuti', 'Rifiuti segnati'], ['ritiri', 'Ritiri dei rifiuti'], ['scadCantiere', 'Scadenze del cantiere'], ['preventivi', 'Preventivi'], ['assenze', 'Ferie e permessi'], ['giri', 'Giri di controllo'], ['ditte', 'Ditte esterne'], ['kit', 'Kit di ricambi'], ['inventari', 'Inventari del magazzino'],
+    ['dipendenti', 'Nomi dei dipendenti'], ['impostazioni', 'Misure della mappa'], ['posti', 'Posti al porto'], ['attrezzatura', 'Attrezzatura di bordo'], ['deposito', 'Roba del cliente in deposito'], ['componenti', 'Componenti a bordo'], ['barattoli', 'Barattoli aperti'], ['noteColleghi', 'Note ai colleghi'], ['verbali', 'Verbali di presa in carico'], ['programma', 'Programma dei lavori'], ['cariche', 'Cariche delle batterie'], ['richieste', 'Richieste di chi cerca una barca'], ['rifiuti', 'Rifiuti segnati'], ['ritiri', 'Ritiri dei rifiuti'], ['scadCantiere', 'Scadenze del cantiere'], ['preventivi', 'Preventivi'], ['assenze', 'Ferie e permessi'], ['giri', 'Giri di controllo'], ['ditte', 'Ditte esterne'], ['kit', 'Kit di ricambi'], ['inventari', 'Inventari del magazzino'],
     ['checklist', 'Vecchie checklist'], ['checkBarca', 'Vecchie liste per barca'], ['modelli', 'Vecchi modelli di checklist']
   ];
   var BK_OLD = ['checklist', 'checkBarca', 'modelli'];
@@ -8786,7 +8996,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       barche: S.boats.length, lavori: S.lavoriAll.length, scadenze: S.scadenze.length, vari: S.vari.length, magazzino: S.mag.length, movimenti: S.mov.length,
       operazioni: S.ops.length, opModelli: S.opModelli.length, mezzi: S.mezzi.length, conferme: Object.keys(S.conf).length, dipendenti: Object.keys(S.dip).length,
       impostazioni: S.mapCfg ? 1 : 0, checklist: S.check.length, checkBarca: Object.keys(S.ckBarca).length, modelli: S.modelli.length,
-      posti: Object.keys(S.posti || {}).length, attrezzatura: (S.attr || []).length, deposito: (S.depo || []).length, componenti: (S.comp || []).length, barattoli: (S.barattoli || []).length, verbali: (S.verbali || []).length, programma: (S.prog || []).length,
+      posti: Object.keys(S.posti || {}).length, attrezzatura: (S.attr || []).length, deposito: (S.depo || []).length, componenti: (S.comp || []).length, barattoli: (S.barattoli || []).length, noteColleghi: (S.noteC || []).length, verbali: (S.verbali || []).length, programma: (S.prog || []).length,
       cariche: (S.cariche || []).length, richieste: (S.richieste || []).length, rifiuti: (S.rif || []).length, ritiri: (S.ritiri || []).length, scadCantiere: (S.scadC || []).length, preventivi: (S.prev || []).length, assenze: (S.assenze || []).length, kit: (S.kit || []).length, inventari: (S.inv || []).length
     };
   }
@@ -9454,7 +9664,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
 
   /* ---------- Barre ---------- */
-  var TITOLI = { segnala: 'Segnala o suggerisci', rubrica: 'Rubrica', richiestecl: 'Richieste dei clienti', vernice: 'Vernice per le carene', controllo: 'Controllo dei mezzi', aspetto: 'Aspetto dell’app', riepiloghi: 'Riepiloghi', scheda: 'Scheda lavoro', scadenze: 'Scadenze', calendario: 'Calendario', barche: 'Barche', lavori: 'Lavorazioni da fare', altro: 'Altro', vari: 'Vari e alaggi', magazzino: 'Magazzino', preventivi: 'Preventivi', assenze: 'Ferie e permessi', misure: 'Misure e unità', rifiuti: 'Rifiuti', scadcantiere: 'Scadenze del cantiere', ore: 'Ore del mese', checklist: 'Checklist', operazioni: 'Servizi di cantiere', backup: 'Copia dei dati', programma: 'Programma', pannello: 'Pannello', batterie: 'Batterie', notifiche: 'Notifiche', categorie: 'Categorie', inventario: 'Inventario', giro: 'Giro di controllo', ditte: 'Ditte esterne' };
+  var TITOLI = { emergenze: 'Emergenze', reperibilita: 'Reperibilità', notecolleghi: 'Note ai colleghi', segnala: 'Segnala o suggerisci', rubrica: 'Rubrica', richiestecl: 'Richieste dei clienti', vernice: 'Vernice per le carene', controllo: 'Controllo dei mezzi', aspetto: 'Aspetto dell’app', riepiloghi: 'Riepiloghi', scheda: 'Scheda lavoro', scadenze: 'Scadenze', calendario: 'Calendario', barche: 'Barche', lavori: 'Lavorazioni da fare', altro: 'Altro', vari: 'Vari e alaggi', magazzino: 'Magazzino', preventivi: 'Preventivi', assenze: 'Ferie e permessi', misure: 'Misure e unità', rifiuti: 'Rifiuti', scadcantiere: 'Scadenze del cantiere', ore: 'Ore del mese', checklist: 'Checklist', operazioni: 'Servizi di cantiere', backup: 'Copia dei dati', programma: 'Programma', pannello: 'Pannello', batterie: 'Batterie', notifiche: 'Notifiche', categorie: 'Categorie', inventario: 'Inventario', giro: 'Giro di controllo', ditte: 'Ditte esterne' };
   // per l'amministratore: quale sezione apre ciascuno (lo registra nm-fb.js)
   function vistaNome() {
     if (V.tab === 'barche' && V.boatId && boatById(V.boatId)) return 'la barca ' + (boatById(V.boatId).nome || 'senza nome');
@@ -9497,8 +9707,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     }).join('') + '</div>' + sideMenu(cur);
   }
   /* menù completo a sinistra, solo su computer e tablet (sul telefono resta nascosto) */
-  var SIDE_GRUPPI = [['Officina', ['scheda', 'lavori', 'programma', 'calendario', 'assenze', 'misure']], ['Barche e clienti', ['barche', 'mappa', 'vari', 'scadenze', 'batterie', 'preventivi', 'richiestecl']],
-    ['Cantiere', ['operazioni', 'controllo', 'giro', 'scadcantiere', 'magazzino', 'vernice', 'ditte', 'rubrica', 'rifiuti']], ['Amministrazione', ['pannello', 'riepiloghi', 'ore', 'notifiche', 'categorie', 'aspetto', 'backup', 'segnala']]];
+  var SIDE_GRUPPI = [['Officina', ['scheda', 'lavori', 'programma', 'notecolleghi', 'calendario', 'assenze', 'reperibilita', 'misure']], ['Barche e clienti', ['barche', 'mappa', 'vari', 'scadenze', 'batterie', 'preventivi', 'richiestecl']],
+    ['Cantiere', ['operazioni', 'controllo', 'giro', 'scadcantiere', 'emergenze', 'magazzino', 'vernice', 'ditte', 'rubrica', 'rifiuti']], ['Amministrazione', ['pannello', 'riepiloghi', 'ore', 'notifiche', 'categorie', 'aspetto', 'backup', 'segnala']]];
   // ordine del menù: ogni amministratore può riordinare gruppi e voci con la matita in alto (si salva con i riquadri, in impostazioni/layout_<uid>)
   function sideGruppi() {
     var saved = lyCan() && lyCfg().side, def = {}, out = [], seen = {};
@@ -9580,7 +9790,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (S.status === 'absent') html = '<div class="notice" style="margin-top:14px">I dati del registro si aprono solo da Claude, con il tuo account. Apri il link della pagina da claude.ai o dall’app Claude per vedere e salvare barche, lavori e scadenze.</div>';
     else if (S.status === 'loading') html = '<div class="notice" style="margin-top:14px">Carico barche, lavori e scadenze…</div>';
     else if (wizOn()) html = viewWizard();
-    else html = ({ segnala: viewSegnala, rubrica: viewRubrica, richiestecl: viewRichiesteCl, vernice: viewVernice, controllo: viewControllo, programma: viewProgramma, pannello: viewPannello, riepiloghi: viewRiepiloghi, batterie: viewBatterie, mappa: viewMappa, altro: viewAltro, backup: viewBackup, vari: viewVari, magazzino: viewMagazzino, preventivi: viewPreventivi, assenze: viewAssenze, misure: viewMisure, notifiche: viewNotifiche, categorie: viewCategorie, aspetto: viewAspetto, inventario: viewInventario, rifiuti: viewRifiuti, scadcantiere: viewScadCantiere, ore: viewOre, checklist: viewChecklist, operazioni: viewOperazioni, giro: viewGiro, ditte: viewDitte, home: viewHome, scheda: viewScheda, scadenze: viewScadenze, calendario: viewCalendario, lavori: viewLavori, barche: function () { return V.boatId ? viewBoat() : viewBarche(); } })[V.tab]();
+    else html = ({ emergenze: viewEmergenze, reperibilita: viewReperibilita, notecolleghi: viewNoteColleghi, segnala: viewSegnala, rubrica: viewRubrica, richiestecl: viewRichiesteCl, vernice: viewVernice, controllo: viewControllo, programma: viewProgramma, pannello: viewPannello, riepiloghi: viewRiepiloghi, batterie: viewBatterie, mappa: viewMappa, altro: viewAltro, backup: viewBackup, vari: viewVari, magazzino: viewMagazzino, preventivi: viewPreventivi, assenze: viewAssenze, misure: viewMisure, notifiche: viewNotifiche, categorie: viewCategorie, aspetto: viewAspetto, inventario: viewInventario, rifiuti: viewRifiuti, scadcantiere: viewScadCantiere, ore: viewOre, checklist: viewChecklist, operazioni: viewOperazioni, giro: viewGiro, ditte: viewDitte, home: viewHome, scheda: viewScheda, scadenze: viewScadenze, calendario: viewCalendario, lavori: viewLavori, barche: function () { return V.boatId ? viewBoat() : viewBarche(); } })[V.tab]();
     if (TAB.as && S.status === 'ready') html = tabBar() + html;
     $('#view').innerHTML = html;
     renderTop(); renderTabs(); bindFeat(); tabCheck();
@@ -11422,7 +11632,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var r = S.db.collection('movimenti').doc();
     if (!(await w(function () { return r.set(data); }))) return false;
     V.movTipo = tipo;
-    toast((tipo === 'scarico' ? 'Scaricato ' : 'Caricato ') + fmtQ(q, m.um) + (b ? ' per ' + b.nome : ''));
+    toast((tipo === 'scarico' ? 'Scaricato ' : 'Caricato ') + fmtQ(q, m.um) + (b ? ' per ' + b.nome : '') + (tipo === 'scarico' && b && maniOn() && num(m.oreMani) > 0 ? ' · mano successiva ' + maniQuando(Date.now() + num(m.oreMani) * 36e5) : ''));
     return true;
   }
   function movesFor(id) {
@@ -11673,6 +11883,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       '<div class="lbl">Si cambia ogni (facoltativo, per i ricambi)</div><div class="grid2">' + field(lab('f-mcm', 'Mesi'), inp('f-mcm', num(m.cambioMesi) != null ? String(m.cambioMesi) : '', 'type="text" inputmode="numeric" placeholder="es. 12"')) +
       field(lab('f-mco', 'Ore motore'), inp('f-mco', num(m.cambioOre) != null ? String(m.cambioOre) : '', 'type="text" inputmode="numeric" placeholder="es. 100"')) + '</div>' +
       '<span class="hint" style="margin-top:-6px">Nella scheda di ogni barca dove è montato vedi quando va cambiato di nuovo.</span>' +
+      (maniOn() ? field(lab('f-mmani', 'Ore prima della mano successiva (vernici, resine, stucchi)'), inp('f-mmani', num(m.oreMani) != null ? String(m.oreMani).replace('.', ',') : '', 'type="text" inputmode="decimal" placeholder="es. 16"'), 'Quando lo usi su una barca, in Home vedi da che ora si può ridare la mano.') : '') +
       '<label class="check"><input type="checkbox" id="f-mil"' + (m.inLista ? ' checked' : '') + '> Mettilo nella lista della spesa anche se non è sotto scorta</label>' +
       field(lab('f-mnote', 'Note'), '<textarea id="f-mnote" placeholder="Codice, dove si trova…">' + esc(m.note || '') + '</textarea>') +
       (sdsOn() ? sdsCampi(m) : '') +
@@ -11714,6 +11925,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         var data = { nome: nome, tipo: val(f, 'f-mt'), categoria: val(f, 'f-mc'), um: val(f, 'f-mu'), minimo: parseDec(val(f, 'f-mmin')), fornitore: val(f, 'f-mf'), qtaOrdine: parseDec(val(f, 'f-mqo')), inLista: !!f.querySelector('#f-mil').checked, note: val(f, 'f-mnote'), codice: val(f, 'f-mcod'), posizione: val(f, 'f-mpos'), cambioMesi: parseIntS(val(f, 'f-mcm')), cambioOre: parseIntS(val(f, 'f-mco')), modificato: now };
         function mov(id, q, tipo) { var mr = S.db.collection('movimenti').doc(); return w(function () { return mr.set({ articoloId: id, qta: q, tipo: tipo, data: todayISO(), utente: S.myId || '', creato: now }); }); }
         if (sdsD) Object.assign(data, sdsD);
+        if (maniOn()) data.oreMani = parseDec(val(f, 'f-mmani'));
         if (isNew) {
           data.creato = now;
           var ref = S.db.collection('magazzino').doc();
@@ -11957,6 +12169,13 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'bar-edit': x = (S.barattoli || []).find(function (a) { return a.id === id; }); if (x && S.canWrite) barSheet(x); break;
       case 'sg-tipo': V.sgTesto = String(($('#sg-t') || {}).value || ''); V.sgTipo = t.getAttribute('data-t'); render(); break;
       case 'sg-invia': sgInvia(); break;
+      case 'mani-vedi': maniSheet(); break;
+      case 'nc-new': if (S.canWrite) ncSheet({ barcaId: t.getAttribute('data-boat') || '' }); break;
+      case 'nc-letto': ncLetto(id); break;
+      case 'nc-del': if (confirm('Togliere questa nota?')) delSeq([S.db.collection('noteColleghi').doc(id)]).then(function (ok) { if (ok) toast('Nota tolta'); }); break;
+      case 'em-edit': if (S.isOwner) emSheet(); break;
+      case 'rep-new': if (S.isOwner) repSheet(null, t.getAttribute('data-d') || ''); break;
+      case 'rep-edit': x = repTurni().find(function (q) { return q.id === id; }); if (x && S.isOwner) repSheet(x); break;
       case 'sg-vota': (function () { var a = sgApi(), x = (SGV.idee || []).find(function (i) { return i.id === id; }); if (!a || !x) return; x.mio = !x.mio; x.voti += x.mio ? 1 : -1; render(); a.vota(id, x.mio).catch(function () { x.mio = !x.mio; x.voti += x.mio ? 1 : -1; render(); toast('Voto non salvato: riprova.', true); }); })(); break;
       case 'dep-cfg': if (S.isOwner) depCfgSheet(); break;
       case 'dep-vedi': depVediSheet(t.getAttribute('data-d') || depMain()); break;
@@ -12384,7 +12603,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     db.collection('impostazioni').onSnapshot(function (snap) {
       var m = null, b = null, ly = {}, asp = null;
       var pm0 = S.portoMio; S.portoMio = null; S.got.impostazioni = true;
-      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'depositi') S.depCfg = d.data(); else if (d.id === 'pacchetto') S.pacCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'vernice') S.vnCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'porto') S.portoMio = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
+      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'depositi') S.depCfg = d.data(); else if (d.id === 'emergenze') S.emCfg = d.data(); else if (d.id === 'reperibilita') S.repCfg = d.data(); else if (d.id === 'pacchetto') S.pacCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'vernice') S.vnCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'porto') S.portoMio = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
       var mc = m !== S.mapCfg; S.mapCfg = m; S.bkInfo = b; S.layouts = ly; S.aspetto = asp;
       if (NM_MARCA.dalDatabase(asp) && V.asp) NM_MARCA.prova(V.asp); // l'aspetto scelto vale subito per tutti
       if ((V.tab === 'mappa' && (mc || pm0 !== S.portoMio)) || V.tab === 'aspetto' || V.tab === 'backup' || V.tab === 'batterie' || V.tab === 'rifiuti' || V.tab === 'notifiche' || V.tab === 'categorie' || V.tab === 'home' || V.tab === 'barche' || V.tab === 'pannello' || V.tab === 'riepiloghi') { if (!LY.drag) render(); }
@@ -12403,6 +12622,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     sub('deposito', function (x) { S.depo = x; });
     sub('componenti', function (x) { S.comp = x; });
     sub('barattoli', function (x) { S.barattoli = x; });
+    sub('noteColleghi', function (x) { S.noteC = x; });
     sub('programma', function (x) { S.prog = x; S.got.programma = true; progPulizia(); });
     sub('cariche', function (x) { S.cariche = x; });
     sub('posti', function (x) { S.posti = toMap(x); });
