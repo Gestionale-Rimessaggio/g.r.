@@ -54,6 +54,27 @@ service cloud.firestore {
       allow read: if signedIn();
       allow write: if creatore();
     }
+    // Segnala o suggerisci (idea X12): chi lavora in un'azienda manda un problema o un'idea al gestore e rilegge solo le sue
+    match /segnalazioni/{id} {
+      allow read: if creatore() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow create: if signedIn() && exists(profilo()) && me().stato == 'attivo' && me().ruolo in ['base', 'editor', 'admin']
+        && request.resource.data.uid == request.auth.uid && request.resource.data.azienda == me().get('azienda', '')
+        && request.resource.data.stato == 'nuova' && request.resource.data.tipo in ['problema', 'idea']
+        && request.resource.data.keys().hasOnly(['uid', 'azienda', 'nomeAzienda', 'nome', 'tipo', 'testo', 'pagina', 'versione', 'dispositivo', 'stato', 'creato', 'foto'])
+        && corto(request.resource.data, 'testo', 2000) && corto(request.resource.data, 'nome', 80) && corto(request.resource.data, 'nomeAzienda', 80)
+        && corto(request.resource.data, 'pagina', 40) && corto(request.resource.data, 'versione', 40) && corto(request.resource.data, 'dispositivo', 200)
+        && corto(request.resource.data, 'foto', 400000);
+      allow update, delete: if creatore();
+    }
+    // Idee ai voti: le mette il gestore (senza il nome di chi le ha mandate); chi lavora nelle aziende le legge e vota solo per sé
+    match /ideeVoto/{id} {
+      allow read: if signedIn();
+      allow create, delete: if creatore();
+      allow update: if creatore() || (signedIn() && exists(profilo()) && me().stato == 'attivo' && me().ruolo in ['base', 'editor', 'admin']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['voti'])
+        && request.resource.data.voti is map
+        && request.resource.data.voti.diff(resource.data.get('voti', {})).affectedKeys().hasOnly([request.auth.uid]));
+    }
     match /messaggioServizio/{id} {
       allow read: if signedIn();
       allow write: if creatore();

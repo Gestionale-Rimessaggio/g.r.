@@ -1082,7 +1082,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     can: svg('<path d="M6 7h12l-1 13H7z"/><path d="M5 7h14M9 7V4h6v3"/>'),
     cross: svg('<path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/>')
   };
-  var ALTRO = ['altro', 'rubrica', 'richiestecl', 'vernice', 'programma', 'pannello', 'riepiloghi', 'batterie', 'scadenze', 'vari', 'giro', 'ditte', 'magazzino', 'preventivi', 'rifiuti', 'scadcantiere', 'assenze', 'misure', 'ore', 'operazioni', 'backup', 'notifiche', 'categorie', 'aspetto', 'controllo'];
+  var ALTRO = ['altro', 'segnala', 'rubrica', 'richiestecl', 'vernice', 'programma', 'pannello', 'riepiloghi', 'batterie', 'scadenze', 'vari', 'giro', 'ditte', 'magazzino', 'preventivi', 'rifiuti', 'scadcantiere', 'assenze', 'misure', 'ore', 'operazioni', 'backup', 'notifiche', 'categorie', 'aspetto', 'controllo'];
   function NOME() { return NM_MARCA.nome(); } // il nome dell'azienda (Altro › Aspetto)
   var LOGO_IMG = document.createElement('img'); LOGO_IMG.className = 'logo';
   function logoHome() { LOGO_IMG.alt = NOME(); LOGO_IMG.src = document.getElementById('scritta-src').getAttribute('src'); }
@@ -2791,6 +2791,46 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var q = gqNorm(($('#rb-q') || {}).value || '');
     document.querySelectorAll('.rb-row').forEach(function (r) { r.hidden = !!q && r.getAttribute('data-q').indexOf(q) < 0; });
     document.querySelectorAll('.rb-sec').forEach(function (s) { s.hidden = !s.querySelector('.rb-row:not([hidden])'); });
+  }
+  /* ---------- Segnala o suggerisci (idea X12, sempre attiva): un problema o un'idea al gestore del servizio ----------
+     Con azienda, persona, pagina e versione aggiunte da sole (nm-fb.js › segnala); le idee messe ai voti si votano qui. */
+  var SGV = { mie: null, idee: null, foto: '', carica: 0 };
+  function sgApi() { return window.__NM_FB && window.__NM_FB.segnala; }
+  function sgCarica() {
+    var a = sgApi(); if (!a || SGV.carica) return; SGV.carica = 1;
+    a.mie().then(function (l) { SGV.mie = l; if (V.tab === 'segnala') render(); }, function () { SGV.mie = []; });
+    a.idee().then(function (l) { SGV.idee = l; if (V.tab === 'segnala') render(); }, function () { SGV.idee = []; });
+  }
+  function viewSegnala() {
+    var a = sgApi();
+    var h = '<p class="context" style="margin-top:12px">Qualcosa non va, o ti è venuta un’idea per l’app? Scrivilo qui: arriva a chi gestisce il servizio, con il nome dell’azienda, la pagina e la versione dell’app. La risposta la trovi qui sotto.</p>';
+    if (!a) return h + '<div class="notice" style="margin-top:12px">Nella prova senza registrarti non si invia niente: registra la tua azienda per usarlo.</div>';
+    sgCarica();
+    h += '<form id="sg-f" class="group" style="padding:14px;margin-top:12px" onsubmit="return false">' +
+      '<div class="chips" role="group" aria-label="Cosa vuoi mandare" style="margin-top:0"><button type="button" data-act="sg-tipo" data-t="problema" aria-pressed="' + (V.sgTipo !== 'idea') + '">Un problema</button><button type="button" data-act="sg-tipo" data-t="idea" aria-pressed="' + (V.sgTipo === 'idea') + '">Un’idea</button></div>' +
+      field(lab('sg-t', V.sgTipo === 'idea' ? 'La tua idea' : 'Cosa succede'), '<textarea id="sg-t" rows="5" maxlength="2000" placeholder="' + (V.sgTipo === 'idea' ? 'es. vorrei vedere le ore anche per cliente' : 'es. nella scheda lavoro non riesco a salvare la mansione') + '">' + esc(V.sgTesto || '') + '</textarea>') +
+      '<label class="btn sec self-start" style="margin-top:4px">' + I.camera + (SGV.foto ? 'Cambia la foto' : 'Aggiungi una foto o una schermata') + '<input type="file" accept="image/*" id="sg-foto" class="vh"></label>' +
+      (SGV.foto ? '<img alt="Foto allegata" src="' + esc(SGV.foto) + '" style="max-width:100%;max-height:180px;border-radius:10px;margin-top:8px">' : '') +
+      '<button type="button" class="btn" data-act="sg-invia" style="width:100%;margin-top:12px">Invia</button></form>';
+    var idee = SGV.idee || [];
+    if (idee.length) h += secH('Idee da votare') + '<p class="cap" style="margin:0 2px 8px">Le idee che altre aziende hanno chiesto: vota quelle che servirebbero anche a voi.</p><div class="group">' + idee.slice().sort(function (x, y) { return y.voti - x.voti; }).map(function (x) {
+      return '<div class="row"><span class="main"><span class="title" style="font-weight:500">' + esc(x.testo) + '</span></span><span class="side"><button type="button" class="btn' + (x.mio ? '' : ' sec') + '" data-act="sg-vota" data-id="' + esc(x.id) + '" aria-pressed="' + x.mio + '" style="padding:6px 12px">👍 ' + x.voti + '</button></span></div>';
+    }).join('') + '</div>';
+    var mie = SGV.mie || [];
+    if (mie.length) h += secH('Quelle che hai mandato') + '<div class="group">' + mie.slice(0, 20).map(function (x) {
+      var st = x.stato === 'risolta' ? ['Risolta', 'ok'] : x.stato === 'risposta' ? ['Risposta', 'acc'] : ['Inviata', ''];
+      return '<div class="row"><span class="main"><span class="title" style="font-weight:500">' + esc((x.tipo === 'idea' ? 'Idea: ' : 'Problema: ') + String(x.testo || '').slice(0, 120)) + '</span><span class="sub">' + esc(fmtDate(String(x.creato || '').slice(0, 10))) + '</span>' + (x.risposta ? '<span class="sub t-acc">Risposta: ' + esc(x.risposta) + '</span>' : '') + '</span><span class="side"><span class="pill ' + st[1] + '">' + st[0] + '</span></span></div>';
+    }).join('') + '</div>';
+    return h;
+  }
+  async function sgInvia() {
+    var a = sgApi(), t = String(($('#sg-t') || {}).value || '').trim(); if (!a) return;
+    if (t.length < 5) { toast('Scrivi qualche parola in più.', true); return; }
+    var b = document.querySelector('[data-act="sg-invia"]'); if (b) { b.disabled = true; b.textContent = 'Invio…'; }
+    try {
+      await a.invia({ tipo: V.sgTipo === 'idea' ? 'idea' : 'problema', testo: t, foto: SGV.foto || '', pagina: V.sgDa || '', versione: document.lastModified ? new Date(document.lastModified).toISOString().slice(0, 16).replace('T', ' ') : '' });
+      V.sgTesto = ''; SGV.foto = ''; SGV.carica = 0; SGV.mie = null; toast('Inviata, grazie! La risposta la trovi qui.'); render();
+    } catch (e) { if (b) { b.disabled = false; b.textContent = 'Invia'; } toast('Non sono riuscito a inviarla: controlla la connessione e riprova.', true); }
   }
   function viewDitte() {
     var all = lfDitte().filter(function (d) { return rbTipo(d) === 'esterna'; }), h = '<p class="context" style="margin-top:12px">Le ditte a cui date i lavori: velaio, tappezziere, elettricista… Nella lavorazione, scegliendo la ditta, il telefono si compila da solo.</p>';
@@ -8692,6 +8732,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       ['controllo', I.truck, 'soon', 'Controllo dei mezzi', 'Prima di usarli: gomme, freni, perdite… e i mezzi fermi', (function () { var f = ctrlList().filter(function (m) { return m.fermo; }).length, n = ctrlDaFare().length; return f ? '<span class="pill late">' + f + (f === 1 ? ' fermo' : ' fermi') + '</span>' : n ? '<span class="pill soon">' + n + ' da controllare</span>' : ''; })()],
       S.isOwner ? ['aspetto', I.brush, 'vio', 'Aspetto dell’app', 'Nome dell’azienda, colori dello sfondo e loghi', ''] : null,
       ['rubrica', I.tel, 'acc', 'Rubrica', 'Fornitori, ditte esterne, ditta dei rifiuti: chiama o scrivi con un tocco', ''],
+      ['segnala', I.help, 'acc', 'Segnala o suggerisci', 'Un problema o un’idea per l’app: arriva a chi gestisce il servizio', ''],
       ['backup', I.dl, 'ok', 'Copia dei dati', 'Scarica una copia di tutto o recupera ciò che è stato cancellato', '']
     ];
     rows = rows.filter(function (r) { return r && sezOn(r[0]) && (r[0] !== 'richiestecl' || rqcOn()); });
@@ -9413,7 +9454,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
 
   /* ---------- Barre ---------- */
-  var TITOLI = { rubrica: 'Rubrica', richiestecl: 'Richieste dei clienti', vernice: 'Vernice per le carene', controllo: 'Controllo dei mezzi', aspetto: 'Aspetto dell’app', riepiloghi: 'Riepiloghi', scheda: 'Scheda lavoro', scadenze: 'Scadenze', calendario: 'Calendario', barche: 'Barche', lavori: 'Lavorazioni da fare', altro: 'Altro', vari: 'Vari e alaggi', magazzino: 'Magazzino', preventivi: 'Preventivi', assenze: 'Ferie e permessi', misure: 'Misure e unità', rifiuti: 'Rifiuti', scadcantiere: 'Scadenze del cantiere', ore: 'Ore del mese', checklist: 'Checklist', operazioni: 'Servizi di cantiere', backup: 'Copia dei dati', programma: 'Programma', pannello: 'Pannello', batterie: 'Batterie', notifiche: 'Notifiche', categorie: 'Categorie', inventario: 'Inventario', giro: 'Giro di controllo', ditte: 'Ditte esterne' };
+  var TITOLI = { segnala: 'Segnala o suggerisci', rubrica: 'Rubrica', richiestecl: 'Richieste dei clienti', vernice: 'Vernice per le carene', controllo: 'Controllo dei mezzi', aspetto: 'Aspetto dell’app', riepiloghi: 'Riepiloghi', scheda: 'Scheda lavoro', scadenze: 'Scadenze', calendario: 'Calendario', barche: 'Barche', lavori: 'Lavorazioni da fare', altro: 'Altro', vari: 'Vari e alaggi', magazzino: 'Magazzino', preventivi: 'Preventivi', assenze: 'Ferie e permessi', misure: 'Misure e unità', rifiuti: 'Rifiuti', scadcantiere: 'Scadenze del cantiere', ore: 'Ore del mese', checklist: 'Checklist', operazioni: 'Servizi di cantiere', backup: 'Copia dei dati', programma: 'Programma', pannello: 'Pannello', batterie: 'Batterie', notifiche: 'Notifiche', categorie: 'Categorie', inventario: 'Inventario', giro: 'Giro di controllo', ditte: 'Ditte esterne' };
   // per l'amministratore: quale sezione apre ciascuno (lo registra nm-fb.js)
   function vistaNome() {
     if (V.tab === 'barche' && V.boatId && boatById(V.boatId)) return 'la barca ' + (boatById(V.boatId).nome || 'senza nome');
@@ -9457,7 +9498,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   /* menù completo a sinistra, solo su computer e tablet (sul telefono resta nascosto) */
   var SIDE_GRUPPI = [['Officina', ['scheda', 'lavori', 'programma', 'calendario', 'assenze', 'misure']], ['Barche e clienti', ['barche', 'mappa', 'vari', 'scadenze', 'batterie', 'preventivi', 'richiestecl']],
-    ['Cantiere', ['operazioni', 'controllo', 'giro', 'scadcantiere', 'magazzino', 'vernice', 'ditte', 'rubrica', 'rifiuti']], ['Amministrazione', ['pannello', 'riepiloghi', 'ore', 'notifiche', 'categorie', 'aspetto', 'backup']]];
+    ['Cantiere', ['operazioni', 'controllo', 'giro', 'scadcantiere', 'magazzino', 'vernice', 'ditte', 'rubrica', 'rifiuti']], ['Amministrazione', ['pannello', 'riepiloghi', 'ore', 'notifiche', 'categorie', 'aspetto', 'backup', 'segnala']]];
   // ordine del menù: ogni amministratore può riordinare gruppi e voci con la matita in alto (si salva con i riquadri, in impostazioni/layout_<uid>)
   function sideGruppi() {
     var saved = lyCan() && lyCfg().side, def = {}, out = [], seen = {};
@@ -9539,7 +9580,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (S.status === 'absent') html = '<div class="notice" style="margin-top:14px">I dati del registro si aprono solo da Claude, con il tuo account. Apri il link della pagina da claude.ai o dall’app Claude per vedere e salvare barche, lavori e scadenze.</div>';
     else if (S.status === 'loading') html = '<div class="notice" style="margin-top:14px">Carico barche, lavori e scadenze…</div>';
     else if (wizOn()) html = viewWizard();
-    else html = ({ rubrica: viewRubrica, richiestecl: viewRichiesteCl, vernice: viewVernice, controllo: viewControllo, programma: viewProgramma, pannello: viewPannello, riepiloghi: viewRiepiloghi, batterie: viewBatterie, mappa: viewMappa, altro: viewAltro, backup: viewBackup, vari: viewVari, magazzino: viewMagazzino, preventivi: viewPreventivi, assenze: viewAssenze, misure: viewMisure, notifiche: viewNotifiche, categorie: viewCategorie, aspetto: viewAspetto, inventario: viewInventario, rifiuti: viewRifiuti, scadcantiere: viewScadCantiere, ore: viewOre, checklist: viewChecklist, operazioni: viewOperazioni, giro: viewGiro, ditte: viewDitte, home: viewHome, scheda: viewScheda, scadenze: viewScadenze, calendario: viewCalendario, lavori: viewLavori, barche: function () { return V.boatId ? viewBoat() : viewBarche(); } })[V.tab]();
+    else html = ({ segnala: viewSegnala, rubrica: viewRubrica, richiestecl: viewRichiesteCl, vernice: viewVernice, controllo: viewControllo, programma: viewProgramma, pannello: viewPannello, riepiloghi: viewRiepiloghi, batterie: viewBatterie, mappa: viewMappa, altro: viewAltro, backup: viewBackup, vari: viewVari, magazzino: viewMagazzino, preventivi: viewPreventivi, assenze: viewAssenze, misure: viewMisure, notifiche: viewNotifiche, categorie: viewCategorie, aspetto: viewAspetto, inventario: viewInventario, rifiuti: viewRifiuti, scadcantiere: viewScadCantiere, ore: viewOre, checklist: viewChecklist, operazioni: viewOperazioni, giro: viewGiro, ditte: viewDitte, home: viewHome, scheda: viewScheda, scadenze: viewScadenze, calendario: viewCalendario, lavori: viewLavori, barche: function () { return V.boatId ? viewBoat() : viewBarche(); } })[V.tab]();
     if (TAB.as && S.status === 'ready') html = tabBar() + html;
     $('#view').innerHTML = html;
     renderTop(); renderTabs(); bindFeat(); tabCheck();
@@ -11882,7 +11923,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var x;
     switch (act) {
       case 'fb': if (window.__NM_FB) window.__NM_FB.open(t.getAttribute('data-k')); break;
-      case 'tab': if (t.getAttribute('data-tab') === 'mappa' && V.tab !== 'mappa') { M.prevTab = V.tab; M.prevBoat = null; } V.tab = t.getAttribute('data-tab'); V.boatId = null; V.boatView = null; V.exConfirm = false; if (V.tab === 'giro') V.giroId = null; window.scrollTo(0, 0); render(); break;
+      case 'tab': if (t.getAttribute('data-tab') === 'segnala' && V.tab !== 'segnala') V.sgDa = (TITOLI && TITOLI[V.tab]) || V.tab; if (t.getAttribute('data-tab') === 'mappa' && V.tab !== 'mappa') { M.prevTab = V.tab; M.prevBoat = null; } V.tab = t.getAttribute('data-tab'); V.boatId = null; V.boatView = null; V.exConfirm = false; if (V.tab === 'giro') V.giroId = null; window.scrollTo(0, 0); render(); break;
       case 'bk-save': bkSave(); break;
       case 'fs-conta': fsAzione('conta'); break;
       case 'fs-cerca': fsAzione('cerca'); break;
@@ -11914,6 +11955,9 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'bar-list': barList(); break;
       case 'bar-new': if (S.canWrite) barSheet(null, t.getAttribute('data-aid') || ''); break;
       case 'bar-edit': x = (S.barattoli || []).find(function (a) { return a.id === id; }); if (x && S.canWrite) barSheet(x); break;
+      case 'sg-tipo': V.sgTesto = String(($('#sg-t') || {}).value || ''); V.sgTipo = t.getAttribute('data-t'); render(); break;
+      case 'sg-invia': sgInvia(); break;
+      case 'sg-vota': (function () { var a = sgApi(), x = (SGV.idee || []).find(function (i) { return i.id === id; }); if (!a || !x) return; x.mio = !x.mio; x.voti += x.mio ? 1 : -1; render(); a.vota(id, x.mio).catch(function () { x.mio = !x.mio; x.voti += x.mio ? 1 : -1; render(); toast('Voto non salvato: riprova.', true); }); })(); break;
       case 'dep-cfg': if (S.isOwner) depCfgSheet(); break;
       case 'dep-vedi': depVediSheet(t.getAttribute('data-d') || depMain()); break;
       case 'cons-mese': V.consMese = t.getAttribute('data-m'); consSheet(); break;
@@ -12238,6 +12282,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     }
     if (e.target && e.target.id === 'mq') { V.magQ = e.target.value; var mb = $('#mag-box'); if (mb) mb.innerHTML = magListHtml(); }
     if (e.target && e.target.id === 'scad-nq') { V.scadNq = e.target.value; var sb = $('#scad-box'); if (sb) sb.innerHTML = scadNqHtml(); }
+  });
+  document.addEventListener('change', function (e) {
+    var t = e.target; if (!t || t.id !== 'sg-foto') return; var f = t.files && t.files[0], a = sgApi(); t.value = ''; if (!f || !a) return;
+    a.shrink(f).then(function (u) { SGV.foto = u; V.sgTesto = String(($('#sg-t') || {}).value || ''); render(); }, function () { toast('Non riesco a leggere questa foto.', true); });
   });
   document.addEventListener('change', function (e) { if (e.target && e.target.classList && e.target.classList.contains('rc-kit')) kitApply(e.target); });
   document.addEventListener('change', function (e) { if (e.target && e.target.classList && e.target.classList.contains('inv-q')) invSaveCount(e.target); });

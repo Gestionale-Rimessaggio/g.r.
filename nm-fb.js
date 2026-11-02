@@ -1130,6 +1130,47 @@
     fs.collection('pacchetto').doc('attuale').set({ categorie: cat, tipiScadenza: sc, checklist: ck, rifiuti: rf, modificato: nowISO() })
       .then(function () { CR.pack = undefined; CR.packEd = false; toast('Pacchetto salvato'); crRender(); }, function (er) { toast('Non riuscito: ' + errOf(er).code); });
   }
+  /* ---------- Segnala o suggerisci (idea X12) ----------
+     Dall'app chi lavora in un'azienda manda un problema o un'idea (con una foto facoltativa): arriva qui con azienda,
+     persona, pagina, versione e dispositivo. Il gestore risponde, la segna risolta o la mette ai voti (ideeVoto):
+     le idee ai voti le vedono e votano tutti, così si capisce cosa chiedono davvero. */
+  var SG = { list: null, idee: null, risp: null };
+  function sgAvvia() {
+    if (SG.list !== null) return; SG.list = [];
+    fs.collection('segnalazioni').orderBy('creato', 'desc').limit(60).onSnapshot(function (s) { SG.list = s.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); crRender(); }, function () { });
+    fs.collection('ideeVoto').onSnapshot(function (s) { SG.idee = s.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); crRender(); }, function () { });
+  }
+  function sgVoti(x) { return Object.keys(x.voti || {}).filter(function (k) { return x.voti[k]; }).length; }
+  function crSegnHtml() {
+    sgAvvia();
+    var L = SG.list || [], aperte = L.filter(function (x) { return x.stato !== 'risolta'; }), idee = (SG.idee || []).slice().sort(function (a, b) { return sgVoti(b) - sgVoti(a); });
+    var h = '<div class="grp">' + (aperte.length ? aperte.slice(0, 20).map(function (x) {
+      return '<div class="u"><div class="nm">' + esc(x.tipo === 'idea' ? '💡 Idea' : '⚠ Problema') + ' · ' + esc(x.nomeAzienda || '') + '<span class="pill">' + esc(crQuando(x.creato)) + '</span></div>' +
+        '<div class="em" style="white-space:pre-wrap">' + esc(x.testo || '') + '</div><div class="em">' + esc([x.nome, x.pagina ? 'pagina ' + x.pagina : '', x.versione ? 'versione ' + x.versione : '', x.dispositivo].filter(Boolean).join(' · ')) + '</div>' +
+        (x.foto ? '<img alt="Foto allegata" src="' + esc(x.foto) + '" style="max-width:100%;max-height:220px;border-radius:10px;margin-top:6px">' : '') +
+        (x.risposta ? '<div class="em">La tua risposta: ' + esc(x.risposta) + '</div>' : '') +
+        (SG.risp === x.id ? '<textarea id="cr-sg-r" rows="3" maxlength="1000" style="' + TA + '" placeholder="La risposta che vede chi l’ha mandata">' + esc(x.risposta || '') + '</textarea><div class="acts"><button class="b pri" data-cr="sg-risp-ok" data-id="' + esc(x.id) + '">Invia la risposta</button><button class="b" data-cr="sg-risp-no">Annulla</button></div>'
+          : '<div class="acts"><button class="b" data-cr="sg-risp" data-id="' + esc(x.id) + '">Rispondi</button><button class="b" data-cr="sg-ok" data-id="' + esc(x.id) + '">Risolta</button>' + (x.tipo === 'idea' && !x.idea ? '<button class="b" data-cr="sg-voti" data-id="' + esc(x.id) + '">Metti ai voti</button>' : '') + '</div>') + '</div>';
+    }).join('') : '<div class="u"><div class="em">Nessuna segnalazione da guardare.</div></div>') + '</div>';
+    h += '<h4>Idee ai voti (' + idee.length + ')</h4><div class="grp">' + (idee.length ? idee.map(function (x) {
+      return '<div class="u"><div class="nm">' + esc(x.testo || '') + '<span class="pill">' + sgVoti(x) + (sgVoti(x) === 1 ? ' voto' : ' voti') + '</span></div><div class="acts"><button class="b red" data-cr="sg-togli" data-id="' + esc(x.id) + '">Togli dai voti</button></div></div>';
+    }).join('') : '<div class="u"><div class="em">Nessuna idea ai voti: con «Metti ai voti» su un’idea la vedono e votano tutte le aziende (senza nome di chi l’ha mandata).</div></div>') + '</div>';
+    return h;
+  }
+  // per l'app: manda, le proprie, le idee ai voti, vota
+  var SEGN = {
+    invia: function (d) {
+      if (!ME || !AZ) return Promise.reject({ code: 'no' });
+      var x = { uid: ME.uid, azienda: AZ, nomeAzienda: String((AZD && AZD.nome) || '').slice(0, 80), nome: String(ME.nome || ME.email || '').slice(0, 80), tipo: d.tipo === 'idea' ? 'idea' : 'problema',
+        testo: String(d.testo || '').slice(0, 2000), pagina: String(d.pagina || '').slice(0, 40), versione: String(d.versione || '').slice(0, 40), dispositivo: String(navigator.userAgent || '').slice(0, 200), stato: 'nuova', creato: nowISO() };
+      if (d.foto) x.foto = d.foto;
+      return fs.collection('segnalazioni').doc(rid('s')).set(x);
+    },
+    mie: function () { if (!ME) return Promise.resolve([]); return fs.collection('segnalazioni').where('uid', '==', ME.uid).get().then(function (s) { return s.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }).sort(function (a, b) { return String(b.creato).localeCompare(String(a.creato)); }); }); },
+    idee: function () { return fs.collection('ideeVoto').get().then(function (s) { return s.docs.map(function (d) { var x = d.data(); return { id: d.id, testo: x.testo || '', voti: sgVoti(x), mio: !!(ME && x.voti && x.voti[ME.uid]) }; }); }); },
+    vota: function (id, on) { var u = {}; u['voti.' + ME.uid] = on ? true : firebase.firestore.FieldValue.delete(); return fs.collection('ideeVoto').doc(id).update(u); },
+    shrink: function (file) { return shrink(file, 1100, 0.6).then(function (b) { return b.size > 280 * 1024 ? shrink(b, 800, 0.5) : b; }).then(blobToDataUrl); }
+  };
   function crMsgHtml() {
     var m = CR.msg && CR.msg.attivo ? CR.msg : null;
     return '<div class="grp"><div class="u">' + (m ? '<div class="nm">In Home di tutte le aziende dal ' + esc(crQuando(m.il)) + '</div><div class="em">' + esc(m.testo) + '</div>' : '<div class="em">Nessun messaggio attivo.</div>') +
@@ -1160,7 +1201,7 @@
     if (!CR.on || started) return;
     var o = $('#nmcr'); if (!o) { hideOverlay(); o = document.createElement('div'); o.id = 'nmcr'; document.body.appendChild(o); }
     var ae = document.activeElement, fid = ae && o.contains(ae) && ae.id ? ae.id : '', sel = fid && ae.selectionStart != null ? [ae.selectionStart, ae.selectionEnd] : null, keep = {};
-    ['cr-msg', 'cr-nota', 'cr-nov-t', 'cr-nov-r', 'cr-pk-c', 'cr-pk-s', 'cr-pk-k', 'cr-pk-r'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
+    ['cr-msg', 'cr-nota', 'cr-sg-r', 'cr-nov-t', 'cr-nov-r', 'cr-pk-c', 'cr-pk-s', 'cr-pk-k', 'cr-pk-r'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
     var ids = Object.keys(CR.az).sort(function (a, b) { return String(CR.az[b].creato || '').localeCompare(String(CR.az[a].creato || '')); });
     var h = '<div class="in">';
     if (CR.vista && CR.vista.indexOf('rep:') === 0 && CR.az[CR.vista.slice(4)]) {
@@ -1235,6 +1276,7 @@
           '<div class="chips">' + [['nome', 'Nome'], ['spazio', 'Spazio'], ['accesso', 'Ultimo accesso'], ['errori', 'Errori']].map(function (c) { return '<button class="b' + (CR.ord === c[0] ? ' pri' : '') + '" data-cr="ord" data-id="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>' : '') +
         (att.length ? '<div class="grp" style="margin-top:10px">' + att.map(row).join('') + '</div>' : by('attiva').length ? '<p class="note">Nessuna azienda trovata.</p>' : '') +
         sec('Sospese', by('sospesa')) + sec('Rifiutate', by('rifiutata')) +
+        '<h4>Segnalazioni e idee dalle aziende' + ((SG.list || []).filter(function (x) { return x.stato !== 'risolta'; }).length ? ' (' + SG.list.filter(function (x) { return x.stato !== 'risolta'; }).length + ')' : '') + '</h4>' + crSegnHtml() +
         '<h4>Novità in app</h4>' + crNovHtml() +
         '<h4>Messaggio a tutte le aziende</h4>' + crMsgHtml() +
         '<h4>Pacchetto di partenza delle aziende nuove</h4>' + crPackHtml() +
@@ -1332,6 +1374,12 @@
     else if (k === 'nov-annulla') { CR.novEd = null; crRender(); }
     else if (k === 'nov-nascondi') { if (confirm('Nascondere questa novità? Chi non l’ha ancora vista non la vedrà.')) crNovScrivi(id, { nascosta: true }, 'Novità nascosta'); }
     else if (k === 'nov-vedi') crNovScrivi(id, { nascosta: false }, 'Novità rimessa');
+    else if (k === 'sg-risp') { SG.risp = id; crRender(); }
+    else if (k === 'sg-risp-no') { SG.risp = null; crRender(); }
+    else if (k === 'sg-risp-ok') { var rv = String(($('#cr-sg-r') || {}).value || '').trim().slice(0, 1000); fs.collection('segnalazioni').doc(id).update({ risposta: rv, rispostaIl: nowISO(), stato: 'risposta' }).then(function () { SG.risp = null; toast('Risposta inviata'); crRender(); }, function (er) { toast('Non riuscito: ' + errOf(er).code); }); }
+    else if (k === 'sg-ok') fs.collection('segnalazioni').doc(id).update({ stato: 'risolta', risoltaIl: nowISO() }).then(function () { toast('Segnata come risolta'); }, function (er) { toast('Non riuscito: ' + errOf(er).code); });
+    else if (k === 'sg-voti') { var sx = (SG.list || []).find(function (x) { return x.id === id; }); if (sx) fs.collection('ideeVoto').doc(rid('i')).set({ testo: String(sx.testo || '').slice(0, 300), creato: nowISO(), voti: {} }).then(function () { return fs.collection('segnalazioni').doc(id).update({ idea: true }); }).then(function () { toast('Messa ai voti: la vedono tutte le aziende'); }, function (er) { toast('Non riuscito: ' + errOf(er).code); }); }
+    else if (k === 'sg-togli') { if (confirm('Togliere questa idea dai voti?')) fs.collection('ideeVoto').doc(id).delete().then(function () { toast('Tolta dai voti'); }, function (er) { toast('Non riuscito: ' + errOf(er).code); }); }
     else if (k === 'nov-salva') {
       var tt = (($('#cr-nov-t') || {}).value || '').trim(), rr = (($('#cr-nov-r') || {}).value || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 12);
       if (!rr.length) { toast('Scrivi almeno una novità'); return; }
@@ -2071,6 +2119,7 @@
       persone: function () { var L = LIVE.pin, m = (L && L.map) || {}; return Object.keys(m).filter(function (id) { return pinDi(id) && UT[id] && UT[id].stato === 'attivo' && UT[id].ruolo !== 'cliente' && !UT[id].tablet; }).map(function (id) { return { id: id, nome: UT[id].nome || '' }; }); }
     },
     pacchetto: pacchetto,
+    segnala: SEGN,
     azienda: function () { return { nome: (AZD && AZD.nome) || '', assist: !!(ME && ME.assist) }; } // l'azienda in uso (per la procedura guidata)
   };
 })();
