@@ -12,7 +12,12 @@ service cloud.firestore {
     function creatore() { return signedIn() && exists(/databases/$(database)/documents/creatori/$(request.auth.uid)); }
     function azienda(a) { return get(/databases/$(database)/documents/aziende/$(a)).data; }
     // chi lavora (o è cliente) in un'azienda attiva ed è stato approvato
-    function attivo(a) { return signedIn() && exists(profilo()) && me().get('azienda', '') == a && me().stato == 'attivo' && azienda(a).stato == 'attiva'; }
+    function attivo0(a) { return signedIn() && exists(profilo()) && me().get('azienda', '') == a && me().stato == 'attivo' && azienda(a).stato == 'attiva'; }
+    // prova o abbonamento: dopo la scadenza (scadeMs, fine dell'ultimo giorno) l'app è bloccata; i dati restano
+    function inRegola(a) { return azienda(a).get('scadeMs', 0) == 0 || azienda(a).scadeMs > request.time.toMillis(); }
+    function attivo(a) { return attivo0(a) && inRegola(a); }
+    // ad azienda scaduta l'amministratore può solo leggere, per scaricare la copia dei dati
+    function adminScaduto(a) { return attivo0(a) && me().ruolo == 'admin'; }
     function staff(a) { return attivo(a) && me().ruolo in ['base', 'editor', 'admin']; }
     function cliente(a) { return attivo(a) && me().ruolo == 'cliente'; }
     function admin(a) { return attivo(a) && me().ruolo == 'admin'; }
@@ -38,6 +43,38 @@ service cloud.firestore {
     }
 
     // Messaggio del gestore a tutte le aziende: lo leggono tutti quelli che entrano, lo scrive solo il gestore
+    // Novità in app: le legge chi è entrato, le scrive solo il gestore (quelle di ogni pubblicazione stanno in novita.json)
+    match /novita/{id} {
+      allow read: if signedIn();
+      allow write: if creatore() && request.resource.data.keys().hasOnly(['titolo', 'righe', 'il', 'nascosta'])
+        && corto(request.resource.data, 'titolo', 60) && (!('righe' in request.resource.data) || (request.resource.data.righe is list && request.resource.data.righe.size() <= 12));
+    }
+    // Pacchetto di partenza delle aziende nuove (categorie, scadenze, checklist, rifiuti): lo legge chi è entrato, lo scrive solo il gestore
+    match /pacchetto/{id} {
+      allow read: if signedIn();
+      allow write: if creatore();
+    }
+    // Segnala o suggerisci (idea X12): chi lavora in un'azienda manda un problema o un'idea al gestore e rilegge solo le sue
+    match /segnalazioni/{id} {
+      allow read: if creatore() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow create: if signedIn() && exists(profilo()) && me().stato == 'attivo' && me().ruolo in ['base', 'editor', 'admin']
+        && request.resource.data.uid == request.auth.uid && request.resource.data.azienda == me().get('azienda', '')
+        && request.resource.data.stato == 'nuova' && request.resource.data.tipo in ['problema', 'idea']
+        && request.resource.data.keys().hasOnly(['uid', 'azienda', 'nomeAzienda', 'nome', 'tipo', 'testo', 'pagina', 'versione', 'dispositivo', 'stato', 'creato', 'foto'])
+        && corto(request.resource.data, 'testo', 2000) && corto(request.resource.data, 'nome', 80) && corto(request.resource.data, 'nomeAzienda', 80)
+        && corto(request.resource.data, 'pagina', 40) && corto(request.resource.data, 'versione', 40) && corto(request.resource.data, 'dispositivo', 200)
+        && corto(request.resource.data, 'foto', 400000);
+      allow update, delete: if creatore();
+    }
+    // Idee ai voti: le mette il gestore (senza il nome di chi le ha mandate); chi lavora nelle aziende le legge e vota solo per sé
+    match /ideeVoto/{id} {
+      allow read: if signedIn();
+      allow create, delete: if creatore();
+      allow update: if creatore() || (signedIn() && exists(profilo()) && me().stato == 'attivo' && me().ruolo in ['base', 'editor', 'admin']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['voti'])
+        && request.resource.data.voti is map
+        && request.resource.data.voti.diff(resource.data.get('voti', {})).affectedKeys().hasOnly([request.auth.uid]));
+    }
     match /messaggioServizio/{id} {
       allow read: if signedIn();
       allow write: if creatore();
@@ -48,12 +85,15 @@ service cloud.firestore {
     // Le raccolte con i dati di ogni azienda (le stesse di COLLS in nm-fb.js)
     function raccolteCantiere() {
       return ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
-        'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'programma', 'cariche', 'posti', 'richieste',
-        'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi'];
+        'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'deposito', 'programma', 'cariche', 'posti', 'richieste',
+        'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente', 'verbali', 'componenti', 'barattoli', 'noteColleghi'];
     }
 
     match /aziende/{a} {
-      allow get: if creatore() || (signedIn() && exists(profilo()) && me().get('azienda', '') == a);
+      // chi è ancora in attesa con il codice non legge la scheda (email e telefono dell'amministratore, codice);
+      // la legge solo chi è stato approvato, oppure chi l'ha appena registrata
+      allow get: if creatore() || (signedIn() && exists(profilo()) && me().get('azienda', '') == a
+        && (me().stato == 'attivo' || resource.data.admin == request.auth.uid));
       allow list: if creatore();
       allow create: if signedIn() && !exists(profilo())
         && request.resource.data.admin == request.auth.uid && request.resource.data.stato == 'in_attesa'
@@ -61,7 +101,10 @@ service cloud.firestore {
         && request.resource.data.nome is string && request.resource.data.nome.size() > 0 && request.resource.data.nome.size() <= 60
         && corto(request.resource.data, 'adminNome', 60) && corto(request.resource.data, 'email', 254) && corto(request.resource.data, 'telefono', 30)
         && getAfter(profilo()).data.azienda == a;
-      allow update: if creatore()
+      // il gestore approva, sospende o rifiuta, dà il codice e la quota; il permesso di assistenza e l'amministratore non li tocca
+      allow update: if (creatore() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stato', 'codice', 'approvata', 'quotaMb', 'modificato', 'scade', 'scadeMs', 'abbonata', 'aiMax'])
+          && (!('scadeMs' in request.resource.data) || request.resource.data.scadeMs is int)
+          && (!('codice' in request.resource.data) || getAfter(/databases/$(database)/documents/codici/$(request.resource.data.codice)).data.azienda == a))
         || (admin(a) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['codice', 'assistenza', 'modificato'])
           && (!('codice' in request.resource.data) || getAfter(/databases/$(database)/documents/codici/$(request.resource.data.codice)).data.azienda == a));
 
@@ -69,6 +112,36 @@ service cloud.firestore {
       match /portale/{barcaId} {
         allow read: if staffA(a) || (cliente(a) && barcaId in me().get('barche', []));
         allow write: if staffA(a);
+      }
+      // Tetto dell'AI: il conto delle richieste del giorno sale solo di uno alla volta e non oltre aiMax (30 se non scritto).
+      // Lo leggono l'azienda e il gestore; nessuno lo abbassa o lo cancella.
+      match /aiUso/{giorno} {
+        allow read: if staffA(a) || creatore();
+        allow create: if staffA(a) && request.resource.data.keys().hasOnly(['n', 'il']) && request.resource.data.n == 1;
+        allow update: if staffA(a) && request.resource.data.keys().hasOnly(['n', 'il'])
+          && request.resource.data.n == resource.data.n + 1 && request.resource.data.n <= azienda(a).get('aiMax', 30);
+      }
+      // Le foto della roba in deposito che compaiono nel portale (foto.portale = la barca): le apre solo il cliente di quella barca
+      match /foto/{id} {
+        allow get: if cliente(a) && resource.data.get('portale', '') in me().get('barche', []);
+        // le foto che il cliente allega a una sua richiesta (al massimo ~900 KB ciascuna)
+        allow create: if cliente(a) && request.resource.data.get('portale', '') in me().get('barche', [])
+          && request.resource.data.da == request.auth.uid
+          && request.resource.data.keys().hasOnly(['data', 'creato', 'da', 'portale'])
+          && request.resource.data.data is string && request.resource.data.data.size() < 900000;
+      }
+      // Richieste dei clienti dal portale (varo, problema): il cliente le scrive per le sue barche e le legge;
+      // l'azienda le legge e risponde (regola generale più sotto)
+      match /richiesteCliente/{rid} {
+        allow read: if cliente(a) && resource.data.cliente == request.auth.uid;
+        allow create: if cliente(a) && request.resource.data.cliente == request.auth.uid
+          && request.resource.data.barcaId in me().get('barche', [])
+          && request.resource.data.stato == 'inviata'
+          && request.resource.data.tipo in ['varo', 'problema', 'lavoro']
+          && request.resource.data.keys().hasOnly(['cliente', 'nome', 'barcaId', 'tipo', 'data', 'testo', 'foto', 'stato', 'creato', 'scadId'])
+          && request.resource.data.get('scadId', '') is string && request.resource.data.get('scadId', '').size() <= 60
+          && request.resource.data.get('testo', '') is string && request.resource.data.get('testo', '').size() <= 2000
+          && request.resource.data.get('foto', []) is list && request.resource.data.get('foto', []).size() <= 3;
       }
 
       // Cestino: ogni cancellazione ne lascia qui una copia (per 60 giorni).
@@ -121,12 +194,13 @@ service cloud.firestore {
         }
         function autoreOk(d) { return d.get('creatoDa', request.auth.uid) == request.auth.uid || (tablet(a) && d.get('via', '') == request.auth.uid); }
         function autoreUguale() { return cancellato(resource.data) || nuovo().get('creatoDa', '') == resource.data.get('creatoDa', ''); }
-        function datiCantiere() { return !(coll in ['portale', 'cestino', 'attivita']); }
-        // l'aspetto dell'app (nome dell'azienda, colori, loghi, luogo) e le sezioni accese li cambia solo l'amministratore
-        function soloAdmin() { return coll == 'impostazioni' && id in ['aspetto', 'sezioni']; }
+        function datiCantiere() { return !(coll in ['portale', 'cestino', 'attivita', 'aiUso']); }
+        // l'aspetto dell'app (nome dell'azienda, colori, loghi, luogo), le sezioni accese e il disegno del porto li cambia solo l'amministratore
+        function soloAdmin() { return coll == 'impostazioni' && id in ['aspetto', 'sezioni', 'porto', 'vernice', 'emergenze', 'reperibilita']; }
 
         // i PIN del tablet (impronte di 4 cifre, facili da ricavare): ognuno legge solo il suo; tutti solo amministratori, gestore in assistenza e tablet
-        allow read: if staffA(a) && datiCantiere() && (coll != 'pin' || adminA(a) || tablet(a) || resource.data.get('utente', '') == request.auth.uid);
+        allow read: if (staffA(a) && datiCantiere() && (coll != 'pin' || adminA(a) || tablet(a) || resource.data.get('utente', '') == request.auth.uid))
+          || (datiCantiere() && adminScaduto(a));
         allow create: if datiCantiere() && (adminA(a) || (!soloAdmin() && staff(a) && !cancellato(nuovo()) && proprio(nuovo()) && ferieOk(nuovo()) && autoreOk(nuovo())));
         allow update: if datiCantiere() && (adminA(a) || (!soloAdmin() && staff(a) && (
           cancellato(nuovo()) ? (cancellato(resource.data) || puoCancellare(resource.data))
@@ -159,11 +233,15 @@ service cloud.firestore {
           || (request.resource.data.ruolo == 'admin'
               && !exists(/databases/$(database)/documents/aziende/$(request.resource.data.azienda))
               && getAfter(/databases/$(database)/documents/aziende/$(request.resource.data.azienda)).data.admin == uid));
+      // il gestore attiva (o sospende) solo il primo amministratore di un'azienda, e senza cambiargli nient'altro:
+      // nei dati delle aziende entra solo con l'assistenza accesa
       // l'amministratore approva e cambia i permessi solo nella sua azienda, senza spostare nessuno in un'altra
-      allow update: if creatore()
+      allow update: if (creatore() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stato', 'modificato'])
+          && request.resource.data.stato in ['attivo', 'in_attesa', 'bloccato']
+          && azienda(resource.data.get('azienda', '-')).get('admin', '') == uid)
         || (adminA(resource.data.get('azienda', '-')) && request.resource.data.get('azienda', '') == resource.data.get('azienda', '')
           && request.resource.data.get('ruolo', '') in ['base', 'editor', 'admin', 'cliente'])
-        || (signedIn() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'modificato']) && corto(request.resource.data, 'nome', 60));
+        || (signedIn() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'modificato', 'novitaVista']) && corto(request.resource.data, 'nome', 60) && corto(request.resource.data, 'novitaVista', 40));
       allow delete: if creatore() || adminA(resource.data.get('azienda', '-'));
     }
 

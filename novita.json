@@ -1,0 +1,44 @@
+[
+  {
+    "id": "2026-11-02-2",
+    "titolo": "Novembre 2026",
+    "righe": [
+      "Ore sospette: nel Pannello l’amministratore vede le mansioni segnate due volte e lo stesso lavoro sulla stessa barca segnato da più persone; l’avviso compare anche quando si salva la mansione.",
+      "Rifiuti: quando un tipo supera i kg o i giorni in deposito impostati, in Home e in Rifiuti compare l’avviso con il tasto per chiamare la ditta.",
+      "Rubrica (Cantiere › Rubrica): fornitori, ditte esterne, ditta dei rifiuti e altri contatti, con Chiama, WhatsApp ed email.",
+      "Componenti a bordo: nella scheda della barca motori, generatore, elettronica… con modello, matricola, anno e chi li ha montati.",
+      "Segnala o suggerisci (Amministrazione): un problema o un’idea, anche con una foto, arriva a chi gestisce il servizio; la risposta la trovate lì, e potete votare le idee delle altre aziende.",
+      "Nuove sezioni da accendere in Altro › Aspetto dell’app (spente di base): Targhetta da foto, Preventivi con varianti, Barattoli aperti, Più depositi, Materiale di consumo, Confronto tra stagioni, Scadenze ricordate al cliente.",
+      "E ancora, sempre da accendere: Tempi tra le mani, Note ai colleghi, Avviso di conflitto nel programma, Emergenze (numeri, punto di raccolta, primo soccorso) e Reperibilità del fine settimana."
+    ]
+  },
+  {
+    "id": "2026-11-02",
+    "titolo": "Novembre 2026",
+    "righe": [
+      "Barche e clienti da Excel: in Barche l’amministratore tocca «Barche e clienti da Excel» e sceglie il file (.xlsx o .csv) del vecchio gestionale; le colonne si riconoscono da sole e prima di salvare vedi cosa entra.",
+      "Barca venduta: in fondo alla scheda della barca, «Barca venduta: cambia proprietario» scrive il nuovo proprietario; lavori e storia restano alla barca.",
+      "Notifiche: in Altro › Notifiche c’è «Mandami una notifica di prova», per controllare che il telefono le riceva.",
+      "Nuove sezioni da accendere in Altro › Aspetto dell’app, tra le sezioni (spente di base): Verbale di presa in carico all’alaggio e al varo, Etichetta QR sulla barca, Trova il posto giusto, Schede di sicurezza dei prodotti, Vernice per le carene, Avanzamento lavori al cliente, Richieste dei clienti dal portale."
+    ]
+  },
+  {
+    "id": "2026-11-01-porto",
+    "titolo": "Novembre 2026",
+    "righe": [
+      "Porto: ora è l’elenco dei vostri posti. Con «Aggiungi posto» scrivete nome, zona e misure, poi assegnate barca, cliente e contratto come prima. I posti già segnati restano.",
+      "Porto disegnato da voi (da accendere in Altro › Aspetto dell’app, tra le sezioni): l’amministratore carica la foto dall’alto del porto e segna le file di posti; da lì il Porto mostra la vostra mappa invece dell’elenco."
+    ]
+  },
+  {
+    "id": "2026-11-01",
+    "titolo": "Novembre 2026",
+    "righe": [
+      "Roba del cliente in deposito (da accendere in Altro › Aspetto dell’app, tra le sezioni): nella scheda della barca segni tender, fuoribordo, cuscini e tendalini, con la foto e il posto in cui sono riposti. Alla riconsegna spunti cosa restituisci. Il cliente li vede nel suo portale, con le foto.",
+      "Copia dei dati automatica: ogni domenica notte il servizio salva da solo una copia dei dati della tua azienda. In Altro › Copia dei dati vedi la data dell’ultima.",
+      "AI dalla foto: ogni azienda ha 30 richieste al giorno; finite quelle, si riprova il giorno dopo.",
+      "Prova e abbonamento: negli ultimi 7 giorni l’amministratore vede in Home quando finisce la prova o l’abbonamento.",
+      "Questa finestra delle novità si può spegnere in Altro › Aspetto dell’app, tra le sezioni."
+    ]
+  }
+]
