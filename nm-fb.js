@@ -112,6 +112,16 @@
     '#nmfb .odn{display:flex;justify-content:center;margin:6px 0 4px}#nmfb .oc{display:flex;width:100%;align-items:center;gap:10px;padding:9px 0;border:0;border-top:1px solid #23245a;background:none;color:inherit;font:inherit;font-size:.95rem;text-align:left;cursor:pointer}#nmfb .oc i{width:11px;height:11px;border-radius:3px;flex:none}#nmfb .oc span{flex:1}#nmfb .oc b{white-space:nowrap;font-variant-numeric:tabular-nums}#nmfb .oc small{color:#8a8db0;width:12px}' +
     '#nmfb .ors{padding:0 0 6px 12px;border-left:3px solid;margin:0 0 8px 4px}#nmfb .ors .lv{font-size:.9rem;border-top:0;padding:5px 0}#nmfb .ors .lv .d{width:52px}#nmfb .ors .on{display:block;color:#9a9dc0;font-size:.82rem;margin-top:1px}#nmfb .lv .oh{margin-left:auto;padding-left:8px;white-space:nowrap;color:#c9d4ff;font-variant-numeric:tabular-nums}#nmfb .otot{display:flex;justify-content:space-between;padding:10px 0 2px;border-top:2px solid #3a3d7a;font-weight:700}' +
     '#nmfb .gd{margin-top:18px;color:#b9bccb;font-size:.95rem}#nmfb .gd summary{color:#8cc2ff;cursor:pointer;padding:8px 0}#nmfb .gd ul{margin:4px 0 0;padding-left:20px}#nmfb .gd li{margin:6px 0}' +
+    /* area cliente su computer e tablet: schede delle barche in alto e riquadri su 2 o 3 colonne (sul telefono non cambia nulla) */
+    '#nmfb .btabs{display:none}@media (min-width:768px) and (min-height:500px){#nmfb.cli .box{max-width:1180px}#nmfb.cli .logo{width:220px;margin:6px 0 18px}' +
+    '#nmfb.cli .btabs{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 14px;border-bottom:1px solid #2a2c5c}#nmfb.cli .btabs button{background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;color:#b9bccb;font:inherit;font-weight:700;font-size:1.05rem;padding:10px 16px;cursor:pointer;text-align:left}' +
+    '#nmfb.cli .btabs button[aria-selected="true"]{color:#fff;border-color:#2f8ff0}#nmfb.cli .btabs small{display:block;font-weight:500;font-size:.78rem;color:#9a9dc0}' +
+    '#nmfb.cli .bc{display:none}#nmfb.cli .bc.on{display:block}#nmfb.cli .bc.full{background:none;border:0;padding:0}' +
+    '#nmfb.cli .bt{background:#12114a;border:1px solid #33355a;border-radius:14px;padding:18px 22px;margin-bottom:16px;display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:0 26px;align-items:center}' +
+    '#nmfb.cli .bt .kv{border-top:0;flex-direction:column;gap:2px;margin:0!important;padding:4px 0}#nmfb.cli .bt .kv b{text-align:left}' +
+    '#nmfb.cli .cg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;grid-auto-flow:row dense;margin-bottom:16px}#nmfb.cli .cso{grid-row:span 2}#nmfb.cli .cs{box-sizing:border-box;background:#12114a;border:1px solid #33355a;border-radius:14px;padding:16px 18px;margin:0}' +
+    '#nmfb.cli .cs>h5:first-child{margin-top:0}#nmfb.cli .bc.full>.upd{margin-top:0}#nmfb.cli .lv .d{width:auto;min-width:22px;white-space:nowrap}#nmfb.cli>.box>.lnk{display:inline-block;width:auto;margin-right:14px}}' +
+    '@media (min-width:1100px) and (min-height:500px){#nmfb.cli .cg{grid-template-columns:repeat(3,minmax(0,1fr))}}' +
     '#nmfb .upd{color:#8a8db0;font-size:.82rem;margin-top:10px}#nmfb .more{background:none;border:0;color:#8cc2ff;font:inherit;padding:8px 0;cursor:pointer}' +
     '#nmpan .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;width:100%}#nmpan .chip{display:inline-flex;align-items:center;gap:4px;background:#1e3a5f;color:#d6e8ff;border-radius:99px;padding:4px 4px 4px 10px;font-size:.9rem}' +
     '#nmpan .chip button{background:none;border:0;color:#d6e8ff;font-size:1.1rem;line-height:1;padding:2px 6px;cursor:pointer}' +
@@ -1461,7 +1471,7 @@
   }
 
   /* ---------- area cliente ---------- */
-  var CL = { unsubs: [], docs: {}, all: {}, req: [], oy: {}, oc: {} };
+  var CL = { unsubs: [], docs: {}, all: {}, req: [], oy: {}, oc: {}, tab: '' };
   var MESI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
   function dataCorta(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); if (!m) return ''; var y = +m[1], cy = new Date().getFullYear(); return (+m[3]) + ' ' + MESI[+m[2] - 1] + (y !== cy ? ' ’' + String(y).slice(2) : ''); }
   function dataLunga(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? (+m[3]) + ' ' + MESI[+m[2] - 1] + ' ' + m[1] : ''; }
@@ -1545,34 +1555,41 @@
     var rp = rpL.filter(function (t) { return t.dal <= rpOggi && t.al >= rpOggi; })[0] || rpL.filter(function (t) { return t.dal > rpOggi && t.dal <= new Date(Date.now() + 3 * 864e5).toISOString().slice(0, 10); })[0];
     if (rp) h += '<div class="card"><p style="margin:0">' + (rp.dal <= rpOggi ? 'Reperibile per le urgenze' : 'Reperibile per le urgenze da ' + esc(dataLunga(rp.dal))) + (rp.al > rp.dal ? ' fino a ' + esc(dataLunga(rp.al)) : '') + ': <b>' + esc(rp.nome || 'il cantiere') + '</b> · <a href="tel:' + esc(String(rp.tel).replace(/[^\d+]/g, '')) + '">' + esc(rp.tel) + '</a></p></div>';
     if (!CL.ids.length) h += '<div class="card"><p style="margin:0">Il cantiere sta collegando la tua barca al tuo account. Appena fatto, la trovi qui.</p></div>';
+    // computer e tablet: una scheda per barca in alto e sotto i riquadri; sul telefono le barche restano una sotto l'altra
+    var tab = CL.ids.indexOf(CL.tab) >= 0 ? CL.tab : CL.ids[0];
+    if (CL.ids.length > 1) h += '<div class="btabs" role="tablist">' + CL.ids.map(function (id) {
+      var d = CL.docs[id] || {}, st = d.stato || '', sub = [st, d.porto ? 'posto ' + d.porto.posto : ''].filter(Boolean).join(' · ');
+      return '<button role="tab" data-cl="tab" data-id="' + esc(id) + '" aria-selected="' + (id === tab) + '">' + esc(d.nome || 'Barca') + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</button>';
+    }).join('') + '</div>';
     CL.ids.forEach(function (id) {
-      var d = CL.docs[id];
-      if (d === undefined) { h += '<div class="card bc"><div class="spin" style="margin:10px auto"></div></div>'; return; }
-      if (!d) { h += '<div class="card bc"><p style="margin:0">Stiamo preparando i dati di questa barca: tra poco li vedi qui.</p></div>'; return; }
+      var d = CL.docs[id], on = id === tab ? ' on' : '';
+      var cs = function (x, c) { return x ? '<div class="cs' + (c ? ' ' + c : '') + '">' + x + '</div>' : ''; };
+      if (d === undefined) { h += '<div class="card bc' + on + '"><div class="spin" style="margin:10px auto"></div></div>'; return; }
+      if (!d) { h += '<div class="card bc' + on + '"><p style="margin:0">Stiamo preparando i dati di questa barca: tra poco li vedi qui.</p></div>'; return; }
       var st = d.stato || 'In rimessaggio', cls = st === 'In acqua' ? 'acqua' : st === 'In lavorazione' ? 'lav' : '';
       var dove = d.porto ? 'Porto, posto ' + d.porto.posto : st === 'In acqua' ? 'In acqua' : st === 'Consegnata' ? 'Consegnata' : (d.posto ? 'Cantiere · ' + d.posto : 'Al cantiere');
       var lav = d.lavori || [], open = CL.all[id], show = open ? lav : lav.slice(0, 8);
-      h += '<div class="card bc"><div class="bh"><div><div class="bn">' + esc(d.nome || 'Barca') + '</div><div class="bm">' + esc([d.modello, d.lunghezza ? String(d.lunghezza).replace('.', ',') + ' m' : ''].filter(Boolean).join(' · ')) + '</div></div>' +
+      h += '<div class="card bc full' + on + '"><div class="bt"><div class="bh"><div><div class="bn">' + esc(d.nome || 'Barca') + '</div><div class="bm">' + esc([d.modello, d.lunghezza ? String(d.lunghezza).replace('.', ',') + ' m' : ''].filter(Boolean).join(' · ')) + '</div></div>' +
         '<span class="st ' + cls + '">' + esc(st) + '</span></div>' +
         '<div class="kv" style="margin-top:12px"><span>Dove si trova</span><b>' + esc(dove) + '</b></div>' +
-        (d.porto && (d.porto.contratto || d.porto.fino) ? '<div class="kv"><span>Contratto del posto</span><b>' + esc([d.porto.contratto, d.porto.fino ? 'fino al ' + dataLunga(d.porto.fino) : ''].filter(Boolean).join(' · ')) + '</b></div>' : '') +
-        ((d.deposito || []).length ? '<h5>In deposito al cantiere</h5>' + d.deposito.map(function (x) {
+        (d.porto && (d.porto.contratto || d.porto.fino) ? '<div class="kv"><span>Contratto del posto</span><b>' + esc([d.porto.contratto, d.porto.fino ? 'fino al ' + dataLunga(d.porto.fino) : ''].filter(Boolean).join(' · ')) + '</b></div>' : '') + '</div><div class="cg">' +
+        cs((d.deposito || []).length ? '<h5>In deposito al cantiere</h5>' + d.deposito.map(function (x) {
           return '<div class="lv" style="align-items:center"><span style="flex:1">' + esc(x.cosa) + (x.quanti > 1 ? ' ×' + x.quanti : '') + '</span>' +
             ((x.foto || []).length ? '<span class="dfo">' + x.foto.map(function (f) { if (!PH[f]) setTimeout(function () { loadPhoto(f); }, 0); return '<img alt="" data-blob="' + esc(f) + '" src="' + esc(PH[f] || 'data:image/gif;base64,R0lGODlhAQABAAAAACw=') + '">'; }).join('') + '</span>' : '') + '</div>';
         }).join('') : '') +
         (d.avanzamento || []).map(function (a) {
           var f = a.voci.filter(function (v) { return v.s === 'fatto'; }).length, pc = Math.round(f / a.voci.length * 100);
-          return '<h5>' + esc(a.fine ? 'Lavori finiti' : 'Lavori in corso') + ': ' + esc(a.titolo) + (a.numero ? ' (n. ' + esc(a.numero) + ')' : '') + '</h5>' +
+          return cs('<h5>' + esc(a.fine ? 'Lavori finiti' : 'Lavori in corso') + ': ' + esc(a.titolo) + (a.numero ? ' (n. ' + esc(a.numero) + ')' : '') + '</h5>' +
             '<div class="avb" aria-label="' + pc + '% fatto"><i style="width:' + pc + '%"></i></div><div class="upd" style="margin:4px 0 6px">Fatti ' + f + ' su ' + a.voci.length + ' (' + pc + '%)</div>' +
-            a.voci.map(function (v) { return '<div class="lv"><span class="d">' + (v.s === 'fatto' ? '✅' : v.s === 'in_corso' ? '🔧' : '⬜') + '</span><span>' + esc(v.t) + (v.s === 'in_corso' ? ' <small>(in corso)</small>' : '') + '</span></div>'; }).join('');
+            a.voci.map(function (v) { return '<div class="lv"><span class="d">' + (v.s === 'fatto' ? '✅' : v.s === 'in_corso' ? '🔧' : '⬜') + '</span><span>' + esc(v.t) + (v.s === 'in_corso' ? ' <small>(in corso)</small>' : '') + '</span></div>'; }).join(''));
         }).join('') +
-        scCard(id, d) +
-        (d.richieste ? rqCard(id) : '') +
-        oreCard(id, d) +
-        '<h5>Lavori eseguiti</h5>' +
+        cs(scCard(id, d)) +
+        cs(d.richieste ? rqCard(id) : '') +
+        cs(oreCard(id, d), 'cso') +
+        cs('<h5>Lavori eseguiti</h5>' +
         (lav.length ? show.map(function (l) { return '<div class="lv"><span class="d">' + esc(dataCorta(l.data)) + '</span><span>' + esc(l.titolo) + '</span></div>'; }).join('') +
           (lav.length > 8 ? '<button class="more" data-cl="more" data-id="' + esc(id) + '">' + (open ? 'Mostra meno' : 'Mostra tutti (' + lav.length + ')') + '</button>' : '')
-          : '<p style="margin:4px 0 0">Ancora nessun lavoro registrato.</p>') +
+          : '<p style="margin:4px 0 0">Ancora nessun lavoro registrato.</p>')) + '</div>' +
         (d.aggiornato ? '<div class="upd">Aggiornato il ' + esc(quando(d.aggiornato)) + '</div>' : '') + '</div>';
     });
     h += '<details class="gd"><summary>? Come funziona questa pagina</summary><ul>' +
@@ -1587,7 +1604,7 @@
       '<li>Se manca una barca o qualcosa non torna, chiama il cantiere.</li></ul></details>';
     h += '<button class="lnk" data-cl="pw">Cambia password</button><button class="lnk" data-cl="out">Esci</button>';
     var o = $('#nmfb'), y = o ? o.scrollTop : 0;
-    o = overlay(h); if (o) o.scrollTop = y;
+    o = overlay(h); if (o) { o.classList.add('cli'); o.scrollTop = y; }
   }
   // ore di lavoro: torta per tipo di lavoro (categoria) e, toccando un tipo, le sue mansioni con le ore
   var OCOL = { 'Motore': '#ffb547', 'Elettrico ed elettronica': '#ff7a90', 'Impianti di bordo': '#c08cff', 'Carena e antivegetativa': '#2f8ff0', 'Carrozzeria e lucidatura': '#2ec4a6',
@@ -1623,6 +1640,7 @@
     var k = t.getAttribute('data-cl');
     if (k === 'out') logout();
     else if (k === 'pw') auth.sendPasswordResetEmail(ME.email).then(function () { toast('Ti ho mandato l’email per cambiare la password.'); }, function (er) { toast(authErr(er)); });
+    else if (k === 'tab') { CL.tab = t.getAttribute('data-id'); renderCliente(); var b0 = $('#nmfb .btabs'); if (b0) b0.scrollIntoView({ block: 'nearest' }); }
     else if (k === 'more') { var id = t.getAttribute('data-id'); CL.all[id] = !CL.all[id]; renderCliente(); }
     else if (k === 'oy') { CL.oy[t.getAttribute('data-id')] = t.getAttribute('data-y'); CL.oc[t.getAttribute('data-id')] = null; renderCliente(); }
     else if (k === 'oc') { var oi = t.getAttribute('data-id'), oc = t.getAttribute('data-c'); CL.oc[oi] = CL.oc[oi] === oc ? null : oc; renderCliente(); }
