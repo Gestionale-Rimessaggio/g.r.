@@ -8723,7 +8723,21 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     h += '<div class="asp-acts" style="margin-top:12px"><button type="button" class="btn" data-act="asp-save">Salva per tutti</button>' +
       '<button type="button" class="btn sec" data-act="asp-undo">Annulla le modifiche</button>' +
       '<button type="button" class="btn sec" data-act="asp-base">Torna all’aspetto di base</button></div>';
-    return h;
+    return h + viewAiKey();
+  }
+  // Chiave dell'AI gratuita (Google AI Studio, progetto senza fatturazione): la vedono solo gli account del cantiere, non il sito pubblico
+  function viewAiKey() {
+    var k = aiKey();
+    return secH('AI dalla foto') + '<div class="group"><div class="row" style="flex-wrap:wrap;gap:8px"><span class="main"><span class="title">Chiave gratuita di Google AI Studio</span>' +
+      '<span class="sub">' + (k ? 'Inserita (finisce con …' + esc(k.slice(-4)) + '). Le foto si leggono gratis, con un limite al giorno.' : 'Non inserita: l’AI usa il progetto Firebase, che senza credito non risponde.') + '</span></span>' +
+      '<input type="password" id="ai-key-in" autocomplete="off" placeholder="Incolla la chiave" style="flex:1 1 220px">' +
+      '<button type="button" class="btn" data-act="ai-key">' + (k ? 'Cambia' : 'Salva') + '</button></div></div>';
+  }
+  async function aiKeySave() {
+    if (!S.isOwner || !S.db) return; var el = document.getElementById('ai-key-in'), v = el ? el.value.trim() : '';
+    if (v && !/^[A-Za-z0-9._-]{20,200}$/.test(v)) { toast('Questa non sembra una chiave: ricopiala da Google', true); return; }
+    var d = { chiave: v, modificato: new Date().toISOString(), da: S.myId || '' }, r = S.db.collection('impostazioni').doc('ai');
+    if (await w(function () { return r.set(d); })) { S.aiCfg = d; toast(v ? 'Chiave salvata' : 'Chiave tolta'); render(); }
   }
   // procedura guidata del primo accesso (azienda nuova): un passo alla volta, poi «Inizia» salva tutto
   var WIZ = [
@@ -11666,21 +11680,32 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   function magByCode(code) { code = String(code || '').trim(); if (!code) return null; for (var i = 0; i < S.mag.length; i++) { var c = String(S.mag[i].codice || '').trim(); if (c && c === code) return S.mag[i]; } return null; }
   function aiOn() { var c = window.NM_FIREBASE_CONFIG; return !!(window.__NM_FB && c && c.apiKey && c.projectId); }
-  var AI_MODELS = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.0-flash'];
+  /* AI dalla foto: se l'amministratore ha inserito la chiave di un progetto AI Studio gratuito (Strumenti in più,
+     salvata in impostazioni/ai: la leggono solo gli account del cantiere) si usa quella, senza fatturazione e senza App Check;
+     altrimenti la strada di Firebase AI Logic (progetto a pagamento). */
+  function aiKey() { var c = S.aiCfg; return (c && !c._del && c.chiave) || ''; }
   async function aiAsk(dataUrl, prompt) {
     if (!aiOn()) throw { code: 'ai_off' };
-    var c = window.NM_FIREBASE_CONFIG, b64 = String(dataUrl).split(',')[1], last = null;
-    var hd = { 'Content-Type': 'application/json', 'x-goog-api-key': c.apiKey, 'X-Firebase-AppId': c.appId || '' };
-    var tk = window.__NM_FB.appCheckToken ? await window.__NM_FB.appCheckToken() : ''; // App Check: dal 2/11/2026 senza gettone l'AI risponde «non autorizzato»
-    if (tk) hd['X-Firebase-AppCheck'] = tk;
-    if (window.__NM_FB.aiConta) await window.__NM_FB.aiConta(); // tetto dell'azienda: 30 richieste al giorno, se non deciso diverso
+    var c = window.NM_FIREBASE_CONFIG, b64 = String(dataUrl).split(',')[1], last = null, hd, base;
+    var key = aiKey(), AI_MODELS = key ? ['gemini-flash-latest', 'gemini-3.5-flash', 'gemini-flash-lite-latest'] : ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.0-flash'];
+    if (key) {
+      hd = { 'Content-Type': 'application/json', 'x-goog-api-key': key };
+      base = 'https://generativelanguage.googleapis.com/v1beta/models/';
+    } else {
+      hd = { 'Content-Type': 'application/json', 'x-goog-api-key': c.apiKey, 'X-Firebase-AppId': c.appId || '' };
+      var tk = window.__NM_FB.appCheckToken ? await window.__NM_FB.appCheckToken() : ''; // App Check: dal 2/11/2026 senza gettone l'AI risponde «non autorizzato»
+      if (tk) hd['X-Firebase-AppCheck'] = tk;
+      base = 'https://firebasevertexai.googleapis.com/v1beta/projects/' + encodeURIComponent(c.projectId) + '/models/';
+    }
     for (var i = 0; i < AI_MODELS.length; i++) {
-      var r = await fetch('https://firebasevertexai.googleapis.com/v1beta/projects/' + encodeURIComponent(c.projectId) + '/models/' + AI_MODELS[i] + ':generateContent', {
+      var r = await fetch(base + AI_MODELS[i] + ':generateContent', {
         method: 'POST', headers: hd,
         body: JSON.stringify({ contents: [{ role: 'user', parts: [{ inlineData: { mimeType: 'image/jpeg', data: b64 } }, { text: prompt }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.1 } })
       }).catch(function () { return null; });
       if (!r) throw { code: 'rete' };
-      if (r.status === 404) { last = 'modello'; continue; }
+      if (r.status === 404) { last = last || 'modello'; continue; }
+      if (r.status === 503 || r.status === 500) { last = 'occupato'; continue; } // modello sovraccarico: si prova il successivo
+      if (r.status === 402) throw { code: 'crediti' };
       if (r.status === 403 || r.status === 401) throw { code: 'ai_off' };
       if (r.status === 429) throw { code: 'troppe' };
       if (!r.ok) throw { code: 'ai_err' };
@@ -11688,13 +11713,13 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       var txt = t.map(function (p) { return p.text || ''; }).join('').replace(/^```(json)?|```$/g, '').trim();
       try { return JSON.parse(txt); } catch (e) { throw { code: 'ai_err' }; }
     }
-    throw { code: last === 'modello' ? 'ai_off' : 'ai_err' };
+    throw { code: last === 'occupato' ? 'occupato' : last === 'modello' ? 'ai_off' : 'ai_err' };
   }
   function aiErrMsg(e) {
     var c = e && e.code;
     return c === 'ai_off' ? 'Il riconoscimento con l’AI non è ancora attivo: va acceso una volta nella console di Firebase (AI Logic). Intanto scrivi a mano.'
       : c === 'ai_finita' ? 'AI finita per oggi, riprova domani. Intanto scrivi a mano.'
-      : c === 'rete' ? 'Serve internet per il riconoscimento con l’AI.' : c === 'troppe' ? 'Troppe richieste in poco tempo: riprova tra un minuto.' : 'Non sono riuscito a riconoscerlo: scrivilo a mano.';
+      : c === 'rete' ? 'Serve internet per il riconoscimento con l’AI.' : c === 'troppe' ? 'Troppe richieste in poco tempo (o finite le foto gratis di oggi): riprova tra un minuto.' : c === 'occupato' ? 'L’AI di Google è molto occupata in questo momento: riprova tra qualche minuto.' : c === 'crediti' ? 'L’AI ha finito il credito: intanto scrivi a mano.' : 'Non sono riuscito a riconoscerlo: scrivilo a mano.';
   }
   var AI_PEZZO = 'Sei in un cantiere nautico italiano. Nella foto c’è un ricambio, un prodotto o un materiale (anche la sua scatola o etichetta). ' +
     'Rispondi SOLO con un JSON: {"nome": nome breve in italiano come lo scriverebbe un meccanico (es. "Filtro olio Yamaha F200"), "marca": "", "codice": codice articolo o part number se leggibile, altrimenti "", ' +
@@ -12147,6 +12172,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'open-boat': closeLightbox(); V.tab = 'barche'; V.boatId = id; V.boatView = null; V.boatLavAll = false; V.boatRicAll = false; render(); window.scrollTo(0, 0); break;
       case 'cat-add': if (S.isOwner) catAdd(); break;
       case 'asp-save': if (S.isOwner) aspSave(); break;
+      case 'ai-key': aiKeySave(); break;
       case 'asp-geo': aspGeo(); break;
       case 'asp-geo-ok': if (V.asp && Array.isArray(V.aspGeo)) { var gg = V.aspGeo[+t.getAttribute('data-i')]; if (gg) { V.asp.luogo = gg.name; V.asp.lat = Math.round(gg.latitude * 1e4) / 1e4; V.asp.lon = Math.round(gg.longitude * 1e4) / 1e4; V.aspGeo = null; render(); } } break;
       case 'wiz-go': if (V.asp) { var wd = +t.getAttribute('data-d'); if (wd > 0 && !(V.wizStep || 0) && !String(V.asp.nome || '').trim()) { toast('Scrivi il nome dell’azienda.', true); break; } V.wizStep = Math.max(0, Math.min(WIZ.length - 1, (V.wizStep || 0) + wd)); render(); window.scrollTo(0, 0); } break;
@@ -12604,7 +12630,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     db.collection('impostazioni').onSnapshot(function (snap) {
       var m = null, b = null, ly = {}, asp = null;
       var pm0 = S.portoMio; S.portoMio = null; S.got.impostazioni = true;
-      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'depositi') S.depCfg = d.data(); else if (d.id === 'emergenze') S.emCfg = d.data(); else if (d.id === 'reperibilita') S.repCfg = d.data(); else if (d.id === 'pacchetto') S.pacCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'vernice') S.vnCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'porto') S.portoMio = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
+      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'ai') S.aiCfg = d.data(); else if (d.id === 'depositi') S.depCfg = d.data(); else if (d.id === 'emergenze') S.emCfg = d.data(); else if (d.id === 'reperibilita') S.repCfg = d.data(); else if (d.id === 'pacchetto') S.pacCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'vernice') S.vnCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'porto') S.portoMio = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
       var mc = m !== S.mapCfg; S.mapCfg = m; S.bkInfo = b; S.layouts = ly; S.aspetto = asp;
       if (NM_MARCA.dalDatabase(asp) && V.asp) NM_MARCA.prova(V.asp); // l'aspetto scelto vale subito per tutti
       if ((V.tab === 'mappa' && (mc || pm0 !== S.portoMio)) || V.tab === 'aspetto' || V.tab === 'backup' || V.tab === 'batterie' || V.tab === 'rifiuti' || V.tab === 'notifiche' || V.tab === 'categorie' || V.tab === 'home' || V.tab === 'barche' || V.tab === 'pannello' || V.tab === 'riepiloghi') { if (!LY.drag) render(); }
