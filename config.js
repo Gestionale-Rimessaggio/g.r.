@@ -20,7 +20,6 @@ window.NM_AVVISI_A = '';
    Si può anche fissare qui, per esempio:
    window.NM_ASPETTO = { nome: 'Cantiere Rossi', colore1: '#1F4D3A', colore2: '#04140D', logo: 'marca/logo.png', scritta: 'marca/scritta.png', luogo: 'Piombino', lat: 42.9256, lon: 10.5253 }; */
 
-/* App Check (obbligatorio per l'AI dal 2 novembre 2026): chiave del sito reCAPTCHA registrata in
-   Firebase › App Check › App › app web. tipo: 'v3' (reCAPTCHA v3) oppure 'enterprise'.
-   Non è segreta. Finché è vuota l'app non manda il gettone e, dal 2/11, l'AI dalla foto non risponde. */
-window.NM_APPCHECK = { tipo: 'enterprise', siteKey: '6LfNKgIuAAAAAE9ymahD2tzNXOmKYVW6T5UBV2mR' };
+/* App Check: spento dal 4/11/2026. L'AI dalla foto usa la chiave gratuita di Google AI Studio
+   (Altro › Strumenti in più / Aspetto dell'app), che non ha bisogno di App Check né della fatturazione. */
+window.NM_APPCHECK = { tipo: 'enterprise', siteKey: '' };
