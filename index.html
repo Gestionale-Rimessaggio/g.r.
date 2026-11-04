@@ -8646,6 +8646,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['barattoli', 'Barattoli aperti e avanzi', 'quanto resta e dove sono vernici e resine aperte, e dopo quanti mesi non vanno più usate (spento di base)'],
     ['varianti', 'Preventivi con varianti', 'due o tre scelte affiancate nello stesso preventivo; quella scelta dal cliente diventa il lavoro (spento di base)'],
     ['scadcliente', 'Scadenze ricordate al cliente', 'nel portale il cliente vede le scadenze della barca con il tasto «Richiedi il lavoro» (spento di base)'],
+    ['orecliente', 'Ore di lavoro al cliente', 'nel portale il cliente vede la torta delle ore per tipo di lavoro e, toccandola, le mansioni con il testo, il nome di chi le ha fatte e le ore; solo giornate confermate (spento di base)'],
     ['tempimani', 'Tempi tra le mani', 'nell’articolo del magazzino le ore prima della mano successiva; in Home le barche pronte per la mano dopo (spento di base)'],
     ['notecolleghi', 'Note ai colleghi', 'una nota per un collega, anche su una barca: la trova in Home finché non tocca «Letto» (spento di base)'],
     ['conflitti', 'Avviso di conflitto nel programma', 'mentre scegli chi fa un lavoro, ti avvisa se è in ferie o già impegnato (spento di base)'],
@@ -8653,7 +8654,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['reperibilita', 'Reperibilità', 'turni dei fine settimana e festivi; il numero in Home e nel portale dei clienti, promemoria il venerdì (spento di base)'],
     ['novita', 'Cosa c’è di nuovo', 'dopo un aggiornamento dell’app, una finestra con le novità, una volta a ognuno'],
     ['portomio', 'Porto disegnato da voi', 'la mappa del porto: i vostri pontili e posti sopra la foto, con Porto e posti barca (spento di base: senza, il Porto è l’elenco dei posti)']];
-  var SEZ_OFF = ['tablet', 'controllo', 'deposito', 'portomio', 'postogiusto', 'qrbarca', 'schede', 'vernice', 'avanzamento', 'richieste', 'verbale', 'targhetta', 'stagioni', 'depositi', 'consumo', 'barattoli', 'varianti', 'scadcliente', 'tempimani', 'notecolleghi', 'conflitti', 'emergenze', 'reperibilita']; // sezioni spente finché l'amministratore non le accende
+  var SEZ_OFF = ['orecliente', 'tablet', 'controllo', 'deposito', 'portomio', 'postogiusto', 'qrbarca', 'schede', 'vernice', 'avanzamento', 'richieste', 'verbale', 'targhetta', 'stagioni', 'depositi', 'consumo', 'barattoli', 'varianti', 'scadcliente', 'tempimani', 'notecolleghi', 'conflitti', 'emergenze', 'reperibilita']; // sezioni spente finché l'amministratore non le accende
   // riquadri di Home e Pannello che appartengono a una sezione (spariscono se le loro sezioni sono tutte spente)
   var SEZ_BLOCCHI = { w_mag: ['magazzino'], w_porto: ['porto'], w_rif: ['rifiuti'], w_batt: ['batterie'], vari: ['vari'], prog: ['programma'], meteo: ['meteo'],
     contr: ['porto'], riord: ['magazzino', 'batterie'], serv: ['operazioni'], magb: ['magazzino', 'batterie'] };
