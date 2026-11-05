@@ -1188,7 +1188,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
 
   /* ---------- Stato ---------- */
   var S = { posti: {}, richieste: [], db: null, status: 'loading', canWrite: true, writeUnknown: false, boats: [], lavori: [], lavoriAll: [], scadenze: [], got: {}, pendingBoat: null, user: null, myId: null, me: {}, isOwner: false, dip: {}, prof: {},
-    conf: {}, mag: [], mov: [], vari: [], modelli: [], ckBarca: {}, check: [], assets: null, opModelli: [], ops: [], mezzi: [], attr: [], prog: [], cariche: [], isEditor: false, battCfg: null, dl: undefined, bkInfo: null, rif: [], ritiri: [], rifCfg: null, meteoCfg: null, scadC: [], prev: [], kit: [], inv: [], assenze: [], giri: [], crono: {}, ditte: [], depo: [] };
+    conf: {}, mag: [], mov: [], vari: [], modelli: [], ckBarca: {}, check: [], assets: null, opModelli: [], ops: [], mezzi: [], attr: [], prog: [], cariche: [], isEditor: false, battCfg: null, schCfg: null, dl: undefined, bkInfo: null, rif: [], ritiri: [], rifCfg: null, meteoCfg: null, scadC: [], prev: [], kit: [], inv: [], assenze: [], giri: [], crono: {}, ditte: [], depo: [] };
   var V = { tab: 'home', boatId: null, q: '', lavFilter: 'aperti', showDone: false, exConfirm: false, calMonth: todayISO().slice(0, 7), calDay: todayISO(), calVista: (function () { try { return localStorage.getItem('nm-cal-vista') === 'sett' ? 'sett' : 'mese'; } catch (e) { return 'mese'; } })(), feat: 0, boatLavAll: false, schedaDay: todayISO(), nomeDraft: null,
     boatView: null, resRange: 'anno', oreMonth: todayISO().slice(0, 7), oreOpen: null, magQ: '', magGroup: 'tipo', progDay: null, progView: 'ora', panPer: 'sett', panBy: 'persona', variDone: false, rifTab: 'deposito', rifEuro: false, scShowDone: false, prevFilter: 'aperti' };
   var SHEET = { onDelete: null, foto: [], run: null };
@@ -2483,6 +2483,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       if (l.data >= mese) chi[l.utente] = 1;
       if (l.data >= da && l.data <= fino) { var k = l.utente + '|' + l.data; ore[k] = (ore[k] || 0) + (num(l.oreLavoro) || 0); }
     });
+    var scelti = schScelti(); if (scelti) { chi = {}; scelti.forEach(function (u) { chi[u] = 1; }); }
     var ids = uid ? (chi[uid] ? [uid] : []) : Object.keys(chi);
     if (!ids.length) return out;
     for (var d = da; d <= fino; d = addDays(d, 1)) {
@@ -2497,6 +2498,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     }
     return out;
   }
+  function schScelti() { return S.schCfg && Array.isArray(S.schCfg.chi) ? S.schCfg.chi : null; } // null = in automatico; si sceglie in Utenti e permessi
   function schGiorno(d) { var x = new Date(isoToUTC(d)); return ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'][x.getUTCDay()] + ' ' + x.getUTCDate() + ' ' + MESI[x.getUTCMonth()]; }
   function schCorteCard() {
     var adm = assAdmin(), c = schCorte(adm ? null : S.myId); if (!c.length) return '';
@@ -2511,7 +2513,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       return '<div class="feat-status t-late">' + esc(nameOf(u) + ': ' + per[u].map(function (x) { return schGiorno(x.d) + ' (' + fmtH(x.ore) + ')'; }).join(', ')) + '</div>';
     }).join('') + (ord.length > 6 ? '<div class="feat-status">e altri ' + (ord.length - 6) + '</div>' : '');
     return featCard('late', I.alarm, ord.length === 1 ? 'Un dipendente sotto le ' + SCH_MIN + ' ore' : ord.length + ' dipendenti sotto le ' + SCH_MIN + ' ore', 'Schede lavoro incomplete da almeno 2 giorni', righe,
-      '<button type="button" class="btn" data-act="tab" data-tab="ore">Vedi le ore</button>');
+      '<button type="button" class="btn" data-act="tab" data-tab="ore">Vedi le ore</button>' + (window.__NM_FB && !window.__NM_DEMO ? '<button type="button" class="btn sec" data-act="sch-chi">Chi controllare</button>' : ''));
   }
   function toMap(list) { var m = {}; list.forEach(function (x) { m[x.id] = x; }); return m; }
   /* ---------- Più depositi (idea X51, Strumenti in più › depositi) e materiale di consumo (X52, › consumo) ----------
@@ -12595,6 +12597,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         V.oreMonth = oy + '-' + pad(om + 1); V.oreOpen = null; render(); break;
       case 'ore-xlsx': oreXlsx(); break;
       case 'ore-comm': oreCommXlsx(); break;
+      case 'sch-chi': if (window.__NM_FB && window.__NM_FB.open) window.__NM_FB.open('utenti'); break;
       case 'ore-open': V.oreOpen = V.oreOpen === t.getAttribute('data-u') ? null : t.getAttribute('data-u'); render(); break;
       case 'new-modello': modelloSheet(null); break;
       case 'edit-modello': x = S.modelli.find(function (m) { return m.id === id; }); if (x && S.canWrite) modelloSheet(x); break;
@@ -12923,7 +12926,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     db.collection('impostazioni').onSnapshot(function (snap) {
       var m = null, b = null, ly = {}, asp = null;
       var pm0 = S.portoMio; S.portoMio = null; S.got.impostazioni = true;
-      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'ai') S.aiCfg = d.data(); else if (d.id === 'depositi') S.depCfg = d.data(); else if (d.id === 'emergenze') S.emCfg = d.data(); else if (d.id === 'reperibilita') S.repCfg = d.data(); else if (d.id === 'pacchetto') S.pacCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'vernice') S.vnCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'porto') S.portoMio = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
+      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'ai') S.aiCfg = d.data(); else if (d.id === 'depositi') S.depCfg = d.data(); else if (d.id === 'emergenze') S.emCfg = d.data(); else if (d.id === 'reperibilita') S.repCfg = d.data(); else if (d.id === 'pacchetto') S.pacCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'schede') S.schCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'vernice') S.vnCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'porto') S.portoMio = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
       var mc = m !== S.mapCfg; S.mapCfg = m; S.bkInfo = b; S.layouts = ly; S.aspetto = asp;
       if (NM_MARCA.dalDatabase(asp) && V.asp) NM_MARCA.prova(V.asp); // l'aspetto scelto vale subito per tutti
       if ((V.tab === 'mappa' && (mc || pm0 !== S.portoMio)) || V.tab === 'aspetto' || V.tab === 'backup' || V.tab === 'batterie' || V.tab === 'rifiuti' || V.tab === 'notifiche' || V.tab === 'categorie' || V.tab === 'home' || V.tab === 'barche' || V.tab === 'pannello' || V.tab === 'riepiloghi') { if (!LY.drag) render(); }
