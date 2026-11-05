@@ -2103,11 +2103,11 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   /* ---------- Articoli del magazzino da Excel (solo amministratore) ----------
      Stesso lettore di «Barche e clienti da Excel»: si sceglie quale colonna va in quale campo (indovinate dai titoli).
      Un articolo già presente (stesso codice, o stesso nome se manca il codice) si salta oppure se ne corregge la quantità.
-     Nomi ripetuti con codici diversi (es. tante «Girante VP») diventano «Girante VP 3588475». Il prezzo, se c'è, va nelle note. */
+     Nomi ripetuti con codici diversi (es. tante «Girante VP») diventano «Girante VP 3588475». */
   var XLM_CAMPI = [['nome', 'Nome dell’articolo', /^(nome|articolo|descrizione|prodotto|materiale|voce|ricambio)/],
     ['codice', 'Codice', /codic|^cod\b|part ?n|riferim|^rif\b|^art\b|ean|barcode/], ['qta', 'Quantità che avete adesso', /quantit|^q\.?ta|giacenz|^pezzi|^n\.?$|^nr\.?$|^num|esistenz|disponib/],
     ['um', 'Unità (pz, l, m, kg…)', /^unit|^u\.? ?m\.?$|^um$|misura/], ['minimo', 'Scorta minima', /scorta|minim/], ['fornitore', 'Fornitore', /fornitor|marca fornit/],
-    ['posizione', 'Dove si trova', /posizion|scaffal|ubicaz|^dove|collocaz/], ['prezzo', 'Prezzo (va nelle note)', /^(prezz|costo|importo)/], ['note', 'Note', /^note|annotaz|controllar|commento/]];
+    ['posizione', 'Dove si trova', /posizion|scaffal|ubicaz|^dove|collocaz/], ['note', 'Note', /^note|annotaz|controllar|commento/]];
   function xlmUm(s, nome) {
     var t = xlNorm(s).replace(/\.$/, '');
     if (/^(l|lt|lit|litr[oi])$/.test(t)) return 'l'; if (/^(m|mt|metr[oi]|ml)$/.test(t)) return 'm'; if (/^(kg|chil[oi]|kilo)$/.test(t)) return 'kg';
@@ -2147,7 +2147,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         if (cod && quanti[xlNorm(nome)] > 1 && xlNorm(nome).indexOf(xlNorm(cod)) < 0) nome = nome + ' ' + cod; // nomi ripetuti nel file: li distinguo col codice
         if (nomi[xlNorm(nome)]) { if (cod && !nomi[xlNorm(nome + ' ' + cod)]) nome = nome + ' ' + cod; else { salt++; return; } }
         nomi[xlNorm(nome)] = 1;
-        var pr = g('prezzo'), pn = parseDec(pr), note = [g('note'), pr ? 'Prezzo: ' + (pn != null ? fmtNum(pn, 2) + ' €' : pr) : ''].filter(Boolean).join(' · ');
+        var note = g('note');
         var it = { nome: nome, codice: cod, tipo: guessTipo(nome), categoria: guessProdCat(nome), um: xlmUm(g('um'), nome), minimo: parseDec(g('minimo')), fornitore: g('fornitore'), posizione: g('posizione'), note: note, q: q };
         out.push(it); if (C) perCod[C] = it;
       });
