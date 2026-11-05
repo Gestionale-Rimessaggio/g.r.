@@ -2100,6 +2100,105 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     apri();
   }
 
+  /* ---------- Articoli del magazzino da Excel (solo amministratore) ----------
+     Stesso lettore di «Barche e clienti da Excel»: si sceglie quale colonna va in quale campo (indovinate dai titoli).
+     Un articolo già presente (stesso codice, o stesso nome se manca il codice) si salta oppure se ne corregge la quantità.
+     Nomi ripetuti con codici diversi (es. tante «Girante VP») diventano «Girante VP 3588475». */
+  var XLM_CAMPI = [['nome', 'Nome dell’articolo', /^(nome|articolo|descrizione|prodotto|materiale|voce|ricambio)/],
+    ['codice', 'Codice', /codic|^cod\b|part ?n|riferim|^rif\b|^art\b|ean|barcode/], ['qta', 'Quantità che avete adesso', /quantit|^q\.?ta|giacenz|^pezzi|^n\.?$|^nr\.?$|^num|esistenz|disponib/],
+    ['um', 'Unità (pz, l, m, kg…)', /^unit|^u\.? ?m\.?$|^um$|misura/], ['minimo', 'Scorta minima', /scorta|minim/], ['fornitore', 'Fornitore', /fornitor|marca fornit/],
+    ['posizione', 'Dove si trova', /posizion|scaffal|ubicaz|^dove|collocaz/], ['note', 'Note', /^note|annotaz|controllar|commento/]];
+  function xlmUm(s, nome) {
+    var t = xlNorm(s).replace(/\.$/, '');
+    if (/^(l|lt|lit|litr[oi])$/.test(t)) return 'l'; if (/^(m|mt|metr[oi]|ml)$/.test(t)) return 'm'; if (/^(kg|chil[oi]|kilo)$/.test(t)) return 'kg';
+    if (/^(pz|pezz[oi]|n|nr|num|cad|pc|pcs)$/.test(t)) return 'pz'; if (/^conf/.test(t)) return 'conf.'; if (/^latt/.test(t)) return 'latta'; if (/^tanic/.test(t)) return 'tanica';
+    if (/^rotol/.test(t)) return 'rotolo'; if (/^pai/.test(t)) return 'paia';
+    var n = String(nome || '').toLowerCase();
+    return /tanica/.test(n) ? 'tanica' : /latta/.test(n) ? 'latta' : /guant/.test(n) ? 'paia' : /nastr|scotch|rotol/.test(n) ? 'rotolo' : 'pz';
+  }
+  function magXlSheet() {
+    if (!S.isOwner || !S.canWrite) return;
+    var X = { rows: null, head: 0, gia: 'salta' };
+    function corpo() {
+      if (!X.rows) return '<p class="context">Scegli il file Excel (.xlsx) o .csv con gli articoli del magazzino. Si legge il primo foglio; nella prima riga ci vanno i titoli delle colonne (per esempio Articolo, Codice, Quantità, Unità).</p>' +
+        '<label class="btn self-start">' + I.dl + 'Scegli il file<input type="file" id="xl-f" accept=".xlsx,.csv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" class="vh"></label><p class="form-err" id="xl-e" hidden></p>';
+      var H = X.rows[X.head], dati = X.rows.slice(X.head + 1).filter(function (r) { return r.some(function (c) { return String(c).trim(); }); });
+      var h = '<p class="context">Ho trovato <b>' + dati.length + ' righe</b>. Per ogni campo scegli la colonna del file (ho provato a indovinarle dai titoli). Solo il nome è obbligatorio; tipo e categoria li riconosco dal nome, come quando aggiungi un articolo a mano.</p>';
+      var usate = {};
+      h += XLM_CAMPI.map(function (c) {
+        var g = -1; H.forEach(function (t, i) { if (g < 0 && !usate[i] && c[2].test(xlNorm(t))) g = i; }); if (g >= 0) usate[g] = 1;
+        return field(lab('xl-c-' + c[0], c[1]), '<select id="xl-c-' + c[0] + '" class="xl-c" data-k="' + c[0] + '"><option value="">— nessuna —</option>' + H.map(function (t, i) { return '<option value="' + i + '"' + (i === g ? ' selected' : '') + '>' + esc(String(t || 'Colonna ' + (i + 1)).slice(0, 40)) + '</option>'; }).join('') + '</select>');
+      }).join('');
+      h += field(lab('xl-gia', 'Se un articolo c’è già nel magazzino'), '<select id="xl-gia" class="xl-c" data-k="_gia">' + opts([['salta', 'Lo salto e lascio com’è'], ['qta', 'Correggo la quantità con quella del file']], X.gia) + '</select>', 'Lo riconosco dal codice, o dal nome se il codice manca.');
+      return h + '<div class="lbl">Anteprima</div><div id="xl-pv"></div>';
+    }
+    function mappa(f) { var m = {}; Array.prototype.forEach.call(f.querySelectorAll('.xl-c'), function (s) { var k = s.getAttribute('data-k'); if (k !== '_gia' && s.value !== '') m[k] = +s.value; }); return m; }
+    function articoliDa(f) {
+      var m = mappa(f), nomi = {}, perCod = {}, out = [], agg = [], salt = 0, unite = 0, gs = f.querySelector('#xl-gia'), gia = gs ? gs.value : X.gia;
+      S.mag.forEach(function (a) { nomi[xlNorm(a.nome)] = 1; });
+      var quanti = {}; if (m.nome != null) X.rows.slice(X.head + 1).forEach(function (r) { var k = xlNorm(r[m.nome]); if (k) quanti[k] = (quanti[k] || 0) + 1; });
+      X.rows.slice(X.head + 1).forEach(function (r) {
+        var g = function (k) { return m[k] == null ? '' : String(r[m[k]] == null ? '' : r[m[k]]).trim(); }, nome = g('nome').replace(/\s+/g, ' '), cod = g('codice').replace(/\.0$/, '');
+        if (!nome) return;
+        var C = cod.toUpperCase(), q = parseDec(g('qta'));
+        if (C && perCod[C]) { var pr0 = perCod[C]; if (pr0.m && agg.indexOf(pr0) < 0) { salt++; return; } if (q != null) pr0.q = (pr0.q || 0) + q; unite++; return; } // stesso codice ripetuto nel file: sommo le quantità
+        var es = cod ? magByCode(cod) || S.mag.find(function (a) { return String(a.codice || '').trim().toUpperCase() === C; }) : magByName(nome);
+        if (es) { var ag = agg.find(function (x) { return x.m.id === es.id; }); if (ag) { if (agg.indexOf(ag) < 0) { salt++; return; } if (q != null) ag.q = (ag.q || 0) + q; unite++; return; } ag = { m: es, q: q }; if (C) perCod[C] = ag; if (gia === 'qta' && q != null) agg.push(ag); else salt++; return; }
+        if (cod && quanti[xlNorm(nome)] > 1 && xlNorm(nome).indexOf(xlNorm(cod)) < 0) nome = nome + ' ' + cod; // nomi ripetuti nel file: li distinguo col codice
+        if (nomi[xlNorm(nome)]) { if (cod && !nomi[xlNorm(nome + ' ' + cod)]) nome = nome + ' ' + cod; else { salt++; return; } }
+        nomi[xlNorm(nome)] = 1;
+        var note = g('note');
+        var it = { nome: nome, codice: cod, tipo: guessTipo(nome), categoria: guessProdCat(nome), um: xlmUm(g('um'), nome), minimo: parseDec(g('minimo')), fornitore: g('fornitore'), posizione: g('posizione'), note: note, q: q };
+        out.push(it); if (C) perCod[C] = it;
+      });
+      var st = stockMap(), uguali = agg.filter(function (x) { return x.q === (st[x.m.id] || 0); }).length; agg = agg.filter(function (x) { return x.q !== (st[x.m.id] || 0); }); salt += uguali; if (!out.length && !agg.length) unite = 0;
+      return { nuovi: out, agg: agg, saltati: salt, unite: unite, conNome: m.nome != null };
+    }
+    function anteprima(f) {
+      var x = articoliDa(f), pv = f.querySelector('#xl-pv'); if (!pv) return;
+      pv.innerHTML = (x.nuovi.length ? '<div class="group">' + x.nuovi.slice(0, 5).map(function (a) {
+        return '<div class="row"><span class="main"><span class="title">' + esc(a.nome) + '</span><span class="sub">' + esc([a.codice, a.q != null ? fmtQ(a.q, a.um) : 'quantità non scritta', a.posizione, a.note].filter(Boolean).join(' · ')) + '</span></span></div>'; }).join('') + '</div>' : '<div class="notice">' + (x.conNome ? 'Nessun articolo nuovo da aggiungere.' : 'Scegli la colonna del nome.') + '</div>') +
+        '<p class="cap" style="margin:8px 2px 0">Aggiungo <b>' + x.nuovi.length + '</b> articoli' + (x.nuovi.length > 5 ? ' (qui sopra i primi 5)' : '') + '.' +
+        (x.agg.length ? ' Correggo la quantità di <b>' + x.agg.length + '</b> già presenti.' : '') +
+        (x.saltati ? (x.saltati === 1 ? ' Una riga è di un articolo già nel magazzino e la salto.' : ' ' + x.saltati + ' righe sono di articoli già nel magazzino e le salto.') : '') +
+        (x.unite ? (x.unite === 1 ? ' Una riga ha lo stesso codice di un’altra: sommo le quantità.' : ' ' + x.unite + ' righe hanno lo stesso codice di altre: sommo le quantità.') : '') + '</p>';
+      var sv = $('#sheet-save'), tot = x.nuovi.length + x.agg.length; if (sv) sv.textContent = tot ? (x.nuovi.length ? 'Aggiungi ' + x.nuovi.length : 'Correggi ' + x.agg.length) : 'Aggiungi';
+    }
+    function apri() {
+      openSheet({ title: 'Articoli da Excel', submitLabel: 'Aggiungi', body: corpo(),
+        onOpen: function (f) {
+          var fi = f.querySelector('#xl-f');
+          if (fi) fi.addEventListener('change', async function () {
+            var file = fi.files && fi.files[0], er = f.querySelector('#xl-e'); if (!file) return;
+            try {
+              var rows = await xlLeggi(file); X.head = rows.findIndex(function (r) { return r.filter(function (c) { return String(c).trim(); }).length >= 2; });
+              if (X.head < 0 || rows.length < X.head + 2) throw new Error('vuoto');
+              X.rows = rows; apri();
+            } catch (e) { er.textContent = typeof DecompressionStream === 'undefined' ? 'Questo browser non apre i file Excel: salvalo come .csv e riprova.' : 'Non riesco a leggere il file: controlla che sia un .xlsx o un .csv con i titoli nella prima riga.'; er.hidden = false; }
+          });
+          if (X.rows) { f.addEventListener('change', function (e) { if (e.target.classList.contains('xl-c')) anteprima(f); }); anteprima(f); }
+        },
+        onSubmit: async function (f) {
+          if (!X.rows) { formErr('Scegli prima il file.'); return false; }
+          var x = articoliDa(f), tot = x.nuovi.length + x.agg.length; if (!tot) { formErr('Non c’è nessun articolo da aggiungere.'); return false; }
+          var now = new Date().toISOString(), n = 0, c = 0, sv = $('#sheet-save'), st = stockMap();
+          function mov(id, q, tipo) { var mr = S.db.collection('movimenti').doc(); return w(function () { return mr.set({ articoloId: id, qta: q, tipo: tipo, data: todayISO(), utente: S.myId || '', creato: now }); }); }
+          for (var i = 0; i < x.nuovi.length; i++) {
+            var d = x.nuovi[i], data = { importato: now, creato: now, modificato: now };
+            ['nome', 'codice', 'tipo', 'categoria', 'um', 'minimo', 'fornitore', 'posizione', 'note'].forEach(function (k) { if (d[k] !== '' && d[k] != null) data[k] = d[k]; });
+            var ref = S.db.collection('magazzino').doc(); if (!(await w(function () { return ref.set(data); }))) break;
+            if (d.q) await mov(ref.id, d.q, 'carico');
+            n++; if (sv && n % 5 === 0) sv.textContent = n + ' di ' + x.nuovi.length + '…';
+          }
+          if (n === x.nuovi.length) for (var j = 0; j < x.agg.length; j++) { var a = x.agg[j], cur = st[a.m.id] || 0; if (a.q !== cur && !(await mov(a.m.id, a.q - cur, 'rettifica'))) break; c++; }
+          var ok = n === x.nuovi.length && c === x.agg.length;
+          toast(ok ? [n ? 'Aggiunti ' + n + ' articoli' : '', c ? 'corrette ' + c + ' quantità' : ''].filter(Boolean).join(', ') : 'Aggiunti ' + n + ' articoli su ' + x.nuovi.length + ': riprova per gli altri (salto quelli già aggiunti)', !ok);
+          render(); return n + c > 0;
+        } });
+    }
+    apri();
+  }
+
   function viewBoat() {
     var b = boatById(V.boatId);
     if (!b) { if (V.boatId === S.pendingBoat) return '<div class="notice" style="margin-top:14px">Apro la scheda…</div>'; V.boatId = null; return viewBarche(); }
@@ -9361,6 +9460,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function viewMagazzino() {
     return exampleBanner() + '<div class="search">' + I.search + '<input id="mq" type="search" placeholder="Cerca articolo, tipo o categoria" value="' + esc(V.magQ) + '" autocomplete="off" aria-label="Cerca nel magazzino"></div>' +
       (S.canWrite ? '<button type="button" class="btn" data-act="mag-carico" style="width:100%;margin-top:10px">' + I.plus + 'Carico di più articoli (bolla)</button>' : '') +
+      (S.isOwner && S.canWrite ? '<button type="button" class="btn sec" data-act="mag-xl" style="width:100%;margin-top:10px">' + I.doc + 'Articoli da Excel</button>' : '') +
       (S.mag.length ? '<button type="button" class="btn sec" data-act="' + (S.canWrite ? 'mag-move' : 'mag-find') + '" style="width:100%;margin-top:10px">' + I.camera + (S.canWrite ? 'Carico o scarico col codice a barre' : 'Trova col codice a barre') + '</button>' : '') +
       (S.mag.length ? '<div class="grid2" style="margin-top:10px"><button type="button" class="btn sec" data-act="kit-list">' + I.list + 'Kit ricambi' + ((S.kit || []).length ? ' · ' + S.kit.length : '') + '</button><button type="button" class="btn sec" data-act="tab" data-tab="inventario">' + I.check + 'Inventario' + (invOpen() ? ' · in corso' : '') + '</button></div>' : '') +
       (S.mag.length ? '<button type="button" class="btn sec" data-act="mag-shop" style="width:100%;margin-top:10px">' + I.cart + 'Lista della spesa' + (shopList().length ? ' · ' + shopList().length + (shopList().length === 1 ? ' articolo' : ' articoli') : '') + '</button>' : '') +
@@ -12348,6 +12448,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'new-mag': magSheet(null); break;
       case 'mag-shop': shopSheet(); break;
       case 'mag-carico': caricoSheet(); break;
+      case 'mag-xl': magXlSheet(); break;
       case 'nt-on': ntAttiva(); break;
       case 'nt-off': ntDisattiva(); break;
       case 'nt-prova': ntProva(); break;
