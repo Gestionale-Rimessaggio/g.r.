@@ -319,6 +319,30 @@ button.row:active, .row .hit:active { opacity: .65; }
 }
 .posto.empty { border-style: dashed; border-color: var(--dim); color: var(--dim); }
 
+/* Dove si trova la barca: icona a sinistra, posto a destra in una colonna larga uguale per tutte (5/11/2026) */
+.dv-ic { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; }
+.dv-ic svg { width: 72%; height: 72%; }
+.dv-ic.msv { background: rgba(95, 208, 184, .16); color: #5fd0b8; }
+.dv-ic.porto { background: rgba(140, 194, 255, .15); color: #8cc2ff; }
+.dv-ic.terzi { background: rgba(201, 182, 255, .15); color: #c9b6ff; }
+.dv-ic.nm { background: var(--card-2); color: var(--ink); }
+.dv-col { flex: none; width: 64px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.dv-p { display: block; width: 62px; box-sizing: border-box; text-align: center; padding: 3px 2px; border-radius: 999px; border: 1.5px solid; font-family: var(--font-data); font-weight: 600; font-size: .72rem; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dv-p.msv { border-color: var(--accent); color: var(--accent); }
+.dv-p.manca { border-color: var(--soon); border-style: dashed; color: var(--soon); }
+.dv-p.nm { border-color: transparent; background: var(--card-2); color: var(--muted); }
+.dv-p.fuori { border-color: #c9b6ff; color: #c9b6ff; }
+.dv-hero { flex: none; display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 4px; }
+.dv-hero .dv-ic { width: 60px; height: 60px; }
+.dv-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.dv-seg button, .dv-sub button { font: inherit; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px; border-radius: 14px; border: 1.5px solid var(--edge, rgba(80,120,170,.3)); background: none; color: var(--muted); font-size: .82rem; line-height: 1.25; text-align: center; cursor: pointer; }
+.dv-seg button .dv-ic { width: 40px; height: 40px; }
+.dv-seg button[aria-pressed="true"] { border-color: var(--accent); color: var(--ink); background: var(--accent-bg); }
+.dv-sub { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.dv-sub button { flex-direction: row; justify-content: flex-start; gap: 8px; padding: 8px 10px; font-size: .86rem; }
+.dv-sub button .dv-ic { width: 30px; height: 30px; }
+.dv-sub button[aria-pressed="true"] { border-color: #c9b6ff; color: var(--ink); }
+
 /* Stati vuoti e avvisi */
 .empty { background: var(--card); border-radius: var(--r); padding: 22px 18px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; }
 .empty .ic-circle { background: var(--card-2); color: var(--ink); width: 46px; height: 46px; }
@@ -1320,20 +1344,51 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       (sub.length ? '<span class="sub">' + sub.join(' · ') + '</span>' : '') +
       '<span class="status"><span class="pill ' + pc + '">' + esc(STATI_LAVORO[st] || st) + '</span></span>' + (lfS ? '<span class="status" style="color:var(--' + (lfS.lv || 'muted') + ')">' + esc(lfS.t) + '</span>' : '') + '</span>' + (act ? '</button>' : '</div>') + right + '</div>';
   }
+  /* ---------- Dove si trova la barca (Torcio, 5/11/2026): 3 possibilità, ognuna con la sua icona ----------
+     msv = il nostro porto, nm = il nostro cantiere,
+     fuori = altro porto (ancora) o cantiere di altri (hangar), con nome e paese. Barche senza scelta: in acqua o col posto
+     al porto = porto, le altre = cantiere. All'alaggio fatto passa da sola al cantiere, al varo fatto al porto. */
+  var DOVE_K = ['msv', 'nm', 'porto', 'terzi'], DOVE_T = { msv: 'Al porto', nm: 'Al cantiere', porto: 'Altro porto', terzi: 'Cantiere di altri' }, DOVE_N = 0;
+  var DOVE_I = { msv: '<svg aria-hidden="true" viewBox="0 0 48 48"><g fill="currentColor"><path d="M22.6 5.5v27H10.3c-.6 0-.9-.6-.6-1.1z"/><path d="M25.4 10.5v22H36c.6 0 .9-.6.6-1.1z"/><path d="M7.6 35h32.8c.7 0 1.1.8.6 1.3l-3.2 3.7c-.4.5-1 .7-1.6.7H11.8c-.6 0-1.2-.3-1.6-.7L7 36.3c-.5-.5-.1-1.3.6-1.3z"/></g><path fill="none" stroke="currentColor" stroke-width="1.6" d="M24 4v31"/><g fill="none" stroke="currentColor" stroke-linecap="round"><path stroke-width="1.9" d="M5 43.6c2 0 2-1.6 4-1.6s2 1.6 4 1.6 2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6"/><path stroke-width="1.5" opacity=".55" d="M11 46.8c1.6 0 1.6-1.3 3.2-1.3s1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3"/></g></svg>', nm: '<svg aria-hidden="true" viewBox="0 0 48 48"><path fill="currentColor" fill-rule="evenodd" d="M4.5 20.8 23.2 7.7c.5-.3 1.1-.3 1.6 0l18.7 13.1c.4.3.5.7.5 1.2v18.5c0 .8-.6 1.5-1.4 1.5H5.9c-.8 0-1.4-.7-1.4-1.5V22c0-.5.1-.9.5-1.2zM13 42V28.6c0-.8.6-1.4 1.4-1.4h19.2c.8 0 1.4.6 1.4 1.4V42z"/><g fill="none" stroke="currentColor" stroke-width="1.5" opacity=".75"><path d="M15 31h18M15 35h18M15 39h18"/></g><path fill="currentColor" d="M2 43h44v2.2H2z" opacity=".55"/></svg>', porto: '<svg aria-hidden="true" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="6.4" r="3.2" stroke-width="2.4"/><path stroke-width="2.8" d="M24 9.6v27"/><path stroke-width="2.6" d="M17.6 15.2h12.8"/><path stroke-width="2.8" d="M11 26.4c.6 6.4 6.3 10.4 13 10.4s12.4-4 13-10.4"/></g><g fill="currentColor"><path d="M8.2 28.2l2.6-5.4 3.4 5z"/><path d="M39.8 28.2l-2.6-5.4-3.4 5z"/></g><g fill="none" stroke="currentColor" stroke-linecap="round"><path stroke-width="1.9" d="M5 43.6c2 0 2-1.6 4-1.6s2 1.6 4 1.6 2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6"/><path stroke-width="1.5" opacity=".55" d="M11 46.8c1.6 0 1.6-1.3 3.2-1.3s1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3"/></g></svg>', terzi: '<svg aria-hidden="true" viewBox="0 0 48 48"><path fill="currentColor" fill-rule="evenodd" d="M4.5 40.5V24.2C4.5 13.6 13.2 6 24 6s19.5 7.6 19.5 18.2v16.3c0 .8-.6 1.5-1.4 1.5H5.9c-.8 0-1.4-.7-1.4-1.5zM12.5 42V27.2c0-.8.6-1.4 1.4-1.4h20.2c.8 0 1.4.6 1.4 1.4V42z"/><g fill="none" stroke="currentColor" stroke-width="1.5" opacity=".75"><path d="M14.5 30h19M14.5 34h19M14.5 38h19"/></g><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".45" d="M9.6 19.4C12.4 13.6 17.8 10.4 24 10.4s11.6 3.2 14.4 9"/><path fill="currentColor" d="M2 43h44v2.2H2z" opacity=".55"/></svg>' };
+  function doveOf(b) {
+    if (!b) return 'nm';
+    if (DOVE_K.indexOf(b.dove) >= 0) return b.dove;
+    var bl = b.id && Porto.berthLabel(b.id);
+    return b.stato === 'In acqua' || (bl && !(b.stato === 'In rimessaggio' || b.stato === 'In lavorazione')) ? 'msv' : 'nm';
+  }
+  function dovePosto(b) { return (b.id && Porto.berthLabel(b.id)) || b.posto || ''; }
+  function doveIco(k, px) {
+    var m = 'dvm' + (++DOVE_N);
+    return '<span class="dv-ic ' + k + '"' + (px ? ' style="width:' + px + 'px;height:' + px + 'px"' : '') + '>' + DOVE_I[k].replace(/MSK/g, m) + '</span>';
+  }
+  function doveLuogo(b) { return [b.doveNome, b.doveLuogo].filter(Boolean).join(', '); }
+  function doveTxt(b) {
+    var k = doveOf(b), p = dovePosto(b);
+    if (k === 'msv') return DOVE_T.msv + (p ? ' · posto ' + p : '');
+    if (k === 'nm') return DOVE_T.nm;
+    return doveLuogo(b) || DOVE_T[k];
+  }
+  function dovePill(b) {
+    var k = doveOf(b), p = dovePosto(b);
+    if (k === 'msv') return p ? '<span class="dv-p msv" title="' + esc(p) + '">' + esc(p) + '</span>' : '<span class="dv-p manca">Senza</span>';
+    if (k === 'nm') return '<span class="dv-p nm">' + 'Terra' + '</span>';
+    return '<span class="dv-p fuori">Fuori</span>';
+  }
+  var DOVE_BTN = [['msv', 'Al porto'], ['nm', 'Al cantiere'], ['fuori', 'Fuori<br>(altri)']];
   function boatRow(b) {
     var next = openScad(b.id)[0], pill = '';
     var miss = b.daCompletare ? boatMissing(b) : [];
     if (miss.length) pill = '<span class="pill soon">Da completare</span>';
     if (next && next.i.level === 'late') pill = '<span class="pill late">Scaduta</span>';
     else if (next && next.i.level === 'soon') pill = '<span class="pill soon">In arrivo</span>';
-    var sub1 = [b.modello, num(b.lunghezza) != null ? fmtNum(b.lunghezza, 2) + ' m' : ''].filter(Boolean).map(esc).join(' · ');
+    var dk = doveOf(b);
+    var sub1 = [b.modello, num(b.lunghezza) != null ? fmtNum(b.lunghezza, 2) + ' m' : '', dk === 'porto' || dk === 'terzi' ? doveLuogo(b) : ''].filter(Boolean).map(esc).join(' · ');
     var sub2 = [b.proprietario, b.stato].filter(Boolean).map(esc).join(' · ');
-    return '<button type="button" class="row" data-act="open-boat" data-id="' + esc(b.id) + '">' +
-      '<span class="posto' + (b.posto ? '' : ' empty') + '">' + esc(b.posto || 'posto') + '</span>' +
+    return '<button type="button" class="row" data-act="open-boat" data-id="' + esc(b.id) + '">' + doveIco(dk) +
       '<span class="main"><span class="title" style="font-size:1.08rem">' + esc(b.nome || 'Senza nome') + '</span>' +
       (sub1 ? '<span class="sub">' + sub1 + '</span>' : '') + (sub2 ? '<span class="sub">' + sub2 + '</span>' : '') +
       (miss.length ? '<span class="sub t-soon">Manca: ' + esc(miss.join(', ')) + '</span>' : '') + '</span>' +
-      (pill ? '<span class="side">' + pill + '</span>' : '') + '</button>';
+      '<span class="dv-col">' + dovePill(b) + pill + '</span></button>';
   }
   function featCard(lvl, icon, title, sub, status, acts) {
     return '<div class="feat-w"><article class="feat-card"><div class="feat-top"><span class="ic-circle ' + lvl + '">' + icon + '</span><div class="main"><div class="feat-title">' + esc(title) + '</div>' +
@@ -2053,8 +2108,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var h = '<section class="hero"><div class="main"><div class="pills">' +
       (b.stato ? '<span class="pill acc">' + esc(b.stato) + '</span>' : '') + (b.tipo ? '<span class="pill">' + esc(b.tipo) + '</span>' : '') +
       (Porto.berthLabel(b.id) ? '<span class="pill teal">Porto · ' + esc(Porto.berthLabel(b.id)) + '</span>' : '') + (b.vendita && b.vendita.attiva ? '<span class="pill vio">In vendita</span>' : '') + '</div>' +
-      '<h2>' + esc(b.nome || 'Senza nome') + '</h2>' + (b.modello ? '<div class="model">' + esc(b.modello) + '</div>' : '') + '</div>' +
-      '<span class="posto' + (b.posto ? '' : ' empty') + '">' + esc(b.posto || 'posto') + '</span></section>';
+      '<h2>' + esc(b.nome || 'Senza nome') + '</h2>' + (b.modello ? '<div class="model">' + esc(b.modello) + '</div>' : '') + '<div class="model">' + esc(doveTxt(b)) + '</div></div>' +
+      '<span class="dv-hero">' + doveIco(doveOf(b), 60) + dovePill(b) + '</span></section>';
     var missD = b.daCompletare ? boatMissing(b) : [];
     if (missD.length) h += '<div class="notice" style="margin-top:12px"><span class="t-soon" style="font-weight:600">Barca creata al volo: manca ' + esc(missD.join(', ')) + '.</span>' +
       (S.canWrite ? ' <button type="button" class="link" data-act="edit-boat" data-id="' + esc(b.id) + '">Completa la scheda</button>' : '') + '</div>';
@@ -6443,7 +6498,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   async function afterMove(boatId, kind) {
     var b = boatById(boatId); if (!b || !kind) return;
     var nuovo = kind === 'varo' ? 'In acqua' : 'In rimessaggio';
-    if (b.stato !== nuovo) { var rb = S.db.collection('barche').doc(b.id); await w(function () { return rb.update({ stato: nuovo, modificato: new Date().toISOString() }); }); }
+    var dv = kind === 'varo' ? 'msv' : 'nm'; // dopo l'alaggio la barca è al cantiere, dopo il varo al porto
+    if (b.stato !== nuovo || b.dove !== dv) { var rb = S.db.collection('barche').doc(b.id); await w(function () { return rb.update({ stato: nuovo, dove: dv, doveNome: '', doveLuogo: '', modificato: new Date().toISOString() }); }); }
     setTimeout(function () { if (kind === 'varo') varoSheet(b); else alaggioSheet(b); }, 250);
   }
   function varoSheet(b) {
@@ -10094,6 +10150,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'Tocca un giorno per vedere il dettaglio: chi ha lavorato e quante ore, programma, vari, scadenze, assenti e meteo.',
       'Dal giorno aperto puoi aggiungere qualcosa direttamente in quella data.'] },
     barche: { t: 'Barche', p: 'Tutte le barche del cantiere. Tutto ruota attorno alla barca: lavori, scadenze, vari e ricambi sono collegati a lei.', li: [
+      'L’icona a sinistra dice dove si trova la barca: barca a vela = al porto, capannone = al cantiere, ancora = in un altro porto, hangar = in un cantiere di altri. A destra il posto («Senza» se non c’è), «Terra» al cantiere o «Fuori».',
       'Cerca per nome, modello, cliente o posto.',
       '«Trova la barca dalla foto»: fotografi una barca e l’app propone le 5 più simili tra quelle registrate. La foto non viene salvata.',
       'Le barche con dati incompleti mostrano «manca: …» con il tasto per completarle.',
@@ -10108,6 +10165,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'A|Clienti da sentire (si spegne in Aspetto › Sezioni): barche senza lavori né vari da 12 mesi, contratti del posto scaduti, scadenze passate da più di 30 giorni, con il telefono del cliente.',
       'A|Ognuno dei riepiloghi ha i suoi riquadri da sistemare come in Home: tieni premuto (o «⋯» sul computer) per grandezza, posizione o per toglierli.'] },
     barca: { t: 'Scheda della barca', p: 'Qui c’è tutta la storia della barca.', li: [
+      '«Dove si trova» nella matita: al porto, al cantiere o fuori (altro porto o cantiere di altri, con nome e paese). Quando segni fatto l’alaggio la barca passa da sola al cantiere, col varo al porto. Il cliente lo vede nella sua pagina con la stessa icona.',
       'La matita in alto modifica i dati: modello, misure, motori, stato, ore motore, proprietario con telefono ed email.',
       'Nella matita ogni motore è una riga con marca e modello, matricola, cv e ore: «Aggiungi riga» per un altro motore (copia marca e cv del primo), × per toglierlo. Il numero dei motori si conta da solo.',
       'Toccando «Ore motore» si aggiornano le ore di ogni motore; per scadenze e tagliandi conta il motore con più ore.',
@@ -10717,6 +10775,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   function boatSheet(b) {
     var isNew = !b; b = b || { tipo: 'Motore', stato: 'In rimessaggio', motoreTipo: 'Fuoribordo', nMotori: 1 };
+    var dv0 = doveOf(b), DV = { k: dv0 === 'porto' || dv0 === 'terzi' ? 'fuori' : dv0, s: dv0 === 'terzi' ? 'terzi' : 'porto' };
     var nL = isNew ? 0 : S.lavori.filter(function (l) { return l.barcaId === b.id; }).length;
     var nS = isNew ? 0 : S.scadenze.filter(function (s) { return s.barcaId === b.id; }).length;
     var body =
@@ -10725,7 +10784,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       '<div class="grid2">' + field(lab('f-tipo', 'Tipo'), '<select id="f-tipo">' + opts(TIPI_BARCA, b.tipo) + '</select>') + field(lab('f-stato', 'Stato'), '<select id="f-stato">' + opts(STATI_BARCA, b.stato) + '</select>') + '</div>' +
       '<div class="grid2">' + field(lab('f-lunghezza', 'Lunghezza f.t. (m)'), inp('f-lunghezza', num(b.lunghezza) != null ? String(b.lunghezza).replace('.', ',') : '', 'type="text" inputmode="decimal" placeholder="es. 9,80"')) + field(lab('f-larghezza', 'Larghezza max (m)'), inp('f-larghezza', num(b.larghezza) != null ? String(b.larghezza).replace('.', ',') : '', 'type="text" inputmode="decimal" placeholder="es. 3,10"')) + '</div>' +
       '<span class="hint" style="margin-top:-8px">La larghezza massima (baglio) serve per la mappa. Se la lasci vuota la stimo dalla lunghezza.</span>' +
-      '<div class="grid2">' + field(lab('f-anno', 'Anno'), inp('f-anno', b.anno, 'type="text" inputmode="numeric" placeholder="es. 2018"')) + field(lab('f-posto', 'Posto'), inp('f-posto', b.posto, 'type="text" placeholder="es. B12"')) + '</div>' +
+      '<div class="lbl">Dove si trova</div><div class="dv-seg" role="group" aria-label="Dove si trova">' + DOVE_BTN.map(function (o) { return '<button type="button" data-dv="' + o[0] + '" aria-pressed="false">' + doveIco(o[0] === 'fuori' ? 'porto' : o[0]) + '<span>' + o[1] + '</span></button>'; }).join('') + '</div>' +
+      '<div id="f-dvF" hidden><div class="dv-sub" role="group" aria-label="Fuori">' + [['porto', 'Altro porto'], ['terzi', 'Cantiere di altri']].map(function (o) { return '<button type="button" data-dvs="' + o[0] + '" aria-pressed="false">' + doveIco(o[0]) + '<span>' + o[1] + '</span></button>'; }).join('') + '</div>' +
+        '<div class="grid2">' + field(lab('f-dvn', 'Nome'), inp('f-dvn', b.doveNome, 'type="text" autocapitalize="words" placeholder="es. Cantiere Rossi"')) + field(lab('f-dvl', 'Dove (paese)'), inp('f-dvl', b.doveLuogo, 'type="text" autocapitalize="words" placeholder="es. Cecina"')) + '</div></div>' +
+      '<div class="grid2">' + field(lab('f-anno', 'Anno'), inp('f-anno', b.anno, 'type="text" inputmode="numeric" placeholder="es. 2018"')) + '<div id="f-postoW">' + field(lab('f-posto', 'Posto'), inp('f-posto', b.posto, 'type="text" placeholder="es. B12"')) + '</div>' + '</div>' +
       '<div id="f-postoS" class="chips" style="flex-wrap:wrap;margin:-4px 0 10px" hidden></div>' +
       field(lab('f-immatricolazione', 'Immatricolazione'), inp('f-immatricolazione', b.immatricolazione, 'type="text" autocapitalize="characters"')) +
       '<div class="lbl">Motore</div>' +
@@ -10754,6 +10816,16 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       },
       onOpen: function (f) {
         motInit(f, b);
+        function dvShow() { // dove si trova: il posto solo per il porto (o il cantiere), nome e paese solo fuori
+          Array.prototype.forEach.call(f.querySelectorAll('[data-dv]'), function (x) { x.setAttribute('aria-pressed', String(x.getAttribute('data-dv') === DV.k)); });
+          Array.prototype.forEach.call(f.querySelectorAll('[data-dvs]'), function (x) { x.setAttribute('aria-pressed', String(x.getAttribute('data-dvs') === DV.s)); });
+          f.querySelector('#f-dvF').hidden = DV.k !== 'fuori';
+          var pw = f.querySelector('#f-postoW'); pw.hidden = DV.k === 'fuori';
+          var hh = f.querySelector('#f-postoH'), hs = f.querySelector('#f-postoS'); if (pw.hidden) { if (hh) hh.hidden = true; if (hs) hs.hidden = true; } else if (hh) hh.hidden = false;
+        }
+        f.querySelector('.dv-seg').addEventListener('click', function (e) { var x = e.target.closest('[data-dv]'); if (!x) return; DV.k = x.getAttribute('data-dv'); dvShow(); });
+        f.querySelector('.dv-sub').addEventListener('click', function (e) { var x = e.target.closest('[data-dvs]'); if (!x) return; DV.s = x.getAttribute('data-dvs'); dvShow(); });
+        dvShow();
         if (!sezOn('postogiusto') || !PORTO_ON()) return;
         var pi = f.querySelector('#f-posto'), ps = f.querySelector('#f-postoS');
         function sugg() { // A «Trova il posto giusto»: i posti liberi in cui entra, da toccare
@@ -10775,6 +10847,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
           daCompletare: false, modificato: new Date().toISOString()
         };
         if (!data.nome) { formErr('Scrivi il nome della barca.'); return false; }
+        data.dove = DV.k === 'fuori' ? DV.s : DV.k; data.doveNome = DV.k === 'fuori' ? val(f, 'f-dvn') : ''; data.doveLuogo = DV.k === 'fuori' ? val(f, 'f-dvl') : '';
+        if (DV.k === 'fuori') data.posto = '';
         var mr = motRead(f); if (!mr) return false;
         Object.assign(data, motSync(mr));
         if (isNew && !dupAsk(f, data.nome, function (gia) { closeSheet(); V.tab = 'barche'; V.boatId = gia.id; window.scrollTo(0, 0); render(); toast('Ti ho aperto la scheda di ' + (gia.nome || 'questa barca')); })) return false;
@@ -10788,6 +10862,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         }
         var r2 = S.db.collection('barche').doc(b.id);
         var ok2 = await w(function () { return r2.update(data); });
+        if (ok2 && DV.k === 'fuori' && Porto.berthLabel(b.id)) ok2 = await Porto.release(b.id);
         if (ok2 && sezOn('postogiusto') && PORTO_ON() && data.posto && data.posto !== Porto.berthLabel(b.id) && Porto.libero(data.posto)) await Porto.assign(data.posto, b.id);
         if (ok2) toast('Scheda salvata');
         return ok2;
