@@ -1020,6 +1020,21 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
 #tablet .tb-err { color: var(--late, #ff6b5e); min-height: 22px; margin: 6px 0 0; }
 .tb-bar { display: flex; align-items: center; gap: 12px; background: var(--accent-bg); border: 1px solid rgba(46, 196, 182, .5); border-radius: 14px; padding: 10px 14px; margin: 12px 0 4px; }
 .tb-bar .t { flex: 1; } .tb-bar .t small { display: block; color: var(--muted); font-size: 13px; }
+.dt-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 2px; }
+.dt-bar .cap { flex: 1 1 160px; margin: 0; }
+.dt-btn svg { width: 18px; height: 18px; }
+.dt-pan { background: var(--accent-bg); border: 1px solid var(--accent); border-radius: 14px; padding: 12px 14px; }
+.dt-pan .acts { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; flex-wrap: wrap; }
+.dt-pan .acts svg { width: 16px; height: 16px; }
+.dt-pan textarea { width: 100%; }
+.dt-rec { display: flex; align-items: center; gap: 10px; }
+.dt-t { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--muted); }
+.dt-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--late); animation: dt-pulse 1s ease-in-out infinite; }
+.dt-wait { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--accent); border-right-color: transparent; animation: dt-spin .8s linear infinite; }
+@keyframes dt-pulse { 50% { opacity: .35; transform: scale(.8); } }
+@keyframes dt-spin { to { transform: rotate(360deg); } }
+.dt-said { margin: 0; font-style: italic; color: var(--ink); }
+.dt-fill, .bp-btn.dt-fill { box-shadow: 0 0 0 2px var(--accent) !important; background-color: var(--accent-bg) !important; }
 </style>
 
 <div class="splash" id="splash" role="img" aria-label=""><img id="logo-src" alt=""></div>
@@ -6868,7 +6883,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var canDel = !isNew && (S.isEditor || S.isOwner || !!window.__NM_FB), more = !!(x.mezzi && x.mezzi.length || x.dove || (x.materiali || []).length || x.urgente || x.avvisare || x.note || x.ripeti);
     var b0 = x.barcaId ? boatById(x.barcaId) : null;
     openSheet({
-      title: isNew ? 'Da fare' : 'Cosa da fare', submitLabel: 'Salva', deleteLabel: 'Elimina dal programma', deleteText: x.lavId && x.lavId === lavCreataDa(x) ? 'La togli dal programma insieme alla sua lavorazione da fare.' : 'La togli dal programma. Lavorazioni e servizi già esistenti collegati restano.',
+      detta: DT_ES.prog, title: isNew ? 'Da fare' : 'Cosa da fare', submitLabel: 'Salva', deleteLabel: 'Elimina dal programma', deleteText: x.lavId && x.lavId === lavCreataDa(x) ? 'La togli dal programma insieme alla sua lavorazione da fare.' : 'La togli dal programma. Lavorazioni e servizi già esistenti collegati restano.',
       body: (ops.length || lavs.length ? field(lab('f-pl', 'Parti da un lavoro aperto (facoltativo)'), '<select id="f-pl">' + linkOpts + '</select>') : '') +
         field(lab('f-pt', 'Cosa c’è da fare'), '<textarea id="f-pt" required placeholder="es. Alaggio Lulu con il travel lift">' + esc(x.testo || '') + '</textarea>') +
         '<div class="grid2">' + field(lab('f-pd', 'Giorno'), inp('f-pd', x.data, 'type="date" required')) + field(lab('f-po', 'Ora d’inizio (facoltativa)'), inp('f-po', x.ora, 'type="time" step="900"')) + '</div>' +
@@ -7298,7 +7313,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (!isNew && !assCanSee(a)) { toast(nameOf(a.utente) + ' è assente ' + assWhen(a)); return; }
     var people = progPeople();
     openSheet({
-      title: isNew ? 'Ferie o permesso' : assTipo(a.tipo) + ' · ' + nameOf(a.utente), submitLabel: canEdit ? 'Salva' : 'Chiudi',
+      detta: DT_ES.ferie, title: isNew ? 'Ferie o permesso' : assTipo(a.tipo) + ' · ' + nameOf(a.utente), submitLabel: canEdit ? 'Salva' : 'Chiudi',
       deleteLabel: own && a.stato === 'richiesta' ? 'Ritira la richiesta' : 'Elimina', deleteText: 'La togli dall’elenco delle assenze.',
       ownDel: own && a.stato === 'richiesta', onDelete: !isNew && (admin || (own && a.stato === 'richiesta')) ? async function () { if (await delSeq([S.db.collection('assenze').doc(a.id)])) { closeSheet(); toast('Tolta'); } } : null,
       body: (admin ? field(lab('f-au', 'Per chi'), '<select id="f-au"' + (canEdit ? '' : ' disabled') + '>' + people.map(function (id) { return '<option value="' + esc(id) + '"' + (id === a.utente ? ' selected' : '') + '>' + esc(id === S.myId ? 'Io · ' + nameOf(id) : nameOf(id)) + '</option>'; }).join('') + '</select>') : '') +
@@ -7440,7 +7455,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var canDel = !isNew && (S.isEditor || S.isOwner || !!window.__NM_FB), wasOk = p.stato === 'accettato';
     var c = !isNew && wasOk ? prevConfronto(p) : null, lavs = !isNew ? prevLavori(p) : [];
     openSheet({
-      title: isNew ? 'Nuovo preventivo' : 'Preventivo', submitLabel: 'Salva', foto: p.foto,
+      detta: DT_ES.preventivo, dettaRighe: 'preventivo', title: isNew ? 'Nuovo preventivo' : 'Preventivo', submitLabel: 'Salva', foto: p.foto,
       deleteLabel: canDel ? 'Elimina preventivo' : null, deleteText: 'Elimini il preventivo. Le lavorazioni già create restano.',
       item: p, onDelete: canDel ? async function () { if (await delSeq([S.db.collection('preventivi').doc(p.id)])) { closeSheet(); toast('Preventivo eliminato'); } } : null,
       body: field(lab('f-barca', 'Barca'), boatSelect(p.barcaId)) +
@@ -7993,7 +8008,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var canDel = !isNew && (S.isEditor || S.isOwner || !!window.__NM_FB || r.utente === S.myId);
     var boats = S.boats.slice().sort(byName);
     openSheet({
-      title: isNew ? 'Segna rifiuto' : 'Rifiuto segnato', submitLabel: 'Salva',
+      detta: DT_ES.rifiuto, title: isNew ? 'Segna rifiuto' : 'Rifiuto segnato', submitLabel: 'Salva',
       deleteLabel: canDel ? 'Elimina' : null, deleteText: 'Lo togli dal deposito e dal registro.',
       item: r, onDelete: canDel ? async function () { var ref = S.db.collection('rifiuti').doc(r.id); if (await w(function () { return ref.delete(); })) { closeSheet(); toast('Eliminato'); } else { var b = $('[data-act="do-del"]'); if (b) b.disabled = false; } } : null,
       body: aiFillBtn('rif', 'Riconosci il rifiuto dalla foto') + field(lab('f-rt', 'Che rifiuto è'), '<select id="f-rt">' + rifTipoOpts(t0.id) + '</select>', '') + '<p class="cap" id="f-rtInfo" style="margin:-4px 2px 10px"></p>' +
@@ -8293,7 +8308,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var isNew = !x; x = x || { barcaId: boatId || '', stato: 'deposito' };
     var b = boatById(x.barcaId), rest = x.stato === 'restituito';
     openSheet({
-      title: isNew ? 'Roba in deposito' : x.cosa || 'Roba in deposito', foto: x.foto, deleteLabel: 'Elimina', deleteText: 'La togli dall’elenco della barca. Se è stata restituita, meglio spuntare «Restituita».',
+      detta: DT_ES.deposito, title: isNew ? 'Roba in deposito' : x.cosa || 'Roba in deposito', foto: x.foto, deleteLabel: 'Elimina', deleteText: 'La togli dall’elenco della barca. Se è stata restituita, meglio spuntare «Restituita».',
       body: '<p class="context">' + esc(b ? boatLabel(b) : '') + '</p>' +
         field(lab('fd-cosa', 'Cosa'), inp('fd-cosa', x.cosa, 'list="fd-cosa-l" placeholder="es. Tender, fuoribordo, cuscini, tendalino" autocomplete="off" required') + '<datalist id="fd-cosa-l">' + DEPO_TIPI.map(function (t) { return '<option value="' + esc(t) + '">'; }).join('') + '</datalist>') +
         '<div class="grid2">' + field(lab('fd-q', 'Quanti'), inp('fd-q', x.quanti, 'type="number" min="1" step="1" inputmode="numeric" placeholder="1"')) + field(lab('fd-dove', 'Dove è riposta'), inp('fd-dove', x.dove, 'placeholder="es. capannone, scaffale 3"')) + '</div>' +
@@ -8583,7 +8598,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       '<div class="lbl">Variante</div><div id="f-vars" style="display:flex;flex-direction:column;gap:8px">' + varList(m0, varName, boatId || '') + '</div>' +
       field(lab('f-odata', 'Giorno'), inp('f-odata', todayISO(), 'type="date" required'));
     openSheet({
-      title: 'Nuovo servizio', submitLabel: 'Crea', body: body,
+      detta: DT_ES.servizio, title: 'Nuovo servizio', submitLabel: 'Crea', body: body,
       onOpen: function (f) {
         function refresh(keep) { var m = opModel(val(f, 'f-om')), r = f.querySelector('input[name="f-var"]:checked'); if (m) $('#f-vars').innerHTML = varList(m, keep && r ? r.value : '', val(f, 'f-barca')); }
         f.querySelector('#f-om').addEventListener('change', function () { refresh(false); });
@@ -8920,6 +8935,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['conflitti', 'Avviso di conflitto nel programma', 'mentre scegli chi fa un lavoro, ti avvisa se è in ferie o già impegnato (spento di base)'],
     ['emergenze', 'Emergenze', 'numeri da chiamare, punto di raccolta, cassetta di primo soccorso con le scadenze (spento di base)'],
     ['reperibilita', 'Reperibilità', 'turni dei fine settimana e festivi; il numero in Home e nel portale dei clienti, promemoria il venerdì (spento di base)'],
+    ['dettatura', 'Dettatura a voce', 'il tasto «Detta» nelle schede con tanti campi: parli e l’AI riempie i campi, controlli e salvi tu (usa l’AI della foto)'],
     ['novita', 'Cosa c’è di nuovo', 'dopo un aggiornamento dell’app, una finestra con le novità, una volta a ognuno'],
     ['portomio', 'Porto disegnato da voi', 'la mappa del porto: i vostri pontili e posti sopra la foto, con Porto e posti barca (spento di base: senza, il Porto è l’elenco dei posti)']];
   var SEZ_OFF = ['orecliente', 'tablet', 'controllo', 'deposito', 'portomio', 'postogiusto', 'qrbarca', 'schede', 'vernice', 'avanzamento', 'richieste', 'verbale', 'targhetta', 'stagioni', 'depositi', 'consumo', 'barattoli', 'varianti', 'scadcliente', 'tempimani', 'notecolleghi', 'conflitti', 'emergenze', 'reperibilita']; // sezioni spente finché l'amministratore non le accende
@@ -10570,6 +10586,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ai: { t: 'Fotocamera e intelligenza artificiale', p: 'In diversi punti c’è un tasto con la fotocamera che legge la foto e compila i campi.', li: [
       'Riconosce una barca, legge una scadenza o l’etichetta di una batteria, riconosce un rifiuto o un ricambio, legge un preventivo.',
       'Non salva mai da sola: controlli e confermi tu.',
+      'Con il tasto «Detta» in cima alle schede (mansione, lavorazione, barca, scadenza, servizio, varo, programma, articolo, carico, preventivo, verbale, deposito, rifiuto, ferie) parli invece di scrivere: l’AI riempie i campi, che si colorano, e tu controlli prima di salvare. L’audio non viene salvato.',
       'Non fotografare documenti con dati personali dei clienti.'] },
     faq: { t: 'Domande frequenti', p: '', li: [
       'Ho cancellato qualcosa per sbaglio? Si recupera dal cestino entro 60 giorni (lo fa l’amministratore).',
@@ -10604,7 +10621,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
 
   /* ---------- Fogli ---------- */
-  function closeSheet() { $('#sheet-root').innerHTML = ''; document.body.classList.remove('locked'); SHEET.onDelete = null; SHEET.foto = []; SHEET.run = null; SHEET.op = null; SHEET.mv = null; }
+  function closeSheet() { if (DT.rec) dettaStop(true); $('#sheet-root').innerHTML = ''; document.body.classList.remove('locked'); SHEET.onDelete = null; SHEET.foto = []; SHEET.run = null; SHEET.op = null; SHEET.mv = null; }
   function openSheet(o) {
     closeSheet();
     // sul sito: cancella solo l'amministratore, tranne ciò che è proprio (ownDel); ciò che si cancella va nel cestino
@@ -10617,7 +10634,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var head = '<div class="sheet-head"><button type="button" class="link" data-act="close-sheet">' + (o.menu ? 'Chiudi' : 'Annulla') + '</button><h3>' + esc(o.title) + '</h3>' +
       (o.menu ? '<span style="width:52px"></span>' : '<button type="submit" class="link save" id="sheet-save">' + esc(o.submitLabel || 'Salva') + '</button>') + '</div>';
     $('#sheet-root').innerHTML = '<div class="sheet-wrap" id="sheet-wrap"><form class="sheet" id="sheet-form" autocomplete="off">' + head +
-      '<div class="sheet-body">' + o.body + '<p class="form-err" id="form-err" hidden></p>' + del + '</div></form></div>';
+      '<div class="sheet-body">' + dettaBar(o) + o.body + '<p class="form-err" id="form-err" hidden></p>' + del + '</div></form></div>';
     document.body.classList.add('locked');
     var form = $('#sheet-form');
     form.addEventListener('submit', async function (e) {
@@ -10632,6 +10649,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     $('#sheet-wrap').addEventListener('click', function (e) { if (e.target.id === 'sheet-wrap') closeSheet(); });
     boatPickAll(form);
     if (o.onOpen) o.onOpen(form);
+    dettaBind(form, o);
   }
   function formErr(msg) { var p = $('#form-err'); p.textContent = msg; p.hidden = false; }
   function val(form, id) { var el = form.querySelector('#' + id); return el ? String(el.value).trim() : ''; }
@@ -11020,7 +11038,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       '<div class="grid2">' + field(lab('f-telefono', 'Telefono'), inp('f-telefono', b.telefono, 'type="tel" inputmode="tel"')) + field(lab('f-email', 'Email'), inp('f-email', b.email, 'type="email" inputmode="email" autocapitalize="off"')) + '</div>' +
       field(lab('f-note', 'Note'), '<textarea id="f-note" placeholder="Invasatura, chiavi, richieste del cliente…">' + esc(b.note || '') + '</textarea>');
     openSheet({
-      title: isNew ? 'Nuova barca' : 'Modifica scheda', body: body, deleteLabel: 'Elimina barca',
+      detta: DT_ES.barca, title: isNew ? 'Nuova barca' : 'Modifica scheda', body: body, deleteLabel: 'Elimina barca',
       deleteText: 'Elimini ' + (b.nome || 'questa barca') + (nL || nS ? ' insieme a ' + nL + ' lavori e ' + nS + ' scadenze' : '') + '. Non si può annullare.',
       ownDel: [b].concat(S.lavori.filter(function (l) { return l.barcaId === b.id; }), S.scadenze.filter(function (x) { return x.barcaId === b.id; })).every(mine), onDelete: isNew ? null : async function () {
         var refs = S.lavori.filter(function (l) { return l.barcaId === b.id; }).map(function (l) { return S.db.collection('lavori').doc(l.id); })
@@ -11141,7 +11159,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       field(lab('f-vbx', 'Note'), '<textarea id="f-vbx"' + (puo ? '' : ' disabled') + '>' + esc(v.note || '') + '</textarea>') +
       (puo ? photoBlock(v.foto).replace('Foto (facoltative)', 'Foto: i quattro lati, la coperta, il motore e i danni') : ((v.foto || []).length ? '<div class="lbl">Foto</div><div class="thumbs">' + v.foto.map(function (id) { return '<span class="thumb-w"><img class="thumb" alt="" src="' + esc(blobSrc(id)) + '" data-blob="' + esc(id) + '" data-act="photo" data-id="' + esc(id) + '"></span>'; }).join('') + '</div>' : '')) +
       (!isNew ? '<p class="cap" style="margin-top:8px">Fatto da ' + esc(nameOf(v.utente || v.creatoDa)) + ' il ' + esc(fmtDate(String(v.creato || '').slice(0, 10))) + '.</p><button type="button" class="btn sec self-start" data-act="vb-print" data-id="' + esc(v.id) + '">' + I.doc + 'Stampa o salva in PDF</button>' : '');
-    openSheet({ title: isNew ? (v.tipo === 'uscita' ? 'Verbale di uscita' : 'Verbale di ingresso') : vbTit(v), menu: !puo, foto: v.foto || [], item: v,
+    openSheet({ detta: DT_ES.verbale, title: isNew ? (v.tipo === 'uscita' ? 'Verbale di uscita' : 'Verbale di ingresso') : vbTit(v), menu: !puo, foto: v.foto || [], item: v,
       deleteLabel: 'Elimina il verbale', onDelete: isNew || !puo ? null : async function () { if (await delSeq([S.db.collection('verbali').doc(v.id)])) { closeSheet(); toast('Verbale eliminato'); } },
       body: body,
       onSubmit: puo ? async function (f) {
@@ -11415,7 +11433,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       field(lab('f-oreMotoreL', 'Ore motore al momento del lavoro'), inp('f-oreMotoreL', l.oreMotore, 'type="text" inputmode="numeric"'), 'Se sono più di quelle in scheda, la scheda si aggiorna.') +
       rcBlock(l.ricambi) + photoBlock(l.foto);
     openSheet({
-      title: isNew ? 'Nuova lavorazione' : 'Modifica lavorazione', body: body, deleteLabel: 'Elimina lavorazione', foto: l.foto,
+      detta: DT_ES.lavorazione, title: isNew ? 'Nuova lavorazione' : 'Modifica lavorazione', body: body, deleteLabel: 'Elimina lavorazione', foto: l.foto,
       deleteText: 'Elimini “' + (l.titolo || 'questa lavorazione') + '”. Non si può annullare.',
       item: l, onDelete: isNew ? null : async function () { if (await delSeq([S.db.collection('lavori').doc(l.id)].concat(progsOfLav(l.id).map(function (x) { return S.db.collection('programma').doc(x.id); })))) { closeSheet(); toast('Lavorazione eliminata'); } },
       onOpen: function (f) {
@@ -11491,7 +11509,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       field(lab('f-noteS', 'Note'), '<textarea id="f-noteS" placeholder="es. kit tagliando già ordinato">' + esc(s.note || '') + '</textarea>') +
       (!isNew ? '<label class="check"><input type="checkbox" id="f-fatta"' + (s.fatta ? ' checked' : '') + '> Completata</label>' : '');
     openSheet({
-      title: isNew ? 'Nuova scadenza' : 'Modifica scadenza', body: body, deleteLabel: 'Elimina scadenza',
+      detta: DT_ES.scadenza, title: isNew ? 'Nuova scadenza' : 'Modifica scadenza', body: body, deleteLabel: 'Elimina scadenza',
       deleteText: 'Elimini “' + (s.tipo || 'questa scadenza') + '”. Non si può annullare.',
       item: s, onDelete: isNew ? null : async function () { if (await delSeq([S.db.collection('scadenze').doc(s.id)])) { closeSheet(); toast('Scadenza eliminata'); } },
       onOpen: function (f) {
@@ -11615,7 +11633,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       attrLinkBlock(l.attrId) +
       rcBlock(l.ricambi) + photoBlock(l.foto);
     openSheet({
-      title: isNew ? 'Nuova mansione' : l.daSegnare ? 'Segna il tuo tempo' : 'Modifica mansione', body: body, ownDel: l.utente === S.myId || mine(l), deleteLabel: l.daSegnare ? 'Non ci ho lavorato' : 'Elimina mansione', foto: l.foto,
+      detta: DT_ES.mansione, title: isNew ? 'Nuova mansione' : l.daSegnare ? 'Segna il tuo tempo' : 'Modifica mansione', body: body, ownDel: l.utente === S.myId || mine(l), deleteLabel: l.daSegnare ? 'Non ci ho lavorato' : 'Elimina mansione', foto: l.foto,
       deleteText: !isNew && l.daSegnare ? 'Il servizio sparisce dalla tua scheda.' : !isNew && isConfirmed(l.utente, l.data) ? 'La giornata è già confermata: la mansione resterà visibile barrata come cancellata e non conterà più nelle ore.' : 'Elimini questa mansione dalla scheda e dallo storico della barca.',
       onDelete: isNew ? null : async function () {
         if (!l.daSegnare && isConfirmed(l.utente, l.data)) {
@@ -11813,7 +11831,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       field(lab('f-cb', 'Numero bolla'), inp('f-cb', '', 'type="text" placeholder="es. 1234"')) + '</div>' +
       field(lab('f-cd', 'Giorno'), inp('f-cd', todayISO(), 'type="date"'));
     openSheet({
-      title: 'Carico di più articoli', submitLabel: 'Carica', body: body,
+      detta: DT_ES.carico, dettaRighe: 'carico', title: 'Carico di più articoli', submitLabel: 'Carica', body: body,
       onOpen: function (f) {
         var box = f.querySelector('#car-rows');
         function hint(d) {
@@ -11975,7 +11993,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function aiKey() { var c = S.aiCfg; return (c && !c._del && c.chiave) || ''; }
   async function aiAsk(dataUrl, prompt) {
     if (!aiOn()) throw { code: 'ai_off' };
-    var c = window.NM_FIREBASE_CONFIG, b64 = String(dataUrl).split(',')[1], last = null, hd, base;
+    var c = window.NM_FIREBASE_CONFIG, b64 = dataUrl ? String(dataUrl).split(',')[1] : '', mime = dataUrl ? (/^data:([^;,]+)/.exec(String(dataUrl)) || [])[1] || 'image/jpeg' : '', last = null, hd, base;
     var key = aiKey(), AI_MODELS = key ? ['gemini-flash-latest', 'gemini-3.5-flash', 'gemini-flash-lite-latest'] : ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.0-flash'];
     if (key) {
       hd = { 'Content-Type': 'application/json', 'x-goog-api-key': key };
@@ -11989,7 +12007,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     for (var i = 0; i < AI_MODELS.length; i++) {
       var r = await fetch(base + AI_MODELS[i] + ':generateContent', {
         method: 'POST', headers: hd,
-        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ inlineData: { mimeType: 'image/jpeg', data: b64 } }, { text: prompt }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.1 } })
+        body: JSON.stringify({ contents: [{ role: 'user', parts: (b64 ? [{ inlineData: { mimeType: mime, data: b64 } }] : []).concat([{ text: prompt }]) }], generationConfig: { responseMimeType: 'application/json', temperature: 0.1 } })
       }).catch(function () { return null; });
       if (!r) throw { code: 'rete' };
       if (r.status === 404) { last = last || 'modello'; continue; }
@@ -12003,6 +12021,262 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       try { return JSON.parse(txt); } catch (e) { throw { code: 'ai_err' }; }
     }
     throw { code: last === 'occupato' ? 'occupato' : last === 'modello' ? 'ai_off' : 'ai_err' };
+  }
+  /* Dettatura a voce (idea 1.15): nelle schede con tanti campi il tasto «Detta» registra la voce (massimo un minuto),
+     la manda all'AI insieme all'elenco dei campi della scheda e riempie quelli che hai detto. Non salva mai da sola:
+     i campi riempiti si colorano, controlli e premi Salva. L'audio non viene salvato da nessuna parte.
+     Strumento «dettatura», acceso di base; usa la stessa AI (e lo stesso limite gratuito) delle foto. */
+  var DT = { rec: null, stream: null, parts: [], timer: null, t0: 0, form: null, o: null, stop: false };
+  var DT_ES = {
+    mansione: 'Oggi tre ore su Libeccio, lucidatura della fiancata in gelcoat blu',
+    lavorazione: 'Libeccio, cambio girante del motore, da fare entro venerdì',
+    barca: 'Libeccio, Jeanneau Cap Camarat di sette metri e mezzo, cliente Mario Rossi, motore Yamaha 200',
+    scadenza: 'Libeccio, revisione della zattera, scade il 15 marzo',
+    servizio: 'Trasporto di Libeccio domani alle nove, un’ora e mezza',
+    vari: 'Varo di Libeccio sabato alle otto',
+    prog: 'Domani antivegetativa su Libeccio',
+    articolo: 'Filtro olio Yamaha, ricambio, minimo due pezzi',
+    carico: 'Dalla Nautica Rossi, bolla 1234: quattro filtri olio e due latte di antivegetativa',
+    preventivo: 'Libeccio: antivegetativa sei ore, cambio anodi due ore',
+    verbale: 'Ore motore 350, a bordo restano i cuscini e il tender',
+    deposito: 'Tender grigio di Libeccio, nel capannone due',
+    rifiuto: 'Olio esausto, venti litri, dalla barca Libeccio',
+    ferie: 'Ferie dal 10 al 14 agosto'
+  };
+  var DT_RIGHE = {
+    carico: { nome: 'articoli arrivati', box: '#car-rows', row: '.car-row', add: '#car-add', list: '#car-list', cols: [['.car-n', 'articolo', 'nome dell’articolo'], ['.car-q', 'quantita', 'numero']] },
+    preventivo: { nome: 'lavori previsti', box: '.pv-box', row: '.pv-row', add: '[data-act="pv-add"]', cols: [['.pv-t', 'lavoro', 'testo'], ['.pv-o', 'ore', 'numero']] }
+  };
+  var MIC = svg('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/>');
+  function dettaOn() { return strOn('dettatura') && aiOn(); }
+  function dettaBar(o) {
+    if (!o.detta || o.menu || !dettaOn()) return '';
+    return '<div class="dt-bar"><button type="button" class="btn sec dt-btn" id="dt-btn">' + MIC + 'Detta</button><span class="cap">Parla e riempio io i campi: poi controlli e salvi.</span></div><div class="dt-pan" id="dt-pan" hidden></div>';
+  }
+  function dettaBind(form, o) {
+    var b = form.querySelector('#dt-btn'); if (!b) return;
+    b.addEventListener('click', function () { dettaStart(form, o); });
+    form.addEventListener('focusin', function (e) { var t = e.target; if (t.classList) t.classList.remove('dt-fill'); });
+  }
+  function dettaPan(h) { var p = document.getElementById('dt-pan'); if (!p) return null; p.hidden = !h; p.innerHTML = h || ''; return p; }
+  function dettaStop(drop) {
+    clearInterval(DT.timer); DT.timer = null; DT.stop = !!drop;
+    if (DT.rec && DT.rec.state !== 'inactive') { try { DT.rec.stop(); } catch (e) {} }
+    if (DT.stream) DT.stream.getTracks().forEach(function (t) { t.stop(); });
+    DT.stream = null;
+  }
+  function dettaScrivi(form, o, msg) {
+    var p = dettaPan((msg ? '<p class="cap t-soon" style="margin:0 0 8px">' + esc(msg) + '</p>' : '') +
+      '<textarea id="dt-txt" rows="3" placeholder="Oppure scrivilo qui (anche col microfono della tastiera), es. ' + esc(o.detta) + '"></textarea>' +
+      '<div class="acts"><button type="button" class="btn sec" id="dt-x">Chiudi</button><button type="button" class="btn" id="dt-go">Riempi i campi</button></div>');
+    if (!p) return;
+    p.querySelector('#dt-x').onclick = function () { dettaPan(''); };
+    p.querySelector('#dt-go').onclick = function () { var t = p.querySelector('#dt-txt').value.trim(); if (t) dettaManda(form, o, null, t); };
+  }
+  async function dettaStart(form, o) {
+    if (DT.rec && DT.rec.state === 'recording') return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) { dettaScrivi(form, o, 'Questo telefono non lascia registrare dall’app.'); return; }
+    try { DT.stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch (e) { dettaScrivi(form, o, 'Il microfono non è permesso: si accende dalle impostazioni del telefono (o del browser) per questa app.'); return; }
+    DT.parts = []; DT.stop = false; DT.form = form; DT.o = o;
+    try { DT.rec = new MediaRecorder(DT.stream); } catch (e) { dettaStop(true); dettaScrivi(form, o, 'Non riesco a registrare su questo telefono.'); return; }
+    DT.rec.ondataavailable = function (e) { if (e.data && e.data.size) DT.parts.push(e.data); };
+    DT.rec.onstop = function () {
+      if (DT.stop || !document.body.contains(form)) return;
+      var blob = new Blob(DT.parts, { type: (DT.rec && DT.rec.mimeType) || 'audio/webm' });
+      dettaManda(form, o, blob, '');
+    };
+    var p = dettaPan('<div class="dt-rec"><span class="dt-dot"></span><b>Ti ascolto…</b><span class="dt-t" id="dt-t">0:00</span></div>' +
+      '<p class="cap" style="margin:6px 0 0">Di’ tutto di seguito, per esempio: «' + esc(o.detta) + '». Al massimo un minuto.</p>' +
+      '<div class="acts"><button type="button" class="btn sec" id="dt-no">Annulla</button><button type="button" class="btn" id="dt-ok">Fine</button></div>');
+    p.querySelector('#dt-no').onclick = function () { dettaStop(true); dettaPan(''); };
+    p.querySelector('#dt-ok').onclick = function () { dettaStop(false); };
+    DT.t0 = Date.now();
+    DT.timer = setInterval(function () {
+      var s = Math.floor((Date.now() - DT.t0) / 1000), el = document.getElementById('dt-t');
+      if (el) el.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+      if (s >= 60 || !document.body.contains(form)) dettaStop(!document.body.contains(form));
+    }, 250);
+    DT.rec.start();
+  }
+  // l'audio del telefono (webm o mp4) diventa un WAV mono a 16 kHz, che l'AI legge sempre; se non si può, va com'è
+  async function dettaWav(blob) {
+    var AC = window.AudioContext || window.webkitAudioContext, OC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    var ac = new AC(), ab = await blob.arrayBuffer();
+    var buf = await new Promise(function (res, rej) { var r = ac.decodeAudioData(ab, res, rej); if (r && r.then) r.then(res, rej); });
+    if (ac.close) ac.close();
+    var sr = 16000, n = Math.max(1, Math.ceil(buf.duration * sr)), oc = new OC(1, n, sr), src = oc.createBufferSource();
+    src.buffer = buf; src.connect(oc.destination); src.start(0);
+    var out = await oc.startRendering(), d = out.getChannelData(0), v = new DataView(new ArrayBuffer(44 + d.length * 2));
+    function s(o, t) { for (var i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); }
+    s(0, 'RIFF'); v.setUint32(4, 36 + d.length * 2, true); s(8, 'WAVE'); s(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); s(36, 'data'); v.setUint32(40, d.length * 2, true);
+    for (var i = 0; i < d.length; i++) { var x = Math.max(-1, Math.min(1, d[i])); v.setInt16(44 + i * 2, x < 0 ? x * 0x8000 : x * 0x7FFF, true); }
+    return new Blob([v], { type: 'audio/wav' });
+  }
+  function blobUrl(b) { return new Promise(function (res, rej) { var r = new FileReader(); r.onload = function () { res(r.result); }; r.onerror = rej; r.readAsDataURL(b); }); }
+  function dettaLabel(f, el) {
+    var l = el.id && f.querySelector('label[for="' + el.id + '"]'), t = l ? l.textContent : el.closest('label') ? el.closest('label').textContent : el.getAttribute('aria-label') || el.placeholder || '';
+    return String(t || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  }
+  function dettaFields(f) {
+    var out = [];
+    Array.prototype.forEach.call(f.querySelectorAll('input[id],select[id],textarea[id]'), function (el) {
+      if (el.id.indexOf('dt-') === 0 || el.disabled || el.readOnly || el.closest('[hidden]') || el.closest('.bp-pan')) return;
+      var ty = (el.getAttribute('type') || '').toLowerCase();
+      if (el.tagName === 'INPUT' && /^(file|color|search|radio|hidden|button|submit|password|range)$/.test(ty)) return;
+      var nome = dettaLabel(f, el); if (!nome) return;
+      var x = { id: el.id, nome: nome };
+      if (el.tagName === 'SELECT') {
+        if (BP_IDS.indexOf(el.id) >= 0) {
+          x.tipo = 'barca';
+          var alt = Array.prototype.filter.call(el.options, function (op) { return op.value && op.value !== '__nuova' && !boatById(op.value); }).map(function (op) { return op.textContent.trim(); });
+          if (alt.length) x.scelte = alt.concat(['(nome della barca)']);
+        } else {
+          var ops = Array.prototype.filter.call(el.options, function (op) { return op.value !== '' && !op.disabled; }).map(function (op) { return op.textContent.trim(); });
+          if (!ops.length) return;
+          x.tipo = 'scelta'; if (ops.length <= 40) x.scelte = ops;
+        }
+      } else if (ty === 'checkbox') x.tipo = 'sì/no';
+      else if (ty === 'date') x.tipo = 'data';
+      else if (ty === 'time') x.tipo = 'ora';
+      else if (ty === 'month') x.tipo = 'mese AAAA-MM';
+      else if (ty === 'number' || /decimal|numeric/.test(el.getAttribute('inputmode') || '')) x.tipo = 'numero';
+      else x.tipo = 'testo';
+      if (el.placeholder && el.tagName !== 'SELECT') x.esempio = el.placeholder.slice(0, 60);
+      if (el.tagName !== 'SELECT' && ty !== 'checkbox' && String(el.value || '').trim()) x.ora = String(el.value).trim().slice(0, 60);
+      out.push(x);
+    });
+    var seen = {}; // scelte a pallini (es. la variante del servizio): un campo per gruppo
+    Array.prototype.forEach.call(f.querySelectorAll('input[type="radio"][name]'), function (el) {
+      var nm = el.name; if (seen[nm] || el.disabled || el.closest('[hidden]') || el.closest('.bp-pan')) return; seen[nm] = 1;
+      var rs = dettaRadios(f, nm); if (rs.length < 2) return;
+      var box = el.closest('div'), t = box && box.previousElementSibling && box.previousElementSibling.classList.contains('lbl') ? box.previousElementSibling.textContent.trim() : nm.replace(/^f-/, '');
+      out.push({ id: 'radio:' + nm, nome: t, tipo: 'scelta', scelte: rs.map(function (r) { return r.t; }) });
+    });
+    return out;
+  }
+  function dettaRadios(f, nm) {
+    return Array.prototype.filter.call(f.querySelectorAll('input[type="radio"]'), function (r) { return r.name === nm && !r.disabled; }).map(function (r) {
+      var l = r.closest('label'), ti = l && l.querySelector('.title');
+      return { el: r, t: String((ti || l || {}).textContent || r.value).replace(/\s+/g, ' ').trim().slice(0, 60) };
+    });
+  }
+  function dettaPrompt(f, o, testo) {
+    var d = new Date(), gg = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'][d.getDay()], R = DT_RIGHE[o.dettaRighe];
+    return 'Sei in un cantiere nautico italiano. Una persona ' + (testo ? 'ha scritto' : 'ha detto a voce (è l’audio allegato)') + ' i dati per la scheda «' + o.title + '» dell’app del cantiere. Oggi è ' + gg + ' ' + todayISO() + '.' +
+      (testo ? ' Ecco cosa ha scritto: «' + testo + '».' : '') +
+      ' I campi della scheda sono questi (JSON; "ora" è quello che c’è già scritto): ' + JSON.stringify(dettaFields(f)) + '.' +
+      (R ? ' La scheda ha anche un elenco di ' + R.nome + ', una riga per ognuno, con: ' + R.cols.map(function (c) { return '"' + c[1] + '" (' + c[2] + ')'; }).join(', ') + '.' : '') +
+      ' Rispondi SOLO con un JSON: {"testo": quello che ha detto, parola per parola, "campi": {id del campo: valore}' + (R ? ', "righe": [{' + R.cols.map(function (c) { return '"' + c[1] + '": …'; }).join(', ') + '}]' : '') + ', "resto": quello che ha detto e che non va in nessun campo, altrimenti ""}.' +
+      ' Regole: metti solo i campi che ha detto davvero, non inventare e non copiare gli esempi; per le scelte usa esattamente uno dei testi in "scelte";' +
+      ' per la barca scrivi il nome come l’ha detto (o il nome del cliente, se dice «la barca di Rossi»); date come AAAA-MM-GG (calcola tu «domani», «sabato», «il 12»); orari come HH:MM;' +
+      ' numeri con il punto per i decimali («due ore e mezza» = 2.5); sì/no come true o false; i testi scritti bene in italiano, con la maiuscola iniziale, come in un rapportino; se cambia un campo che c’è già, metti il valore nuovo.';
+  }
+  async function dettaManda(form, o, blob, testo) {
+    dettaPan('<div class="dt-rec"><span class="dt-wait"></span><b>Sto capendo…</b></div>');
+    try {
+      var url = null;
+      if (blob) { try { url = await blobUrl(await dettaWav(blob)); } catch (e) { url = await blobUrl(blob); url = url.replace(/^data:([^;,]+)[^,]*,/, 'data:$1;base64,'); } }
+      var r = await aiAsk(url, dettaPrompt(form, o, testo)) || {};
+      if (!document.body.contains(form)) return;
+      dettaFatto(form, o, r);
+    } catch (e) {
+      if (!document.body.contains(form)) return;
+      dettaScrivi(form, o, aiErrMsg(e));
+    }
+  }
+  function dettaOpt(sel, v) {
+    var q = alnum(v), best = null, bs = 0;
+    Array.prototype.forEach.call(sel.options, function (op) {
+      if (op.disabled || op.value === '' || op.value === '__nuova') return;
+      var t = alnum(op.textContent), sc = t === q || alnum(op.value) === q ? 1 : dice(t, q);
+      if (sc > bs) { bs = sc; best = op; }
+    });
+    return bs >= 0.55 ? best : null;
+  }
+  function dettaBarca(sel, v) {
+    var q = bpNorm(v).trim(), aq = alnum(v), alt = [], boats = [];
+    Array.prototype.forEach.call(sel.options, function (op) { if (!op.value || op.value === '__nuova') return; var b = boatById(op.value); if (b) boats.push(b); else alt.push(op); });
+    for (var i = 0; i < alt.length; i++) { var t = alnum(alt[i].textContent); if (t === aq || dice(t, aq) >= 0.6 || (/cantiere/.test(aq) && /cantiere/.test(t))) return { v: alt[i].value }; }
+    var tok = q.split(/\s+/).filter(function (w) { return w.length > 2 && ['della', 'barca', 'del', 'dei'].indexOf(w) < 0; }).join(' ');
+    var sc = boats.map(function (b) {
+      var s = Math.max(dice(alnum(b.nome), aq), dice(alnum(b.proprietario), aq) * 0.9, alnum(b.nome) === aq ? 1 : 0, b.posto && alnum(b.posto) === aq ? 1 : 0);
+      if (tok && bpMatch(b, tok)) s = Math.max(s, 0.85);
+      return { b: b, s: s };
+    }).sort(function (x, y) { return y.s - x.s; });
+    if (!sc.length || sc[0].s < 0.6) return { no: 'non ho trovato la barca «' + v + '»' };
+    if (sc[1] && sc[1].s > sc[0].s - 0.08) return { no: 'non so se è ' + sc[0].b.nome + ' o ' + sc[1].b.nome };
+    return { v: sc[0].b.id };
+  }
+  function dettaSet(f, el, v) {
+    if (v == null || v === '') return 'vuoto';
+    var ty = (el.getAttribute('type') || '').toLowerCase(), mark = el;
+    if (el.tagName === 'SELECT') {
+      if (BP_IDS.indexOf(el.id) >= 0) { var m = dettaBarca(el, String(v)); if (!m.v) return m.no; el.value = m.v; mark = el.parentNode.querySelector('.bp-btn') || el; }
+      else { var op = dettaOpt(el, String(v)); if (!op) return 'nessuna scelta «' + v + '»'; el.value = op.value; }
+    } else if (ty === 'checkbox') el.checked = v === true || /^(true|si|sì|vero)$/i.test(String(v));
+    else if (ty === 'date') { if (!/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return 'data non chiara'; el.value = v; }
+    else if (ty === 'time') { var t = /^(\d{1,2})[:.](\d{2})/.exec(String(v)); if (!t) return 'ora non chiara'; el.value = t[1].padStart(2, '0') + ':' + t[2]; }
+    else if (ty === 'number') { var n = parseFloat(String(v).replace(',', '.')); if (isNaN(n)) return 'numero non chiaro'; el.value = n; }
+    else if (/decimal|numeric/.test(el.getAttribute('inputmode') || '') && /^-?\d+(\.\d+)?$/.test(String(v).trim())) el.value = String(v).trim().replace('.', ',');
+    else el.value = typeof v === 'object' ? JSON.stringify(v) : String(v);
+    el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
+    mark.classList.add('dt-fill');
+    return '';
+  }
+  function dettaRighe(f, o, list) {
+    var R = DT_RIGHE[o.dettaRighe], box = R && f.querySelector(R.box), n = 0; if (!box || !Array.isArray(list)) return 0;
+    var names = R.list ? Array.prototype.map.call(f.querySelectorAll(R.list + ' option'), function (x) { return x.value; }) : [];
+    list.forEach(function (it) {
+      if (!it || typeof it !== 'object' || !R.cols.some(function (c) { return it[c[1]] != null && it[c[1]] !== ''; })) return;
+      var row = Array.prototype.filter.call(box.querySelectorAll(R.row), function (r) { return R.cols.every(function (c) { var e = r.querySelector(c[0]); return !e || !e.value.trim(); }); })[0];
+      if (!row) { var ad = f.querySelector(R.add); if (!ad) return; ad.click(); var all = box.querySelectorAll(R.row); row = all[all.length - 1]; if (!row) return; }
+      R.cols.forEach(function (c) {
+        var e = row.querySelector(c[0]), v = it[c[1]]; if (!e || v == null || v === '') return;
+        v = String(v).trim();
+        if (c[2] === 'numero') v = v.replace('.', ',');
+        else if (names.length) { // nome come in magazzino solo se uno è chiaramente il più simile
+          var sc = names.map(function (x) { return { x: x, s: alnum(x) === alnum(v) ? 1 : dice(alnum(x), alnum(v)) }; }).sort(function (a, b) { return b.s - a.s; });
+          if (sc[0].s >= 0.7 && (!sc[1] || sc[1].s < sc[0].s - 0.08)) v = sc[0].x;
+        }
+        e.value = v; e.classList.add('dt-fill'); e.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      n++;
+    });
+    if (document.activeElement && box.contains(document.activeElement)) document.activeElement.blur();
+    return n;
+  }
+  function dettaFatto(f, o, r) {
+    var campi = r.campi && typeof r.campi === 'object' ? r.campi : {}, fatti = 0, dubbi = [], resta = Object.keys(campi);
+    for (var pass = 0; pass < 3 && resta.length; pass++) { // dopo una scelta possono comparire altri campi (es. «Altro»): si riprova
+      resta = resta.filter(function (id) {
+        if (id.indexOf('radio:') === 0) {
+          var rs = dettaRadios(f, id.slice(6)), q = alnum(campi[id]), best = null, bs = 0;
+          rs.forEach(function (r) { var sc = alnum(r.t) === q ? 1 : dice(alnum(r.t), q); if (sc > bs) { bs = sc; best = r; } });
+          if (best && bs >= 0.55) { best.el.checked = true; best.el.dispatchEvent(new Event('change', { bubbles: true })); (best.el.closest('label') || best.el).classList.add('dt-fill'); fatti++; }
+          else if (rs.length && campi[id]) dubbi.push(id.slice(6).replace(/^f-/, '') + ': nessuna scelta «' + campi[id] + '»');
+          return false;
+        }
+        var el = f.querySelector('#' + CSS.escape(id));
+        if (!el || el.closest('[hidden]') || el.disabled) return true;
+        var e = dettaSet(f, el, campi[id]);
+        if (!e) fatti++; else if (e !== 'vuoto') dubbi.push(dettaLabel(f, el) + ': ' + e);
+        return false;
+      });
+    }
+    var righe = dettaRighe(f, o, r.righe);
+    var manca = Array.prototype.filter.call(f.querySelectorAll('[required]'), function (el) { return !el.closest('[hidden]') && !String(el.value || '').trim(); }).map(function (el) { return dettaLabel(f, el); }).filter(Boolean);
+    var tot = fatti + righe;
+    var p = dettaPan((r.testo ? '<p class="dt-said">«' + esc(r.testo) + '»</p>' : '') +
+      '<p class="' + (tot ? 't-acc' : 't-soon') + '" style="margin:6px 0 0;font-weight:600">' + (tot ? 'Ho riempito ' + (fatti ? fatti + (fatti === 1 ? ' campo' : ' campi') : '') + (fatti && righe ? ' e ' : '') + (righe ? righe + (righe === 1 ? ' riga' : ' righe') : '') + ' (colorati): controlla e premi ' + esc(o.submitLabel || 'Salva') + '.' : 'Non ho trovato niente da mettere nei campi: riprova dicendo i dati della scheda.') + '</p>' +
+      (dubbi.length ? '<p class="cap t-soon" style="margin:6px 0 0">Da controllare: ' + esc(dubbi.join('; ')) + '.</p>' : '') +
+      (r.resto && String(r.resto).trim() ? '<p class="cap" style="margin:6px 0 0">Non l’ho messo da nessuna parte: «' + esc(String(r.resto).trim()) + '»</p>' : '') +
+      (tot && manca.length ? '<p class="cap" style="margin:6px 0 0">Mancano ancora: ' + esc(manca.join(', ')) + '.</p>' : '') +
+      '<div class="acts"><button type="button" class="btn sec" id="dt-x">Chiudi</button><button type="button" class="btn sec" id="dt-again">' + MIC + 'Detta ancora</button></div>');
+    if (!p) return;
+    p.querySelector('#dt-x').onclick = function () { dettaPan(''); };
+    p.querySelector('#dt-again').onclick = function () { dettaStart(f, o); };
   }
   function aiErrMsg(e) {
     var c = e && e.code;
@@ -12208,7 +12482,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         return '<div class="hist"><span>' + esc(fmtDate(x.data)) + ' · ' + esc(x.t) + '</span><span class="q" style="color:var(--' + (x.q < 0 ? 'late' : 'ok') + ')">' + (x.q > 0 ? '+' : '') + esc(fmtQ(x.q, m.um)) + '</span></div>';
       }).join('') + '</div>' : '');
     openSheet({
-      title: isNew ? 'Nuovo articolo' : 'Articolo', body: body, deleteLabel: 'Elimina dal magazzino', foto: sdsOn() ? m.sdsFoto || [] : [],
+      detta: DT_ES.articolo, title: isNew ? 'Nuovo articolo' : 'Articolo', body: body, deleteLabel: 'Elimina dal magazzino', foto: sdsOn() ? m.sdsFoto || [] : [],
       onOpen: function (f) {
         var nm = f.querySelector('#f-mn'), ts = f.querySelector('#f-mt'), cs = f.querySelector('#f-mc'), mk = f.querySelector('#f-mmar'), kAuto = !m.marca, tAuto = isNew || !m.tipo, cAuto = isNew || !m.categoria, um = f.querySelector('#f-mu'), uAuto = isNew;
         function hints() {
@@ -12311,7 +12585,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       (!isNew && v.fatto ? '<label class="check"><input type="checkbox" id="f-vf" checked> Fatto</label>' : '') +
       '<span class="hint">Quando lo segni fatto, la barca passa da sola a “In acqua” (varo) o “In rimessaggio” (alaggio).</span>';
     openSheet({
-      title: isNew ? 'Programma varo o alaggio' : 'Modifica ' + (TIPI_V[v.tipo] || '').toLowerCase(), body: body, deleteLabel: 'Elimina',
+      detta: DT_ES.vari, title: isNew ? 'Programma varo o alaggio' : 'Modifica ' + (TIPI_V[v.tipo] || '').toLowerCase(), body: body, deleteLabel: 'Elimina',
       deleteText: 'Elimini questo ' + (TIPI_V[v.tipo] || 'movimento').toLowerCase() + '. Non si può annullare.',
       item: v, onDelete: isNew ? null : async function () { if (await delSeq([S.db.collection('vari').doc(v.id)])) { closeSheet(); toast('Eliminato'); } },
       onSubmit: async function (f) {
