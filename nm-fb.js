@@ -853,6 +853,17 @@
     var D = LIVE.dipendenti ? LIVE.dipendenti.map : {};
     return Object.keys(D).filter(function (id) { return !UT[id]; }).map(function (id) { return { id: id, nome: D[id].nome || id }; });
   }
+  // Avviso «schede lavoro sotto le 8 ore»: di chi si controllano le ore (impostazioni/schede.chi; senza lista = in automatico)
+  function schChi() { var L = LIVE.impostazioni, c = L && L.map && L.map.schede; return c && !c._del && Array.isArray(c.chi) ? c.chi : null; }
+  function schAuto() {
+    var L = LIVE.lavori ? LIVE.lavori.map : {}, m = {}, lim = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
+    Object.keys(L).forEach(function (k) { var l = L[k]; if (l && !l._del && l.fonte === 'scheda' && l.utente && l.data >= lim && !l.annullata) m[l.utente] = 1; });
+    return m;
+  }
+  function schOn(id) { var c = schChi(); return c ? c.indexOf(id) >= 0 : !!schAuto()[id]; }
+  function schSalva(chi, msg) {
+    return write('impostazioni', 'schede', 'set', { chi: chi, modificato: nowISO(), da: ME.uid }).then(function () { toast(msg); renderPanel(); }, function (e) { toast('Non riuscito: ' + errOf(e).code); renderPanel(); });
+  }
   function renderPanel() {
     if (!PAN) return;
     ensureCss();
@@ -880,6 +891,7 @@
           (tabStr() && !isCl ? '<button class="b' + (u.tablet ? ' pri' : '') + '" data-nm="tab" data-id="' + id + '">' + (u.tablet ? 'È il tablet condiviso' : 'Usa come tablet condiviso') + '</button>' +
             (u.tablet ? '' : '<button class="b" data-nm="pin-a" data-id="' + id + '">' + (pinDi(id) ? 'Cambia PIN tablet' : 'Metti PIN tablet') + '</button>') : '');
         else a = '<button class="b" data-nm="ok" data-id="' + id + '">Riattiva</button>';
+        if (u.stato === 'attivo' && !isCl && !u.tablet) a += '<button class="b' + (schOn(id) ? ' pri' : '') + '" data-nm="sch" data-id="' + id + '">' + (schOn(id) ? '✓ Ore controllate' : 'Ore non controllate') + '</button>';
         if (isCl && u.stato === 'attivo') {
           var mine = u.barche || [], others = Object.keys(B).filter(function (b) { return mine.indexOf(b) < 0; }).sort(function (x, y) { return bname(x).localeCompare(bname(y), 'it'); });
           a += '<div class="chips">' + (mine.length ? mine.map(function (b) { return '<span class="chip">' + esc(bname(b)) + '<button data-nm="unb" data-id="' + id + '" data-b="' + esc(b) + '" aria-label="Togli">×</button></span>'; }).join('') : '<span class="note" style="margin:0">Nessuna barca collegata</span>') + '</div>' +
@@ -892,6 +904,7 @@
       h = '<div class="top"><button class="back" data-nm="close">‹ Indietro</button><h3>Utenti e permessi</h3><span style="min-width:64px"></span></div>' + azBox() +
         sec('In attesa di approvazione', by('in_attesa')) + sec('Cantiere', by('attivo').filter(function (id) { return UT[id].ruolo !== 'cliente'; })) +
         sec('Clienti', by('attivo').filter(function (id) { return UT[id].ruolo === 'cliente'; })) + sec('Sospesi', by('bloccato')) +
+        '<p class="note"><b>Ore controllate</b>: per l’avviso «schede lavoro sotto le 8 ore» in primo piano si controllano solo queste persone. ' + (schChi() ? 'Le hai scelte tu: tocca il tasto per cambiare. <button class="b" data-nm="sch-auto">Torna in automatico</button>' : 'Ora è in automatico (chi ha scritto una scheda nell’ultimo mese): tocca il tasto di una persona per scegliere tu.') + '</p>' +
         '<p class="note"><b>Dipendente</b>: usa tutta l’app; cancella solo ciò che ha aggiunto, modifica solo le proprie mansioni e richieste di ferie. <b>Amministratore</b>: in più cancella tutto, vede il cestino, approva le ferie e i colleghi e cambia i permessi. ' +
         '<b>Cliente</b>: vede solo le barche che gli colleghi, con stato, posto e lavori eseguiti' + (sezAccesa('orecliente', false) ? '; vede anche le ore di lavoro per tipo, con il testo delle mansioni e il nome di chi le ha fatte (solo giornate confermate)' : ', senza ore né nomi dei dipendenti (si accendono dalla sezione «Ore di lavoro al cliente»)') + '.</p>' +
         (olds.length ? '<p class="note"><b>Collega ai dati vecchi</b>: dopo aver ripristinato la copia presa da Claude, scegli chi era quella persona. Mansioni, ore e giornate confermate passano al nuovo account.</p>' : '') +
@@ -920,6 +933,8 @@
     else if (k === 'unb') { var ub = (UT[id].barche || []).filter(function (b) { return b !== t.getAttribute('data-b'); }); setUser(id, { barche: ub }); }
     else if (k === 'no') { if (confirm('Rifiutare la richiesta di ' + (UT[id] && UT[id].nome || '') + '?')) setUser(id, { stato: 'bloccato' }); }
     else if (k === 'tab') { var ut = !UT[id].tablet; if (!ut || confirm('Questo account diventa il tablet condiviso: chi lo apre trova «Chi lavora adesso?» e lavora a nome di chi scrive il suo PIN. Continuo?')) setUser(id, { tablet: ut }).then(function () { toast(ut ? 'Fatto: è il tablet condiviso.' : 'Non è più il tablet condiviso.'); renderPanel(); }); }
+    else if (k === 'sch') { var sc = (schChi() || Object.keys(schAuto())).slice(), si = sc.indexOf(id); if (si >= 0) sc.splice(si, 1); else sc.push(id); schSalva(sc, si >= 0 ? 'Ore di ' + nomeUtente(id) + ' non più controllate.' : 'Ore di ' + nomeUtente(id) + ' controllate.'); }
+    else if (k === 'sch-auto') schSalva(null, 'Di nuovo in automatico.');
     else if (k === 'pin-a') { var pa = prompt('PIN di 4 cifre per il tablet di ' + ((UT[id] && UT[id].nome) || '') + ':'); if (pa != null) pinSalva(id, pa); }
     else if (k === 'pin') pinSalva(id, ($('#nm-pin') || {}).value || '');
     else if (k === 'pin-no') { if (confirm('Togliere il tuo PIN? Sul tablet non comparirai più.')) write('pin', id, 'update', { hash: '', modificato: nowISO() }).then(function () { toast('PIN tolto.'); renderPanel(); }, function () { toast('Non riuscito.'); }); }
