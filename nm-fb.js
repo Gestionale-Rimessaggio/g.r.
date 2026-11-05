@@ -101,6 +101,7 @@
     '#nmfb .opt{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid #33355a;border-radius:12px;margin-top:8px;font-size:16px;color:#f4f5f7;cursor:pointer}#nmfb .opt input{width:20px;height:20px;padding:0;margin:0;flex:none;accent-color:#2f8ff0}' +
     '#nmfb .bc{margin-top:14px}#nmfb .bh{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}#nmfb .bn{font-size:1.25rem;font-weight:700}#nmfb .bm{color:#b9bccb;font-size:.95rem}' +
     '#nmfb .st{flex:none;font-size:.8rem;font-weight:600;padding:3px 10px;border-radius:99px;background:#26275e;color:#c9d4ff}#nmfb .st.acqua{background:#0f3b2a;color:#7fe0a0}#nmfb .st.lav{background:#3d2f0b;color:#ffcf6b}' +
+    '#nmfb .where{display:flex;gap:12px;align-items:center;border-radius:12px;padding:10px 12px;margin-top:12px}#nmfb .where b{display:block;font-size:1.02rem}#nmfb .where small{display:block;font-size:.85rem;opacity:.85}#nmfb .where.msv{background:rgba(95,208,184,.14);color:#7fe3cc}#nmfb .where.nm{background:#1A3150;color:#EAF2FB}#nmfb .where.porto{background:rgba(140,194,255,.14);color:#a9d1ff}#nmfb .where.terzi{background:rgba(201,182,255,.14);color:#d6c8ff}#nmfb .dv-ic{flex:none;width:42px;height:42px;border-radius:50%;display:grid;place-items:center}#nmfb .dv-ic svg{width:72%;height:72%}#nmfb .dv-ic.msv{background:rgba(95,208,184,.16);color:#5fd0b8}#nmfb .dv-ic.porto{background:rgba(140,194,255,.15);color:#8cc2ff}#nmfb .dv-ic.terzi{background:rgba(201,182,255,.15);color:#c9b6ff}#nmfb .dv-ic.nm{background:#26406a;color:#EAF2FB}#nmfb.cli .bt .where{grid-column:span 2;margin-top:0}' +
     '#nmfb .kv{display:flex;justify-content:space-between;gap:12px;border-top:1px solid #2a2c5c;padding:10px 0;font-size:.95rem}#nmfb .kv span{color:#b9bccb}#nmfb .kv b{text-align:right;font-weight:600}' +
     '#nmfb .rqb{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}#nmfb .rqbtn{flex:1;min-width:140px;padding:10px;border-radius:10px;border:1px solid #3a3d7a;background:transparent;color:inherit;font:inherit;font-weight:600}' +
     '#nmrc{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:flex-end;justify-content:center}#nmrc .box{background:#14163a;color:#eef;width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:18px 16px 24px;font-family:inherit}' +
@@ -1555,6 +1556,20 @@
       } catch (err) { t.disabled = false; t.textContent = 'Invia'; er.textContent = 'Non sono riuscito a inviarla: controlla la connessione e riprova.'; er.hidden = false; }
     });
   }
+  // dove si trova la barca, con la sua icona (5/11/2026): stessa scelta della scheda barca nel gestionale
+  var DOVE_I = { msv: '<svg aria-hidden="true" viewBox="0 0 48 48"><g fill="currentColor"><path d="M22.6 5.5v27H10.3c-.6 0-.9-.6-.6-1.1z"/><path d="M25.4 10.5v22H36c.6 0 .9-.6.6-1.1z"/><path d="M7.6 35h32.8c.7 0 1.1.8.6 1.3l-3.2 3.7c-.4.5-1 .7-1.6.7H11.8c-.6 0-1.2-.3-1.6-.7L7 36.3c-.5-.5-.1-1.3.6-1.3z"/></g><path fill="none" stroke="currentColor" stroke-width="1.6" d="M24 4v31"/><g fill="none" stroke="currentColor" stroke-linecap="round"><path stroke-width="1.9" d="M5 43.6c2 0 2-1.6 4-1.6s2 1.6 4 1.6 2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6"/><path stroke-width="1.5" opacity=".55" d="M11 46.8c1.6 0 1.6-1.3 3.2-1.3s1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3"/></g></svg>', nm: '<svg aria-hidden="true" viewBox="0 0 48 48"><path fill="currentColor" fill-rule="evenodd" d="M4.5 20.8 23.2 7.7c.5-.3 1.1-.3 1.6 0l18.7 13.1c.4.3.5.7.5 1.2v18.5c0 .8-.6 1.5-1.4 1.5H5.9c-.8 0-1.4-.7-1.4-1.5V22c0-.5.1-.9.5-1.2zM13 42V28.6c0-.8.6-1.4 1.4-1.4h19.2c.8 0 1.4.6 1.4 1.4V42z"/><g fill="none" stroke="currentColor" stroke-width="1.5" opacity=".75"><path d="M15 31h18M15 35h18M15 39h18"/></g><path fill="currentColor" d="M2 43h44v2.2H2z" opacity=".55"/></svg>', porto: '<svg aria-hidden="true" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="6.4" r="3.2" stroke-width="2.4"/><path stroke-width="2.8" d="M24 9.6v27"/><path stroke-width="2.6" d="M17.6 15.2h12.8"/><path stroke-width="2.8" d="M11 26.4c.6 6.4 6.3 10.4 13 10.4s12.4-4 13-10.4"/></g><g fill="currentColor"><path d="M8.2 28.2l2.6-5.4 3.4 5z"/><path d="M39.8 28.2l-2.6-5.4-3.4 5z"/></g><g fill="none" stroke="currentColor" stroke-linecap="round"><path stroke-width="1.9" d="M5 43.6c2 0 2-1.6 4-1.6s2 1.6 4 1.6 2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6"/><path stroke-width="1.5" opacity=".55" d="M11 46.8c1.6 0 1.6-1.3 3.2-1.3s1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3"/></g></svg>', terzi: '<svg aria-hidden="true" viewBox="0 0 48 48"><path fill="currentColor" fill-rule="evenodd" d="M4.5 40.5V24.2C4.5 13.6 13.2 6 24 6s19.5 7.6 19.5 18.2v16.3c0 .8-.6 1.5-1.4 1.5H5.9c-.8 0-1.4-.7-1.4-1.5zM12.5 42V27.2c0-.8.6-1.4 1.4-1.4h20.2c.8 0 1.4.6 1.4 1.4V42z"/><g fill="none" stroke="currentColor" stroke-width="1.5" opacity=".75"><path d="M14.5 30h19M14.5 34h19M14.5 38h19"/></g><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".45" d="M9.6 19.4C12.4 13.6 17.8 10.4 24 10.4s11.6 3.2 14.4 9"/><path fill="currentColor" d="M2 43h44v2.2H2z" opacity=".55"/></svg>' }, DOVE_N = 0;
+  function doveIcoCl(k) { var m = 'dvc' + (++DOVE_N); return '<span class="dv-ic ' + k + '">' + DOVE_I[k].replace(/MSK/g, m) + '</span>'; }
+  function doveCl(d) {
+    var st = d.stato || 'In rimessaggio', terra = st === 'In rimessaggio' || st === 'In lavorazione';
+    var k = ['msv', 'nm', 'porto', 'terzi'].indexOf(d.dove) >= 0 ? d.dove : (st === 'In acqua' || (d.porto && !terra)) ? 'msv' : 'nm';
+    var pz = (d.porto && d.porto.posto) || d.posto || '', t, sub = '';
+    if (k === 'msv') {
+      t = 'Al porto' + (pz ? ' · posto ' + pz : '');
+      if (d.porto && (d.porto.contratto || d.porto.fino)) sub = 'Contratto ' + [d.porto.contratto, d.porto.fino ? 'fino al ' + dataLunga(d.porto.fino) : ''].filter(Boolean).join(' · ');
+    } else if (k === 'nm') { var az = nomeAz(); t = /cantier/i.test(az) ? az : 'Al cantiere ' + az; sub = st === 'In lavorazione' ? 'In lavorazione' : st === 'In rimessaggio' ? 'A terra, in rimessaggio' : st === 'Consegnata' ? 'Consegnata' : ''; }
+    else { t = [d.doveNome, d.doveLuogo].filter(Boolean).join(' · ') || (k === 'porto' ? 'Altro porto' : 'Cantiere di altri'); sub = k === 'porto' ? 'In un altro porto' : 'In un altro cantiere'; }
+    return '<div class="where ' + k + '">' + doveIcoCl(k) + '<div><b>' + esc(t) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</div></div>';
+  }
   function renderCliente() {
     if (!CLIENTE || !ME) return;
     var h = '<h2>Ciao ' + esc(String(ME.nome || '').split(' ')[0]) + '</h2><p>La tua barca al cantiere ' + esc(nomeAz()) + ', sempre aggiornata.</p>';
@@ -1574,12 +1589,10 @@
       if (d === undefined) { h += '<div class="card bc' + on + '"><div class="spin" style="margin:10px auto"></div></div>'; return; }
       if (!d) { h += '<div class="card bc' + on + '"><p style="margin:0">Stiamo preparando i dati di questa barca: tra poco li vedi qui.</p></div>'; return; }
       var st = d.stato || 'In rimessaggio', cls = st === 'In acqua' ? 'acqua' : st === 'In lavorazione' ? 'lav' : '';
-      var dove = d.porto ? 'Porto, posto ' + d.porto.posto : st === 'In acqua' ? 'In acqua' : st === 'Consegnata' ? 'Consegnata' : (d.posto ? 'Cantiere · ' + d.posto : 'Al cantiere');
       var lav = d.lavori || [], open = CL.all[id], show = open ? lav : lav.slice(0, 8);
       h += '<div class="card bc full' + on + '"><div class="bt"><div class="bh"><div><div class="bn">' + esc(d.nome || 'Barca') + '</div><div class="bm">' + esc([d.modello, d.lunghezza ? String(d.lunghezza).replace('.', ',') + ' m' : ''].filter(Boolean).join(' · ')) + '</div></div>' +
         '<span class="st ' + cls + '">' + esc(st) + '</span></div>' +
-        '<div class="kv" style="margin-top:12px"><span>Dove si trova</span><b>' + esc(dove) + '</b></div>' +
-        (d.porto && (d.porto.contratto || d.porto.fino) ? '<div class="kv"><span>Contratto del posto</span><b>' + esc([d.porto.contratto, d.porto.fino ? 'fino al ' + dataLunga(d.porto.fino) : ''].filter(Boolean).join(' · ')) + '</b></div>' : '') + '</div><div class="cg">' +
+        doveCl(d) + '</div><div class="cg">' +
         cs((d.deposito || []).length ? '<h5>In deposito al cantiere</h5>' + d.deposito.map(function (x) {
           return '<div class="lv" style="align-items:center"><span style="flex:1">' + esc(x.cosa) + (x.quanti > 1 ? ' ×' + x.quanti : '') + '</span>' +
             ((x.foto || []).length ? '<span class="dfo">' + x.foto.map(function (f) { if (!PH[f]) setTimeout(function () { loadPhoto(f); }, 0); return '<img alt="" data-blob="' + esc(f) + '" src="' + esc(PH[f] || 'data:image/gif;base64,R0lGODlhAQABAAAAACw=') + '">'; }).join('') + '</span>' : '') + '</div>';
@@ -1676,6 +1689,7 @@
       .slice(0, 100).map(function (l) { return { data: l.data || '', titolo: l.titolo || 'Lavoro' }; });
     var pid = Object.keys(P).filter(function (k) { return P[k].barcaId === bid; })[0], p = pid ? P[pid] : null;
     return { nome: b.nome || '', modello: b.modello || '', lunghezza: b.lunghezza || null, stato: b.stato || '', posto: b.posto || '',
+      dove: ['msv', 'nm', 'porto', 'terzi'].indexOf(b.dove) >= 0 ? b.dove : '', doveNome: b.doveNome || '', doveLuogo: b.doveLuogo || '',
       porto: p ? { posto: pid, contratto: p.contratto || '', fino: p.fino || '' } : null, lavori: lav, ore: ore, deposito: depoPortale(bid), avanzamento: avPortale(bid), richieste: sezAccesa('richieste', false), scadenze: scadPortale(bid), reperibili: repPortale() };
   }
   // ore di lavoro al cliente (sezione orecliente, spenta di base): le mansioni della scheda lavoro
