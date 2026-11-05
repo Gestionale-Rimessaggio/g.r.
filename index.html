@@ -1118,6 +1118,31 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   setTimeout(hideSplash, 5000);
   var UM = ['pz', 'l', 'kg', 'm', 'conf.', 'latta', 'tanica', 'rotolo', 'paia'];
+
+  // Marche dei ricambi (richiesta di Torcio, 5/11/2026): sigle e nomi che vogliono dire la stessa marca.
+  // Servono a riempire da soli il campo Marca, a scrivere per intero le sigle quando si carica da Excel e a cercare: «vp» trova anche «Volvo Penta».
+  var MARCHE = [['Volvo Penta', ['volvo penta', 'volvo', 'vp']], ['Yanmar', ['yanmar']], ['Yamaha', ['yamaha']], ['Suzuki', ['suzuki']], ['Honda', ['honda']],
+    ['Mercury Quicksilver', ['mercury quicksilver', 'mercury', 'quicksilver', 'mercruiser']], ['Caterpillar', ['caterpillar', 'cat']], ['Cummins', ['cummins']],
+    ['Pattex', ['pattex']], ['Sika', ['sikaflex', 'sika']], ['Boero', ['boero']], ['Raymarine', ['raymarine']], ['Ultraflex', ['ultraflex']]];
+  function marcaRe(a) { return new RegExp('(^|[^a-z0-9])' + a.replace(/ /g, '\\s+') + '($|[^a-z0-9])', 'i'); }
+  function guessMarca(t) { t = String(t || ''); for (var i = 0; i < MARCHE.length; i++) if (MARCHE[i][1].some(function (a) { return marcaRe(a).test(t); })) return MARCHE[i][0]; return ''; }
+  // Toglie la marca dal nome (scelta di Torcio: la marca sta solo nel campo Marca). Se il nome comincia con la marca (Pattex SP101, Sikaflex 295) la lascia: è il nome del prodotto.
+  function marcaTogli(nome, marca) {
+    var g = MARCHE.filter(function (x) { return x[0] === marca; })[0]; if (!g) return nome;
+    var t = String(nome || ''); g[1].forEach(function (a) { t = t.replace(new RegExp('\\s*\\(\\s*' + a.replace(/ /g, '\\s+') + '\\s*\\)', 'gi'), ''); t = t.replace(new RegExp('(\\S)\\s+' + a.replace(/ /g, '\\s+') + '(?=$|[^a-z0-9])', 'gi'), '$1'); });
+    t = t.replace(/\(\s*\)/g, '').replace(/\s+/g, ' ').trim(); return t || nome;
+  }
+  function magMarche() { var o = {}; MARCHE.forEach(function (x) { o[x[0].toLowerCase()] = x[0]; }); S.mag.forEach(function (m) { var v = String(m.marca || '').trim(); if (v) o[v.toLowerCase()] = v; }); return Object.keys(o).sort().map(function (k) { return o[k]; }); }
+  // Ricerca nel magazzino: ogni parola cercata deve esserci; una sigla o un nome di marca trova anche gli altri modi di scriverla
+  function magOpt(m) { var l = [m.marca, m.codice].filter(Boolean).join(' · '); return '<option value="' + esc(m.nome) + '"' + (l ? ' label="' + esc(l) + '"' : '') + '>'; }
+  function magMatch(m, q) {
+    var hay = [m.nome, m.marca, m.note, m.categoria, m.fornitore, m.codice, tipoLabel(m.tipo)].filter(Boolean).join(' · ').toLowerCase();
+    return q.split(/\s+/).filter(Boolean).every(function (w) {
+      if (hay.indexOf(w) >= 0) return true;
+      var g = MARCHE.filter(function (x) { return x[1].indexOf(w) >= 0 || x[0].toLowerCase() === w; })[0];
+      return !!g && g[1].some(function (a) { return marcaRe(a).test(hay); });
+    });
+  }
   // Articoli del magazzino: cosa sono (tipo) e su cosa si usano (categoria), entrambi facoltativi
   var TIPI_ART = [['ricambio', 'Ricambio da sostituire'], ['consumo', 'Materiale di consumo'], ['prodotto', 'Prodotto in latta o tanica'], ['accessorio', 'Accessorio o attrezzatura di bordo'], ['utensile', 'Attrezzo o utensile']];
   var TIPO_EX = { ricambio: 'filtri, giranti, anodi, cinghie, candele, fusibili, pompe, guarnizioni', consumo: 'guanti, stracci, nastro, carta vetrata, dischi abrasivi, pennelli, rulli, sacchi, fascette',
@@ -2105,7 +2130,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
      Un articolo già presente (stesso codice, o stesso nome se manca il codice) si salta oppure se ne corregge la quantità.
      Nomi ripetuti con codici diversi (es. tante «Girante VP») diventano «Girante VP 3588475». */
   var XLM_CAMPI = [['nome', 'Nome dell’articolo', /^(nome|articolo|descrizione|prodotto|materiale|voce|ricambio)/],
-    ['codice', 'Codice', /codic|^cod\b|part ?n|riferim|^rif\b|^art\b|ean|barcode/], ['qta', 'Quantità che avete adesso', /quantit|^q\.?ta|giacenz|^pezzi|^n\.?$|^nr\.?$|^num|esistenz|disponib/],
+    ['codice', 'Codice', /codic|^cod\b|part ?n|riferim|^rif\b|^art\b|ean|barcode/], ['marca', 'Marca', /^marca|^marchio|^brand|produttor|costruttor/], ['qta', 'Quantità che avete adesso', /quantit|^q\.?ta|giacenz|^pezzi|^n\.?$|^nr\.?$|^num|esistenz|disponib/],
     ['um', 'Unità (pz, l, m, kg…)', /^unit|^u\.? ?m\.?$|^um$|misura/], ['minimo', 'Scorta minima', /scorta|minim/], ['fornitore', 'Fornitore', /fornitor|marca fornit/],
     ['posizione', 'Dove si trova', /posizion|scaffal|ubicaz|^dove|collocaz/], ['note', 'Note', /^note|annotaz|controllar|commento/]];
   function xlmUm(s, nome) {
@@ -2123,7 +2148,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       if (!X.rows) return '<p class="context">Scegli il file Excel (.xlsx) o .csv con gli articoli del magazzino. Si legge il primo foglio; nella prima riga ci vanno i titoli delle colonne (per esempio Articolo, Codice, Quantità, Unità).</p>' +
         '<label class="btn self-start">' + I.dl + 'Scegli il file<input type="file" id="xl-f" accept=".xlsx,.csv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" class="vh"></label><p class="form-err" id="xl-e" hidden></p>';
       var H = X.rows[X.head], dati = X.rows.slice(X.head + 1).filter(function (r) { return r.some(function (c) { return String(c).trim(); }); });
-      var h = '<p class="context">Ho trovato <b>' + dati.length + ' righe</b>. Per ogni campo scegli la colonna del file (ho provato a indovinarle dai titoli). Solo il nome è obbligatorio; tipo e categoria li riconosco dal nome, come quando aggiungi un articolo a mano.</p>';
+      var h = '<p class="context">Ho trovato <b>' + dati.length + ' righe</b>. Per ogni campo scegli la colonna del file (ho provato a indovinarle dai titoli). Solo il nome è obbligatorio; marca, tipo e categoria li riconosco dal nome, come quando aggiungi un articolo a mano (la marca la tolgo dal nome e la metto nel suo campo: «Girante VP» diventa «Girante», marca Volvo Penta).</p>';
       var usate = {};
       h += XLM_CAMPI.map(function (c) {
         var g = -1; H.forEach(function (t, i) { if (g < 0 && !usate[i] && c[2].test(xlNorm(t))) g = i; }); if (g >= 0) usate[g] = 1;
@@ -2136,19 +2161,20 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     function articoliDa(f) {
       var m = mappa(f), nomi = {}, perCod = {}, out = [], agg = [], salt = 0, unite = 0, gs = f.querySelector('#xl-gia'), gia = gs ? gs.value : X.gia;
       S.mag.forEach(function (a) { nomi[xlNorm(a.nome)] = 1; });
-      var quanti = {}; if (m.nome != null) X.rows.slice(X.head + 1).forEach(function (r) { var k = xlNorm(r[m.nome]); if (k) quanti[k] = (quanti[k] || 0) + 1; });
+      var quanti = {}; if (m.nome != null) X.rows.slice(X.head + 1).forEach(function (r) { var n0 = String(r[m.nome] == null ? '' : r[m.nome]).replace(/\s+/g, ' ').trim(), mc1 = m.marca == null ? '' : String(r[m.marca] || '').trim(), k = xlNorm(marcaTogli(n0, mc1 ? guessMarca(mc1) || mc1 : guessMarca(n0))); if (k) quanti[k] = (quanti[k] || 0) + 1; });
       X.rows.slice(X.head + 1).forEach(function (r) {
         var g = function (k) { return m[k] == null ? '' : String(r[m[k]] == null ? '' : r[m[k]]).trim(); }, nome = g('nome').replace(/\s+/g, ' '), cod = g('codice').replace(/\.0$/, '');
         if (!nome) return;
+        var mc0 = g('marca'), marca = mc0 ? guessMarca(mc0) || mc0 : guessMarca(nome); nome = marcaTogli(nome, marca);
         var C = cod.toUpperCase(), q = parseDec(g('qta'));
         if (C && perCod[C]) { var pr0 = perCod[C]; if (pr0.m && agg.indexOf(pr0) < 0) { salt++; return; } if (q != null) pr0.q = (pr0.q || 0) + q; unite++; return; } // stesso codice ripetuto nel file: sommo le quantità
         var es = cod ? magByCode(cod) || S.mag.find(function (a) { return String(a.codice || '').trim().toUpperCase() === C; }) : magByName(nome);
         if (es) { var ag = agg.find(function (x) { return x.m.id === es.id; }); if (ag) { if (agg.indexOf(ag) < 0) { salt++; return; } if (q != null) ag.q = (ag.q || 0) + q; unite++; return; } ag = { m: es, q: q }; if (C) perCod[C] = ag; if (gia === 'qta' && q != null) agg.push(ag); else salt++; return; }
         if (cod && quanti[xlNorm(nome)] > 1 && xlNorm(nome).indexOf(xlNorm(cod)) < 0) nome = nome + ' ' + cod; // nomi ripetuti nel file: li distinguo col codice
-        if (nomi[xlNorm(nome)]) { if (cod && !nomi[xlNorm(nome + ' ' + cod)]) nome = nome + ' ' + cod; else { salt++; return; } }
+        if (nomi[xlNorm(nome)]) { if (cod && !nomi[xlNorm(nome + ' ' + cod)]) nome = nome + ' ' + cod; else if (marca && !nomi[xlNorm(nome + ' ' + marca)]) nome = nome + ' ' + marca; else { salt++; return; } }
         nomi[xlNorm(nome)] = 1;
         var note = g('note');
-        var it = { nome: nome, codice: cod, tipo: guessTipo(nome), categoria: guessProdCat(nome), um: xlmUm(g('um'), nome), minimo: parseDec(g('minimo')), fornitore: g('fornitore'), posizione: g('posizione'), note: note, q: q };
+        var it = { nome: nome, codice: cod, marca: marca, tipo: guessTipo(nome), categoria: guessProdCat(nome), um: xlmUm(g('um'), nome), minimo: parseDec(g('minimo')), fornitore: g('fornitore'), posizione: g('posizione'), note: note, q: q };
         out.push(it); if (C) perCod[C] = it;
       });
       var st = stockMap(), uguali = agg.filter(function (x) { return x.q === (st[x.m.id] || 0); }).length; agg = agg.filter(function (x) { return x.q !== (st[x.m.id] || 0); }); salt += uguali; if (!out.length && !agg.length) unite = 0;
@@ -2157,7 +2183,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     function anteprima(f) {
       var x = articoliDa(f), pv = f.querySelector('#xl-pv'); if (!pv) return;
       pv.innerHTML = (x.nuovi.length ? '<div class="group">' + x.nuovi.slice(0, 5).map(function (a) {
-        return '<div class="row"><span class="main"><span class="title">' + esc(a.nome) + '</span><span class="sub">' + esc([a.codice, a.q != null ? fmtQ(a.q, a.um) : 'quantità non scritta', a.posizione, a.note].filter(Boolean).join(' · ')) + '</span></span></div>'; }).join('') + '</div>' : '<div class="notice">' + (x.conNome ? 'Nessun articolo nuovo da aggiungere.' : 'Scegli la colonna del nome.') + '</div>') +
+        return '<div class="row"><span class="main"><span class="title">' + esc(a.nome) + '</span><span class="sub">' + esc([a.marca, a.codice, a.q != null ? fmtQ(a.q, a.um) : 'quantità non scritta', a.posizione, a.note].filter(Boolean).join(' · ')) + '</span></span></div>'; }).join('') + '</div>' : '<div class="notice">' + (x.conNome ? 'Nessun articolo nuovo da aggiungere.' : 'Scegli la colonna del nome.') + '</div>') +
         '<p class="cap" style="margin:8px 2px 0">Aggiungo <b>' + x.nuovi.length + '</b> articoli' + (x.nuovi.length > 5 ? ' (qui sopra i primi 5)' : '') + '.' +
         (x.agg.length ? ' Correggo la quantità di <b>' + x.agg.length + '</b> già presenti.' : '') +
         (x.saltati ? (x.saltati === 1 ? ' Una riga è di un articolo già nel magazzino e la salto.' : ' ' + x.saltati + ' righe sono di articoli già nel magazzino e le salto.') : '') +
@@ -2185,7 +2211,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
           function mov(id, q, tipo) { var mr = S.db.collection('movimenti').doc(); return w(function () { return mr.set({ articoloId: id, qta: q, tipo: tipo, data: todayISO(), utente: S.myId || '', creato: now }); }); }
           for (var i = 0; i < x.nuovi.length; i++) {
             var d = x.nuovi[i], data = { importato: now, creato: now, modificato: now };
-            ['nome', 'codice', 'tipo', 'categoria', 'um', 'minimo', 'fornitore', 'posizione', 'note'].forEach(function (k) { if (d[k] !== '' && d[k] != null) data[k] = d[k]; });
+            ['nome', 'codice', 'marca', 'tipo', 'categoria', 'um', 'minimo', 'fornitore', 'posizione', 'note'].forEach(function (k) { if (d[k] !== '' && d[k] != null) data[k] = d[k]; });
             var ref = S.db.collection('magazzino').doc(); if (!(await w(function () { return ref.set(data); }))) break;
             if (d.q) await mov(ref.id, d.q, 'carico');
             n++; if (sv && n % 5 === 0) sv.textContent = n + ' di ' + x.nuovi.length + '…';
@@ -2197,6 +2223,43 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         } });
     }
     apri();
+  }
+
+
+  /* ---------- Sistema le marche (solo amministratore, 5/11/2026) ----------
+     Per gli articoli già in magazzino: riconosce la marca nel nome (anche VP o Cat), la mette nel campo Marca e la toglie dal nome.
+     Prima mostra «prima → dopo»; se il nome nuovo è già di un altro articolo aggiunge il codice, altrimenti lascia la marca nel nome. */
+  function marcheDaSistemare() {
+    var usati = {}, out = [], quanti = {};
+    S.mag.forEach(function (m) { usati[xlNorm(m.nome)] = m.id; var mk = m.marca ? guessMarca(m.marca) || m.marca : guessMarca(m.nome), k = xlNorm(mk ? marcaTogli(m.nome, mk) : m.nome); quanti[k] = (quanti[k] || 0) + 1; });
+    S.mag.slice().sort(function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || ''), 'it'); }).forEach(function (m) {
+      var mk = m.marca ? guessMarca(m.marca) || m.marca : guessMarca(m.nome); if (!mk) return;
+      var n = marcaTogli(m.nome, mk); if (n !== m.nome && quanti[xlNorm(n)] > 1 && m.codice && xlNorm(n).indexOf(xlNorm(m.codice)) < 0) n = n + ' ' + m.codice; // nomi che si ripetono: li distinguo col codice
+      if (n !== m.nome && usati[xlNorm(n)] && usati[xlNorm(n)] !== m.id) n = m.codice && !usati[xlNorm(n + ' ' + m.codice)] ? n + ' ' + m.codice : m.nome;
+      if (n === m.nome && m.marca === mk) return;
+      if (n !== m.nome) { delete usati[xlNorm(m.nome)]; usati[xlNorm(n)] = m.id; }
+      out.push({ m: m, nome: n, marca: mk });
+    });
+    return out;
+  }
+  function magMarcheSheet() {
+    if (!S.isOwner || !S.canWrite) return;
+    var L = marcheDaSistemare();
+    var body = L.length ? '<p class="context">Ho trovato <b>' + L.length + ' articoli</b> con la marca nel nome. La sposto nel campo Marca e la tolgo dal nome. Quantità, movimenti e ricambi già segnati restano collegati.</p><div class="group">' +
+      L.map(function (x) { return '<div class="row"><span class="main"><span class="title">' + esc(x.nome) + '</span><span class="sub">' + (x.nome !== x.m.nome ? 'prima: ' + esc(x.m.nome) + ' · ' : '') + 'marca ' + esc(x.marca) + (x.nome === x.m.nome && marcaTogli(x.m.nome, x.marca) !== x.m.nome ? ' · nel nome resta: «' + esc(marcaTogli(x.m.nome, x.marca)) + '» c’è già' : '') + '</span></span></div>'; }).join('') + '</div>'
+      : '<p class="context">Niente da sistemare: nessun articolo ha la marca nel nome senza il campo Marca.</p>';
+    openSheet({ title: 'Sistema le marche', submitLabel: L.length ? 'Sistema ' + L.length : 'Chiudi', body: body,
+      onSubmit: async function () {
+        if (!L.length) return true;
+        var now = new Date().toISOString(), n = 0, sv = $('#sheet-save');
+        for (var i = 0; i < L.length; i++) {
+          var x = L[i], ref = S.db.collection('magazzino').doc(x.m.id);
+          if (!(await w(function () { return ref.update({ nome: x.nome, marca: x.marca, modificato: now }); }))) break;
+          n++; if (sv && n % 5 === 0) sv.textContent = n + ' di ' + L.length + '…';
+        }
+        toast(n === L.length ? 'Sistemati ' + n + ' articoli' : 'Sistemati ' + n + ' su ' + L.length + ': riprova per gli altri', n !== L.length);
+        render(); return n > 0;
+      } });
   }
 
   function viewBoat() {
@@ -9440,11 +9503,11 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var st = stockMap(), q = V.magQ.trim().toLowerCase(), gby = V.magGroup === 'cat' || V.magGroup === 'forn' ? V.magGroup : 'tipo';
     if (!S.mag.length) return '<div style="margin-top:14px">' + emptyCard(I.box, 'Magazzino vuoto', 'Aggiungi ricambi, prodotti e materiali di consumo con le quantità che avete: si scalano da soli quando un dipendente li segna in una mansione.', ['new-mag', 'Aggiungi articolo']) + '</div>';
     var list = S.mag.slice().sort(function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || ''), 'it'); })
-      .filter(function (m) { return !q || [m.nome, m.note, m.categoria, m.fornitore, m.codice, tipoLabel(m.tipo)].some(function (x) { return x && String(x).toLowerCase().indexOf(q) >= 0; }); });
+      .filter(function (m) { return !q || magMatch(m, q); });
     if (!list.length) return '<div class="notice" style="margin-top:14px">Nessun articolo trovato per “' + esc(V.magQ) + '”.</div>';
     function isLow(m) { return num(m.minimo) != null && (st[m.id] || 0) <= m.minimo; }
     function row(m) {
-      var s = st[m.id] || 0, lo = isLow(m), other = gby === 'tipo' ? [m.categoria, m.fornitore].filter(Boolean).join(' · ') : gby === 'cat' ? tipoLabel(m.tipo) : [tipoLabel(m.tipo), m.categoria].filter(Boolean).join(' · ');
+      var s = st[m.id] || 0, lo = isLow(m), other = [m.marca].concat(gby === 'tipo' ? [m.categoria, m.fornitore] : gby === 'cat' ? [tipoLabel(m.tipo)] : [tipoLabel(m.tipo), m.categoria]).filter(Boolean).join(' · ');
       return '<button type="button" class="row" data-act="edit-mag" data-id="' + esc(m.id) + '"><span class="main"><span class="title">' + esc(m.nome) + '</span><span class="sub">' +
         [other ? esc(other) : '', num(m.minimo) != null ? 'scorta minima ' + esc(fmtQ(m.minimo, m.um)) : ''].filter(Boolean).join(' · ') + '</span></span><span class="side"><span class="big" style="font-size:1.25rem' + (lo ? ';color:var(--late)' : '') + '">' + esc(fmtNum(s, 2)) + ' <small>' + esc(m.um || '') + '</small></span>' +
         (lo ? '<span class="pill late">Da riordinare</span>' : '') + '</span></button>';
@@ -9458,9 +9521,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     return h;
   }
   function viewMagazzino() {
-    return exampleBanner() + '<div class="search">' + I.search + '<input id="mq" type="search" placeholder="Cerca articolo, tipo o categoria" value="' + esc(V.magQ) + '" autocomplete="off" aria-label="Cerca nel magazzino"></div>' +
+    return exampleBanner() + '<div class="search">' + I.search + '<input id="mq" type="search" placeholder="Cerca articolo, marca, codice o fornitore" value="' + esc(V.magQ) + '" autocomplete="off" aria-label="Cerca nel magazzino"></div>' +
       (S.canWrite ? '<button type="button" class="btn" data-act="mag-carico" style="width:100%;margin-top:10px">' + I.plus + 'Carico di più articoli (bolla)</button>' : '') +
       (S.isOwner && S.canWrite ? '<button type="button" class="btn sec" data-act="mag-xl" style="width:100%;margin-top:10px">' + I.doc + 'Articoli da Excel</button>' : '') +
+      (S.isOwner && S.canWrite && marcheDaSistemare().length ? '<button type="button" class="btn sec" data-act="mag-marche" style="width:100%;margin-top:10px">' + I.pencil + 'Sistema le marche · ' + marcheDaSistemare().length + '</button>' : '') +
       (S.mag.length ? '<button type="button" class="btn sec" data-act="' + (S.canWrite ? 'mag-move' : 'mag-find') + '" style="width:100%;margin-top:10px">' + I.camera + (S.canWrite ? 'Carico o scarico col codice a barre' : 'Trova col codice a barre') + '</button>' : '') +
       (S.mag.length ? '<div class="grid2" style="margin-top:10px"><button type="button" class="btn sec" data-act="kit-list">' + I.list + 'Kit ricambi' + ((S.kit || []).length ? ' · ' + S.kit.length : '') + '</button><button type="button" class="btn sec" data-act="tab" data-tab="inventario">' + I.check + 'Inventario' + (invOpen() ? ' · in corso' : '') + '</button></div>' : '') +
       (S.mag.length ? '<button type="button" class="btn sec" data-act="mag-shop" style="width:100%;margin-top:10px">' + I.cart + 'Lista della spesa' + (shopList().length ? ' · ' + shopList().length + (shopList().length === 1 ? ' articolo' : ' articoli') : '') + '</button>' : '') +
@@ -10740,7 +10804,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   function rcBlock(list, o) {
     var has = list && list.length; o = o || {};
-    return '<div class="lbl">' + esc(o.lbl || 'Ricambi usati (facoltativi)') + '</div><datalist id="mag-list">' + S.mag.map(function (m) { return '<option value="' + esc(m.nome) + '">'; }).join('') + '</datalist>' +
+    return '<div class="lbl">' + esc(o.lbl || 'Ricambi usati (facoltativi)') + '</div><datalist id="mag-list">' + S.mag.map(magOpt).join('') + '</datalist>' +
       '<div class="field rc-box" id="rc-box">' + (list || []).map(rcRow).join('') + '</div>' +
       (o.noKit ? '' : kitSelect()) +
       '<button type="button" class="btn sec self-start" data-act="rc-photo">' + I.camera + 'Ricambio dalla foto</button>' +
@@ -12020,11 +12084,11 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     try {
       var url = await fileToDataUrl(file, 1280), code = await readBarcode(file), r = await aiAsk(url, AI_PEZZO);
       function set(id, v) { var el = f.querySelector('#' + id); if (el && v != null && v !== '' && (!el.value || id !== 'f-mn' || confirm('Sostituisco il nome con «' + v + '»?'))) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); } }
-      set('f-mn', r.nome); set('f-mcod', code || r.codice);
+      set('f-mn', r.nome); set('f-mcod', code || r.codice); if (r.marca) set('f-mmar', guessMarca(r.marca) || r.marca);
       if (r.tipo && TIPI_ART.some(function (x) { return x[0] === r.tipo; })) set('f-mt', r.tipo);
       if (r.unita && UM.indexOf(r.unita) >= 0) set('f-mu', r.unita);
       var q0 = f.querySelector('#f-mq0'); if (q0 && !q0.value && num(r.quantita) > 0 && r.unita !== 'l') q0.value = String(r.quantita).replace('.', ',');
-      if (r.note) { var nt = f.querySelector('#f-mnote'); if (nt && !nt.value) nt.value = (r.marca ? r.marca + ' · ' : '') + r.note; }
+      if (r.note) { var nt = f.querySelector('#f-mnote'); if (nt && !nt.value) nt.value = r.note; }
       var cc = code || aiStr(r.codice), gia = cc && magByCode(cc), mid = f.querySelector('#f-mid');
       if (st) st.textContent = gia && (!mid || mid.value !== gia.id) ? 'Attenzione: il codice ' + cc + ' è già di «' + gia.nome + '» in magazzino. Forse è lo stesso articolo.' : 'Riconosciuto: controlla e salva.';
     } catch (e) { if (st) st.hidden = true; toast(aiErrMsg(e), true); }
@@ -12068,6 +12132,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       '<div class="rif-acts" style="margin-top:0;margin-bottom:10px"><button type="button" class="btn sec" data-act="mag-scan">' + I.camera + 'Codice a barre</button>' + (aiOn() ? '<button type="button" class="btn sec" data-act="mag-ai">✨ Riconosci dalla foto</button>' : '') + '</div><p class="cap t-acc" id="f-mai" hidden style="margin:-4px 2px 8px"></p><input type="hidden" id="f-mid" value="' + esc(m.id || '') + '">' +
       field(lab('f-mn', 'Nome'), inp('f-mn', m.nome, 'type="text" required placeholder="es. Filtro olio Yamaha F200, Antivegetativa nera 2,5 l, Guanti nitrile"')) +
       field(lab('f-mcod', 'Codice o codice a barre (facoltativo)'), inp('f-mcod', m.codice, 'type="text" autocapitalize="characters" placeholder="es. 3840525 o 8001234567890"'), 'Su iPhone puoi anche tenere premuto nel campo e scegliere «Scansiona testo».') +
+      '<datalist id="marca-list">' + magMarche().map(function (x) { return '<option value="' + esc(x) + '">'; }).join('') + '</datalist>' +
+      field(lab('f-mmar', 'Marca (facoltativo)'), inp('f-mmar', m.marca, 'type="text" list="marca-list" autocapitalize="words" placeholder="es. Volvo Penta, Yanmar, Sika"'), 'Se nel nome c’è la marca (anche VP o Cat) la riconosco da solo.') +
       field(lab('f-mt', 'Che cos’è (facoltativo)'), '<select id="f-mt">' + opts([['', 'Non specificato']].concat(TIPI_ART), m.tipo || '') + '</select><span class="hint" id="f-mtHint"></span>') +
       field(lab('f-mc', 'Su cosa si usa (facoltativo)'), '<select id="f-mc">' + opts([['', 'Non specificato']].concat(catsP), m.categoria || '') + '</select><span class="hint" id="f-mcHint"></span>') +
       '<div class="grid2">' + field(lab('f-mu', 'Unità'), '<select id="f-mu">' + opts(UM.map(function (u) { return [u, umL[u]]; }), m.um) + '</select>') +
@@ -12094,7 +12160,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     openSheet({
       title: isNew ? 'Nuovo articolo' : 'Articolo', body: body, deleteLabel: 'Elimina dal magazzino', foto: sdsOn() ? m.sdsFoto || [] : [],
       onOpen: function (f) {
-        var nm = f.querySelector('#f-mn'), ts = f.querySelector('#f-mt'), cs = f.querySelector('#f-mc'), tAuto = isNew || !m.tipo, cAuto = isNew || !m.categoria, um = f.querySelector('#f-mu'), uAuto = isNew;
+        var nm = f.querySelector('#f-mn'), ts = f.querySelector('#f-mt'), cs = f.querySelector('#f-mc'), mk = f.querySelector('#f-mmar'), kAuto = !m.marca, tAuto = isNew || !m.tipo, cAuto = isNew || !m.categoria, um = f.querySelector('#f-mu'), uAuto = isNew;
         function hints() {
           var th = $('#f-mtHint'), ch = $('#f-mcHint');
           if (th) th.textContent = ts.value ? 'Es.: ' + TIPO_EX[ts.value] + (tAuto ? ' · riconosciuto dal nome' : '') : 'Es.: ricambio, materiale di consumo, prodotto in latta o tanica…';
@@ -12103,12 +12169,14 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         function auto() {
           if (tAuto) ts.value = guessTipo(nm.value);
           if (cAuto) cs.value = guessProdCat(nm.value);
+          if (kAuto && mk) mk.value = guessMarca(nm.value);
           if (uAuto && um) { var t = nm.value.toLowerCase(); um.value = /tanica/.test(t) ? 'tanica' : /latta/.test(t) ? 'latta' : /guant/.test(t) ? 'paia' : /nastr|scotch|rotol/.test(t) ? 'rotolo' : /\d\s?(l|lt|litri)\b/.test(t) ? 'l' : 'pz'; }
           hints();
         }
         nm.addEventListener('input', auto);
         ts.addEventListener('change', function () { tAuto = false; hints(); });
         cs.addEventListener('change', function () { cAuto = false; hints(); });
+        if (mk) mk.addEventListener('input', function () { kAuto = false; });
         if (um) um.addEventListener('change', function () { uAuto = false; });
         hints();
       },
@@ -12123,7 +12191,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         var dup = magByName(nome);
         if (dup && (isNew || dup.id !== m.id)) { formErr('C’è già un articolo con questo nome.'); return false; }
         var sdsD = sdsOn() ? sdsLeggi(f) : null; if (sdsD === false) return false;
-        var data = { nome: nome, tipo: val(f, 'f-mt'), categoria: val(f, 'f-mc'), um: val(f, 'f-mu'), minimo: parseDec(val(f, 'f-mmin')), fornitore: val(f, 'f-mf'), qtaOrdine: parseDec(val(f, 'f-mqo')), inLista: !!f.querySelector('#f-mil').checked, note: val(f, 'f-mnote'), codice: val(f, 'f-mcod'), posizione: val(f, 'f-mpos'), cambioMesi: parseIntS(val(f, 'f-mcm')), cambioOre: parseIntS(val(f, 'f-mco')), modificato: now };
+        var data = { nome: nome, marca: val(f, 'f-mmar'), tipo: val(f, 'f-mt'), categoria: val(f, 'f-mc'), um: val(f, 'f-mu'), minimo: parseDec(val(f, 'f-mmin')), fornitore: val(f, 'f-mf'), qtaOrdine: parseDec(val(f, 'f-mqo')), inLista: !!f.querySelector('#f-mil').checked, note: val(f, 'f-mnote'), codice: val(f, 'f-mcod'), posizione: val(f, 'f-mpos'), cambioMesi: parseIntS(val(f, 'f-mcm')), cambioOre: parseIntS(val(f, 'f-mco')), modificato: now };
         function mov(id, q, tipo) { var mr = S.db.collection('movimenti').doc(); return w(function () { return mr.set({ articoloId: id, qta: q, tipo: tipo, data: todayISO(), utente: S.myId || '', creato: now }); }); }
         if (sdsD) Object.assign(data, sdsD);
         if (maniOn()) data.oreMani = parseDec(val(f, 'f-mmani'));
@@ -12449,6 +12517,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'mag-shop': shopSheet(); break;
       case 'mag-carico': caricoSheet(); break;
       case 'mag-xl': magXlSheet(); break;
+      case 'mag-marche': magMarcheSheet(); break;
       case 'nt-on': ntAttiva(); break;
       case 'nt-off': ntDisattiva(); break;
       case 'nt-prova': ntProva(); break;
