@@ -1646,6 +1646,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     push('crono', crHome()); push('giro', giroHome()); push('fuori', lfHome());
     push('spazio', spazioHome()); push('mezzi', ctrlHome()); push('rif', rifSogliaHome());
     ncHome(push); repHome(push); push('mani', maniHome()); push('emerg', emHome());
+    push('corte', schCorteCard());
     var pend = myPendingDays();
     if (pend.length) push('conferme', featCard('soon', I.check, pend.length === 1 ? 'Conferma la tua giornata' : 'Hai ' + pend.length + ' giornate da confermare',
       cap(fmtDayLong(pend[0])) + (pend.length > 1 ? ' e altre' : ''), '', '<button type="button" class="btn" data-act="go-scheda" data-d="' + pend[0] + '">Vai alla scheda lavoro</button>'));
@@ -1743,7 +1744,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     return h + lyRender('home', [
       { id: 'cerca', t: 'Cerca', sub: 'barca, cliente, articolo, lavoro', z: ['l'], d: 'l', h: gqBar },
       { id: 'primo', t: 'In primo piano', sub: 'gli avvisi da guardare subito', z: sec, d: 'l', h: primo, opz: [['crono', 'Cronometri in corso o dimenticati'], ['giro', 'Giro di controllo'], ['fuori', 'Barche fuori in ritardo o che rientrano oggi'],
-        ['conferme', 'Giornate da confermare'], ['spazio', 'Spazio quasi pieno (amministratori)'], ['mezzi', 'Mezzi fermi o da controllare'], ['vari', 'Vari e alaggi di oggi e domani'], ['scad', 'Scadenze delle barche'], ['ferie', 'Ferie e permessi'], ['scadc', 'Scadenze del cantiere'], ['batt', 'Batterie da caricare'], ['mag', 'Ricambi da riordinare'], ['rif', 'Rifiuti oltre la soglia'], ['note', 'Note dei colleghi'], ['reper', 'Reperibilità'], ['mani', 'Tempi tra le mani'], ['emerg', 'Primo soccorso da controllare']] },
+        ['conferme', 'Giornate da confermare'], ['corte', 'Schede lavoro sotto le 8 ore'], ['spazio', 'Spazio quasi pieno (amministratori)'], ['mezzi', 'Mezzi fermi o da controllare'], ['vari', 'Vari e alaggi di oggi e domani'], ['scad', 'Scadenze delle barche'], ['ferie', 'Ferie e permessi'], ['scadc', 'Scadenze del cantiere'], ['batt', 'Batterie da caricare'], ['mag', 'Ricambi da riordinare'], ['rif', 'Rifiuti oltre la soglia'], ['note', 'Note dei colleghi'], ['reper', 'Reperibilità'], ['mani', 'Tempi tra le mani'], ['emerg', 'Primo soccorso da controllare']] },
       { id: 'meteo', t: 'Meteo', sub: 'vento e mare dei prossimi giorni', z: sec, d: 'l', h: metHome },
       { id: 'prog', t: 'Programma di oggi', z: sec, d: 'l', h: homeProgHtml },
       { id: 'breve', t: 'In breve', sub: 'scadenze, lavorazioni, barche, lavori del mese', z: ['l'], d: 'l', h: breve },
@@ -2464,6 +2465,53 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var t = todayISO(), days = {};
     S.lavori.forEach(function (l) { if (l.fonte === 'scheda' && l.utente === S.myId && l.data && l.data < t && !isConfirmed(S.myId, l.data)) days[l.data] = 1; });
     return Object.keys(days).sort();
+  }
+  /* Schede lavoro sotto le 8 ore («In primo piano»): un giorno dal lunedì al venerdì, non festivo, viene segnato
+     2 giorni dopo se nelle schede ci sono meno di 8 ore. Si guardano le ultime 2 settimane. Ferie e malattia approvate
+     tolgono il giorno, un permesso a ore abbassa la soglia. Conta come dipendente chi ha scritto una scheda nell'ultimo mese. */
+  var SCH_MIN = 8;
+  function festaIT(d) { // feste nazionali + Pasquetta
+    if (['01-01', '01-06', '04-25', '05-01', '06-02', '08-15', '11-01', '12-08', '12-25', '12-26'].indexOf(d.slice(5)) >= 0) return true;
+    var y = +d.slice(0, 4), a = y % 19, b = Math.floor(y / 100), c = y % 100, h = (19 * a + b - Math.floor(b / 4) - Math.floor((b - Math.floor((b + 8) / 25) + 1) / 3) + 15) % 30,
+      l = (32 + 2 * (b % 4) + 2 * Math.floor(c / 4) - h - c % 4) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451), mo = Math.floor((h + l - 7 * m + 114) / 31), gg = (h + l - 7 * m + 114) % 31 + 1;
+    return d === addDays(y + '-' + pad(mo) + '-' + pad(gg), 1);
+  }
+  function schCorte(uid) { // [{u, d, ore, min}] dal giorno più vecchio
+    var t = todayISO(), fino = addDays(t, -2), da = addDays(t, -15), mese = addDays(t, -30), ore = {}, chi = {}, out = [];
+    S.lavori.forEach(function (l) {
+      if (l.fonte !== 'scheda' || !l.utente || !l.data || l.annullata) return;
+      if (l.data >= mese) chi[l.utente] = 1;
+      if (l.data >= da && l.data <= fino) { var k = l.utente + '|' + l.data; ore[k] = (ore[k] || 0) + (num(l.oreLavoro) || 0); }
+    });
+    var ids = uid ? (chi[uid] ? [uid] : []) : Object.keys(chi);
+    if (!ids.length) return out;
+    for (var d = da; d <= fino; d = addDays(d, 1)) {
+      var wd = new Date(isoToUTC(d)).getUTCDay(); if (wd === 0 || wd === 6 || festaIT(d)) continue;
+      var ass = assOn(d);
+      ids.forEach(function (u) {
+        var min = SCH_MIN, via = false;
+        ass.forEach(function (a) { if (a.utente !== u) return; if (a.tipo === 'permesso') min -= assOrePerm(a); else via = true; });
+        var o = ore[u + '|' + d] || 0;
+        if (!via && min > 0 && o + 0.01 < min) out.push({ u: u, d: d, ore: o, min: Math.round(min * 100) / 100 });
+      });
+    }
+    return out;
+  }
+  function schGiorno(d) { var x = new Date(isoToUTC(d)); return ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'][x.getUTCDay()] + ' ' + x.getUTCDate() + ' ' + MESI[x.getUTCMonth()]; }
+  function schCorteCard() {
+    var adm = assAdmin(), c = schCorte(adm ? null : S.myId); if (!c.length) return '';
+    if (!adm || (c.every(function (x) { return x.u === S.myId; }))) {
+      var righe = c.slice(0, 5).map(function (x) { return '<div class="feat-status t-late">' + esc(cap(schGiorno(x.d)) + ': ' + fmtH(x.ore) + ' su ' + fmtNum(x.min, 2)) + '</div>'; }).join('') + (c.length > 5 ? '<div class="feat-status">e altri ' + (c.length - 5) + ' giorni</div>' : '');
+      return featCard('late', I.alarm, c.length === 1 ? 'Completa la tua scheda lavoro' : 'Hai ' + c.length + ' schede lavoro da completare', 'Ci vogliono almeno ' + SCH_MIN + ' ore al giorno', righe,
+        '<button type="button" class="btn" data-act="go-scheda" data-d="' + c[0].d + '">Vai alla scheda lavoro</button>');
+    }
+    var per = {}, ord = []; c.forEach(function (x) { if (!per[x.u]) { per[x.u] = []; ord.push(x.u); } per[x.u].push(x); });
+    ord.sort(byPerson);
+    var righe = ord.slice(0, 6).map(function (u) {
+      return '<div class="feat-status t-late">' + esc(nameOf(u) + ': ' + per[u].map(function (x) { return schGiorno(x.d) + ' (' + fmtH(x.ore) + ')'; }).join(', ')) + '</div>';
+    }).join('') + (ord.length > 6 ? '<div class="feat-status">e altri ' + (ord.length - 6) + '</div>' : '');
+    return featCard('late', I.alarm, ord.length === 1 ? 'Un dipendente sotto le ' + SCH_MIN + ' ore' : ord.length + ' dipendenti sotto le ' + SCH_MIN + ' ore', 'Schede lavoro incomplete da almeno 2 giorni', righe,
+      '<button type="button" class="btn" data-act="tab" data-tab="ore">Vedi le ore</button>');
   }
   function toMap(list) { var m = {}; list.forEach(function (x) { m[x.id] = x; }); return m; }
   /* ---------- Più depositi (idea X51, Strumenti in più › depositi) e materiale di consumo (X52, › consumo) ----------
