@@ -2571,10 +2571,84 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (at.length) v.push(['Attrezzatura', media(at), 'at']);
     return { voci: v, tot: media(v.map(function (x) { return x[1]; })) };
   }
+  /* ---------- Dotazioni e documenti obbligatori a bordo (idea 3.23, da HullHub) ----------
+     Si sceglie fino a che distanza dalla costa naviga la barca e l'app elenca cosa serve a bordo, con lo stato di ognuno
+     (a bordo, manca, non serve) e la data di scadenza dove c'è. Sta sulla barca in dotazioni {zona, voci: {k: {st, sc}}}.
+     L'elenco è indicativo (regolamento della nautica da diporto): va controllato con le norme in vigore. */
+  var DO_ZONE = [['z0', 'Entro 300 metri dalla costa'], ['z1', 'Entro 1 miglio'], ['z2', 'Entro 3 miglia'], ['z3', 'Entro 6 miglia'], ['z4', 'Entro 12 miglia'], ['z5', 'Entro 50 miglia'], ['z6', 'Oltre 50 miglia, senza limiti']];
+  // [chiave, nome, da quale zona serve (0-6), ha una scadenza, gruppo]
+  var DO_VOCI = [
+    ['estintori', 'Estintori (secondo la potenza del motore)', 0, true, 'd'], ['tromba', 'Segnale sonoro (tromba o fischio)', 0, false, 'd'], ['fanali', 'Fanali di navigazione', 0, false, 'd'],
+    ['sentina', 'Pompa di sentina o sassola', 0, false, 'd'], ['giubbotti', 'Giubbotti di salvataggio, uno per persona', 1, false, 'd'], ['ancora', 'Ancora con cima o catena', 1, false, 'd'],
+    ['fuochi', 'Fuochi a mano a luce rossa', 2, true, 'd'], ['salvagente', 'Salvagente anulare con cima', 3, false, 'd'], ['razzi', 'Razzi a paracadute a luce rossa', 3, true, 'd'],
+    ['bussola', 'Bussola', 3, false, 'd'], ['carte', 'Carte nautiche della zona', 3, false, 'd'], ['boetta', 'Boetta luminosa per il salvagente', 4, true, 'd'],
+    ['fumogeni', 'Boette fumogene', 4, true, 'd'], ['vhf', 'Radio VHF', 4, false, 'd'], ['cassetta', 'Cassetta di pronto soccorso', 4, true, 'd'],
+    ['zattera', 'Zattera autogonfiabile', 5, true, 'd'], ['binocolo', 'Binocolo', 5, false, 'd'], ['barometro', 'Barometro', 5, false, 'd'], ['carteggio', 'Strumenti da carteggio', 5, false, 'd'],
+    ['riflettore', 'Riflettore radar', 5, false, 'd'], ['fari', 'Elenco dei fari e segnali', 5, false, 'd'], ['epirb', 'EPIRB (radioboa di soccorso)', 6, true, 'd'],
+    ['assicurazione', 'Assicurazione RC', 0, true, 'c'], ['licenza', 'Licenza di navigazione (se immatricolata)', 0, false, 'c'], ['certsic', 'Certificato di sicurezza (se immatricolata)', 0, true, 'c'],
+    ['potenza', 'Certificato d’uso del motore o dichiarazione di potenza', 0, false, 'c'], ['radio', 'Licenza della stazione radio', 4, false, 'c']];
+  function doCfg(b) { return b && b.dotazioni && typeof b.dotazioni === 'object' ? b.dotazioni : {}; }
+  function doZona(b) { var z = doCfg(b).zona; return DO_ZONE.some(function (x) { return x[0] === z; }) ? z : ''; }
+  function doServono(z) { var n = +String(z).slice(1); return DO_VOCI.filter(function (v) { return v[2] <= n; }); }
+  function doStato(b) { // cosa c'è, cosa manca, cosa scade (entro 30 giorni)
+    var z = doZona(b), voci = doCfg(b).voci || {}, r = { z: z, bordo: 0, manca: [], scade: [], scaduto: [], vuote: 0, tot: 0 }; if (!z) return r;
+    doServono(z).forEach(function (v) {
+      var x = voci[v[0]] || {}, nm = v[1].replace(/ \(.*\)$/, ''); if (x.st === 'no') return; r.tot++;
+      if (x.st === 'manca') r.manca.push(nm); else if (x.st === 'bordo') r.bordo++; else r.vuote++;
+      if (x.st !== 'manca' && v[3] && x.sc) { var d = daysUntil(x.sc); if (d < 0) r.scaduto.push([nm, x.sc]); else if (d <= 30) r.scade.push([nm, x.sc]); }
+    });
+    return r;
+  }
+  function doCard(b) {
+    var st = doStato(b), act = S.canWrite ? 'do-open' : '', h = secH('Dotazioni e documenti obbligatori', act, st.z ? 'Controlla' : 'Inizia', ' data-id="' + esc(b.id) + '"');
+    if (!st.z) return h + '<div class="notice">Scegli fino a che distanza dalla costa naviga la barca: ti dico cosa serve a bordo e segni cosa c’è, cosa manca e quando scade.</div>';
+    var pill = function (c, t) { return '<span class="pill ' + c + '" style="margin:0 6px 6px 0">' + esc(t) + '</span>'; };
+    var riga = function (k, v, c) { return '<div class="kv-row"><span class="k" style="white-space:normal">' + esc(k) + '</span><span class="v' + (c ? ' t-' + c : '') + '">' + esc(v) + '</span></div>'; };
+    return h + '<div class="group"><div class="kv-row"><span class="k">Naviga</span><span class="v">' + esc((DO_ZONE.filter(function (x) { return x[0] === st.z; })[0] || ['', ''])[1].toLowerCase()) + '</span></div>' +
+      '<div style="padding:10px 14px 4px;display:flex;flex-wrap:wrap">' + pill('ok', st.bordo + ' di ' + st.tot + ' a bordo') + (st.manca.length ? pill('late', st.manca.length + (st.manca.length === 1 ? ' manca' : ' mancano')) : '') +
+      (st.scaduto.length ? pill('late', st.scaduto.length + ' scadut' + (st.scaduto.length === 1 ? 'a' : 'e')) : '') + (st.scade.length ? pill('soon', st.scade.length + ' in scadenza') : '') + (st.vuote ? pill('', st.vuote + ' da controllare') : '') + '</div>' +
+      st.manca.map(function (x) { return riga(x, 'manca', 'late'); }).join('') + st.scaduto.map(function (x) { return riga(x[0], 'scaduta il ' + fmtDate(x[1]), 'late'); }).join('') + st.scade.map(function (x) { return riga(x[0], 'scade il ' + fmtDate(x[1]), 'soon'); }).join('') + '</div>' +
+      '<p class="cap" style="margin:6px 4px 0">Elenco indicativo secondo il regolamento della nautica da diporto: controllalo con le norme in vigore e con la potenza del motore.</p>';
+  }
+  function doSheet(b) {
+    var c = doCfg(b), voci = Object.assign({}, c.voci || {}), z0 = doZona(b) || 'z3';
+    function righe(z) {
+      var gr = function (g, t) {
+        var l = doServono(z).filter(function (v) { return v[4] === g; }); if (!l.length) return '';
+        return '<div class="lbl">' + t + '</div>' + l.map(function (v) {
+          var x = voci[v[0]] || {};
+          return '<div style="display:grid;grid-template-columns:1fr 150px;gap:8px;align-items:center;margin-bottom:10px"><span>' + esc(v[1]) + '</span>' +
+            '<div class="field" style="margin:0"><select class="do-st" data-k="' + v[0] + '" style="padding:8px 10px">' + opts([['', '—'], ['bordo', 'A bordo'], ['manca', 'Manca'], ['no', 'Non serve']], x.st || '') + '</select></div>' +
+            (v[3] ? '<span class="cap" style="text-align:right">scade il</span><div class="field" style="margin:0"><input type="date" class="do-sc" data-k="' + v[0] + '" value="' + esc(x.sc || '') + '" style="padding:8px 10px" aria-label="' + esc(v[1]) + ': scade il"></div>' : '') + '</div>';
+        }).join('');
+      };
+      return gr('d', 'Dotazioni di sicurezza') + gr('c', 'Documenti di bordo');
+    }
+    function leggi(f) {
+      Array.prototype.forEach.call(f.querySelectorAll('.do-st'), function (e) { var k = e.getAttribute('data-k'); voci[k] = Object.assign({}, voci[k] || {}, { st: e.value }); });
+      Array.prototype.forEach.call(f.querySelectorAll('.do-sc'), function (e) { var k = e.getAttribute('data-k'); voci[k] = Object.assign({}, voci[k] || {}, { sc: e.value || '' }); });
+    }
+    openSheet({ title: 'Dotazioni e documenti', submitLabel: 'Salva',
+      body: '<p class="context">' + esc(boatLabel(b)) + '. Scegli fino a che distanza dalla costa naviga: compare quello che serve a bordo. Per ognuno segna se c’è, se manca o se per questa barca non serve, e la scadenza dove c’è (zattera, estintori, razzi…).</p>' +
+        field(lab('f-doz', 'Naviga'), '<select id="f-doz">' + opts(DO_ZONE, z0) + '</select>') + '<div id="f-doL">' + righe(z0) + '</div>' +
+        '<p class="cap">Elenco indicativo secondo il regolamento della nautica da diporto: va controllato con le norme in vigore, con il numero di persone e la potenza del motore.</p>',
+      onOpen: function (f) { f.querySelector('#f-doz').addEventListener('change', function () { leggi(f); f.querySelector('#f-doL').innerHTML = righe(this.value); }); },
+      onSubmit: async function (f) {
+        leggi(f);
+        Object.keys(voci).forEach(function (k) { var x = voci[k]; if (!x.st && !x.sc) delete voci[k]; else { if (!x.st) delete x.st; if (!x.sc) delete x.sc; } });
+        var r = S.db.collection('barche').doc(b.id), d = { dotazioni: { zona: val(f, 'f-doz'), voci: voci, agg: todayISO() }, modificato: new Date().toISOString() };
+        var ok = await w(function () { return r.update(d); });
+        if (ok) toast('Dotazioni salvate');
+        return ok;
+      } });
+  }
+
   function sbAvvisi(b) {
     var a = [], oggi = todayISO();
     openScad(b.id).forEach(function (x) { if (x.i.level !== 'ok') a.push([x.i.level, x.s.tipo || 'Scadenza', x.i.text, 'sc']); });
     if (b.stato !== 'In acqua' || num(b.batterie) > 0) { var bi = battInfo(b); if (bi.late) a.push(['late', 'Batterie da caricare', bi.txt, 'at']); }
+    var dst = doStato(b);
+    dst.manca.forEach(function (x) { a.push(['late', x, 'manca a bordo', 'at']); }); dst.scaduto.forEach(function (x) { a.push(['late', x[0], 'scaduta il ' + fmtDate(x[1]), 'at']); }); dst.scade.forEach(function (x) { a.push(['soon', x[0], 'scade il ' + fmtDate(x[1]), 'at']); });
     S.attr.filter(function (x) { return x.barcaId === b.id && (x.stato === 'sistemare' || x.stato === 'sostituire'); }).forEach(function (x) { a.push([x.stato === 'sostituire' ? 'late' : 'soon', attrLabel(x), x.stato === 'sostituire' ? 'da sostituire' : 'da sistemare', 'at']); });
     S.lavori.filter(function (l) { return l.barcaId === b.id && l.stato !== 'fatto' && !l.annullata && l.fonte !== 'scheda'; }).forEach(function (l) {
       var z = sbLavDate(l).z; if (z && z < oggi) a.push(['late', l.titolo || 'Lavoro', (l.fuori && l.fuori.ditta && !l.fuori.rientrato ? 'non ancora rientrato da ' + l.fuori.ditta : 'doveva finire il ' + fmtDate(z)), 'la']);
@@ -2843,6 +2917,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (b.note) P.da += secH('Note') + '<div class="group notes">' + esc(b.note) + '</div>';
 
     var atb = S.attr.filter(function (x) { return x.barcaId === b.id; }).sort(function (x, y) { return String(x.tipo || x.nome || '').localeCompare(String(y.tipo || y.nome || ''), 'it'); });
+    P.at += doCard(b);
     P.at += secH('Attrezzatura di bordo', S.canWrite ? 'new-attr' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
     P.at += atb.length ? '<div class="group">' + atb.map(attrRow).join('') + '</div>' : '<div class="notice">Niente segnato. Aggiungi salpancora, verricelli, cuscineria, tendalino, teli e coperture: marca, misure e colori restano qui per la prossima volta.</div>';
 
@@ -10979,6 +11054,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     barca: { t: 'Scheda della barca', p: 'Qui c’è tutta la storia della barca.', li: [
       '«Dove si trova» nella matita: al porto, al cantiere o fuori (altro porto o cantiere di altri, con nome e paese). Quando segni fatto l’alaggio la barca passa da sola al cantiere, col varo al porto. Il cliente lo vede nella sua pagina con la stessa icona.',
       'La matita in alto modifica i dati: modello, misure, motori, stato, ore motore, proprietario con telefono ed email.',
+      '«Dotazioni e documenti obbligatori» (in Attrezzatura): scegli fino a che distanza dalla costa naviga la barca e compare quello che serve a bordo (estintori, giubbotti, razzi, zattera…) e i documenti; per ognuno segni a bordo, manca o non serve, e la scadenza. Quello che manca o scade finisce in «Da gestire» nel Cruscotto. L’elenco è indicativo: va controllato con le norme in vigore.',
       '«Piano tagliandi pronto» (in Motori, accanto a Prossimi tagliandi): scegli il tipo di motore (fuoribordo, entrobordo con linea d’asse, piede poppiero, IPS) e l’app propone le manutenzioni tipiche «ogni tot ore o tot mesi»; correggi gli intervalli col manuale e diventano scadenze che si ripetono. Se c’è il generatore propone anche le sue.',
       '«Campi in più» (in Dati): l’amministratore con «Gestisci» aggiunge i vostri campi, per esempio «Codice Poseidon» o «Numero del carrello», nella scheda della barca o nella parte del cliente; poi si compilano con la matita, si cercano e finiscono in «Elenco delle barche in Excel». Il cliente nel portale non li vede.',
       'Nella matita ogni motore è una riga con marca e modello, matricola, cv e ore: «Aggiungi riga» per un altro motore (copia marca e cv del primo), × per toglierlo. Il numero dei motori si conta da solo.',
@@ -13428,6 +13504,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'sds-list': sdsLista(); break;
       case 'xl-import': xlSheet(); break;
       case 'xl-export': cpExcel(); break;
+      case 'do-open': var bd = boatById(id); if (bd) doSheet(bd); break;
       case 'tg-piano': var bt = boatById(id); if (bt) tgSheet(bt); break;
       case 'cp-gest': cpGestisci(); break;
       case 'cp-edit': cpModifica(id); break;
