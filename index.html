@@ -1664,7 +1664,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     push('crono', crHome()); push('giro', giroHome()); push('fuori', lfHome());
     push('spazio', spazioHome()); push('mezzi', ctrlHome()); push('rif', rifSogliaHome());
     ncHome(push); repHome(push); push('mani', maniHome()); push('emerg', emHome());
-    push('corte', schCorteCard());
+    push('corte', schCorteCard()); push('permessi', permCard());
     var pend = myPendingDays();
     if (pend.length) push('conferme', featCard('soon', I.check, pend.length === 1 ? 'Conferma la tua giornata' : 'Hai ' + pend.length + ' giornate da confermare',
       cap(fmtDayLong(pend[0])) + (pend.length > 1 ? ' e altre' : ''), '', '<button type="button" class="btn" data-act="go-scheda" data-d="' + pend[0] + '">Vai alla scheda lavoro</button>'));
@@ -1762,7 +1762,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     return h + lyRender('home', [
       { id: 'cerca', t: 'Cerca', sub: 'barca, cliente, articolo, lavoro', z: ['l'], d: 'l', h: gqBar },
       { id: 'primo', t: 'In primo piano', sub: 'gli avvisi da guardare subito', z: sec, d: 'l', h: primo, opz: [['crono', 'Cronometri in corso o dimenticati'], ['giro', 'Giro di controllo'], ['fuori', 'Barche fuori in ritardo o che rientrano oggi'],
-        ['conferme', 'Giornate da confermare'], ['corte', 'Schede lavoro sotto le 8 ore'], ['spazio', 'Spazio quasi pieno (amministratori)'], ['mezzi', 'Mezzi fermi o da controllare'], ['vari', 'Vari e alaggi di oggi e domani'], ['scad', 'Scadenze delle barche'], ['ferie', 'Ferie e permessi'], ['scadc', 'Scadenze del cantiere'], ['batt', 'Batterie da caricare'], ['mag', 'Ricambi da riordinare'], ['rif', 'Rifiuti oltre la soglia'], ['note', 'Note dei colleghi'], ['reper', 'Reperibilità'], ['mani', 'Tempi tra le mani'], ['emerg', 'Primo soccorso da controllare']] },
+        ['conferme', 'Giornate da confermare'], ['corte', 'Schede lavoro sotto le 8 ore'], ['permessi', 'Permessi da controllare (amministratori)'], ['spazio', 'Spazio quasi pieno (amministratori)'], ['mezzi', 'Mezzi fermi o da controllare'], ['vari', 'Vari e alaggi di oggi e domani'], ['scad', 'Scadenze delle barche'], ['ferie', 'Ferie e permessi'], ['scadc', 'Scadenze del cantiere'], ['batt', 'Batterie da caricare'], ['mag', 'Ricambi da riordinare'], ['rif', 'Rifiuti oltre la soglia'], ['note', 'Note dei colleghi'], ['reper', 'Reperibilità'], ['mani', 'Tempi tra le mani'], ['emerg', 'Primo soccorso da controllare']] },
       { id: 'meteo', t: 'Meteo', sub: 'vento e mare dei prossimi giorni', z: sec, d: 'l', h: metHome },
       { id: 'prog', t: 'Programma di oggi', z: sec, d: 'l', h: homeProgHtml },
       { id: 'breve', t: 'In breve', sub: 'scadenze, lavorazioni, barche, lavori del mese', z: ['l'], d: 'l', h: breve },
@@ -1875,7 +1875,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var r = { h: 0, chi: {}, p: 0, pf: 0, v: [], s: [], fatti: 0, aperti: 0, cose: [] };
     items.forEach(function (it) {
       var o = it.o;
-      if (it.k === 'l' && o.fonte === 'scheda') { r.h += num(o.oreLavoro) || 0; if (o.utente) r.chi[o.utente] = 1; return; }
+      if (it.k === 'l' && o.fonte === 'scheda') { r.h += oreLav(o); if (o.utente) r.chi[o.utente] = 1; return; }
       r.cose.push(it);
       if (it.k === 'p') { r.p++; if (o.fatto) r.pf++; }
       else if (it.k === 'v') r.v.push(it);
@@ -1953,13 +1953,13 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   // riepilogo della scheda lavoro del giorno: una riga per persona con ore e conferma
   function calSchedaSum(day) {
     var per = {};
-    entriesOn(day).forEach(function (l) { var p = per[l.utente] = per[l.utente] || { n: 0, h: 0 }; p.n++; p.h += num(l.oreLavoro) || 0; });
+    entriesOn(day).forEach(function (l) { var p = per[l.utente] = per[l.utente] || { n: 0, h: 0, pm: 0 }; p.n++; p.h += oreLav(l); p.pm += schPermOre(l); });
     var ids = Object.keys(per).sort(byPerson); if (!ids.length) return '';
     var tot = 0; ids.forEach(function (id) { tot += per[id].h; });
     return '<div class="group sd-sum">' + ids.map(function (id) {
       var p = per[id], ok = isConfirmed(id, day);
       return '<button type="button" class="row" data-act="go-scheda" data-d="' + day + '">' + avatar(id) + '<span class="main"><span class="title">' + esc(nameOf(id)) + '</span>' +
-        '<span class="sub">' + p.n + (p.n === 1 ? ' mansione' : ' mansioni') + ' · ' + fmtH(p.h) + '</span>' +
+        '<span class="sub">' + p.n + (p.n === 1 ? ' mansione' : ' mansioni') + ' · ' + fmtH(p.h) + (p.pm ? ' + ' + fmtH(p.pm) + ' di permesso' : '') + '</span>' +
         '<span class="status"><span class="pill ' + (ok ? 'ok' : 'soon') + '">' + (ok ? 'Giornata confermata' : 'Da confermare') + '</span></span></span>' +
         '<span style="color:var(--dim);width:18px;flex:none">' + I.right + '</span></button>';
     }).join('') + (ids.length > 1 ? '<div class="kv-row" style="padding:10px 14px"><span class="k">Totale squadra</span><span class="v">' + fmtH(tot) + '</span></div>' : '') + '</div>';
@@ -2473,6 +2473,53 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   function entriesOn(day, withCancelled) { return (withCancelled ? S.lavoriAll : S.lavori).filter(function (l) { return l.fonte === 'scheda' && l.utente && l.data === day; }); }
   function sumOre(list) { return list.reduce(function (a, l) { return a + (l.annullata ? 0 : (num(l.oreLavoro) || 0)); }, 0); }
+  /* Permesso scritto nella scheda lavoro: una mansione che inizia con «Permesso» («Permesso», «Permesso 0,5», «Permesso (visita)»).
+     Le sue ore sono di permesso e non contano come lavorate (Ore del mese, Excel, Pannello). Le ore sono quelle del campo Ore;
+     se mancano, il numero scritto nel testo, altrimenti la giornata intera (8 ore): in questi casi è da controllare. */
+  var PERM_RE = /^\s*permess[oi]\b/i, PERM_IN = /permess[oi]/i;
+  function schPerm(l) { return !!l && l.fonte === 'scheda' && PERM_RE.test(l.titolo || ''); }
+  function schPermInfo(l) { // { ore, da: 'ore' | 'testo' | 'giornata' } oppure null
+    if (!schPerm(l)) return null;
+    var o = l.daSegnare ? null : num(l.oreLavoro); if (o > 0) return { ore: o, da: 'ore' };
+    var m = /(\d+(?:[.,]\d+)?)/.exec(String(l.titolo || '').replace(PERM_RE, '')), t = m ? parseFloat(m[1].replace(',', '.')) : 0;
+    return t > 0 && t <= 24 ? { ore: t, da: 'testo' } : { ore: 8, da: 'giornata' };
+  }
+  function schPermOre(l) { var p = schPermInfo(l); return p ? p.ore : 0; }
+  function oreLav(l) { return schPerm(l) ? 0 : (num(l.oreLavoro) || 0); } // ore lavorate davvero
+  /* Permessi da controllare (solo amministratori, ultimi 30 giorni): una mansione che nomina il permesso ma non inizia
+     con «Permesso», un permesso senza ore (contato dal testo o come giornata intera), un permesso scritto nella scheda
+     nello stesso giorno di un'assenza approvata (contato una volta sola). «Visti» li toglie finché la riga non cambia. */
+  function permFirma(l) { return String(l.titolo || '') + '|' + (num(l.oreLavoro) || 0); }
+  function permDaControllare() {
+    var t = todayISO(), da = addDays(t, -30), out = [];
+    S.lavori.forEach(function (l) {
+      if (l.fonte !== 'scheda' || !l.utente || !l.data || l.annullata || l.data < da || l.data > t) return;
+      if (l.permVisto && l.permVisto === permFirma(l)) return;
+      var why = '';
+      if (schPerm(l)) {
+        var p = schPermInfo(l), ass = assOn(l.data).filter(function (a) { return a.utente === l.utente; });
+        if (p.da === 'giornata') why = 'permesso senza ore: contato come giornata intera (8 h)';
+        else if (p.da === 'testo') why = 'permesso senza ore: contate ' + fmtH(p.ore) + ' dal testo';
+        else if (ass.length) why = 'c’è anche ' + (ass[0].tipo === 'permesso' ? 'il permesso' : assTipo(ass[0].tipo).toLowerCase()) + ' in Ferie e permessi: contato una volta';
+      } else if (PERM_IN.test(l.titolo || '')) why = 'nomina un permesso dentro un lavoro: ore contate come lavorate';
+      if (why) out.push({ l: l, why: why });
+    });
+    return out.sort(function (a, b) { return a.l.data.localeCompare(b.l.data); });
+  }
+  function permCard() {
+    if (!assAdmin()) return '';
+    var c = permDaControllare(); if (!c.length) return '';
+    var righe = c.slice(0, 5).map(function (x) {
+      var tt = String(x.l.titolo || ''); if (tt.length > 60) tt = tt.slice(0, 58) + '…';
+      return '<div class="feat-status t-soon">' + esc(nameOf(x.l.utente) + ', ' + schGiorno(x.l.data) + ': «' + tt + '» · ' + x.why) + '</div>';
+    }).join('') + (c.length > 5 ? '<div class="feat-status">e altri ' + (c.length - 5) + '</div>' : '');
+    return featCard('soon', I.cal, c.length === 1 ? 'Un permesso da controllare' : c.length + ' permessi da controllare', 'Permessi scritti nelle schede lavoro', righe,
+      '<button type="button" class="btn" data-act="go-scheda" data-d="' + c[0].l.data + '">Vai alla scheda</button><button type="button" class="btn sec" data-act="perm-visti">Visti</button>');
+  }
+  async function permVisti() {
+    var c = permDaControllare(); if (!c.length) return;
+    if (await w(function () { return Promise.all(c.map(function (x) { return S.db.collection('lavori').doc(x.l.id).update({ permVisto: permFirma(x.l) }); })); })) toast('Permessi segnati come visti');
+  }
   function fmtStamp(iso) { var d = new Date(iso); if (isNaN(d)) return ''; return d.getDate() + ' ' + MESI[d.getMonth()] + ' alle ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); }
   function fmtH(n) { return fmtNum(n || 0, 2) + ' h'; }
   function confId(uid, day) { return uid + '_' + day; }
@@ -2495,11 +2542,11 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     return d === addDays(y + '-' + pad(mo) + '-' + pad(gg), 1);
   }
   function schCorte(uid) { // [{u, d, ore, min}] dal giorno più vecchio
-    var t = todayISO(), fino = addDays(t, -2), da = addDays(t, -15), mese = addDays(t, -30), ore = {}, chi = {}, out = [];
+    var t = todayISO(), fino = addDays(t, -2), da = addDays(t, -15), mese = addDays(t, -30), ore = {}, chi = {}, pd = {}, out = [];
     S.lavori.forEach(function (l) {
       if (l.fonte !== 'scheda' || !l.utente || !l.data || l.annullata) return;
       if (l.data >= mese) chi[l.utente] = 1;
-      if (l.data >= da && l.data <= fino) { var k = l.utente + '|' + l.data; ore[k] = (ore[k] || 0) + (num(l.oreLavoro) || 0); }
+      if (l.data >= da && l.data <= fino) { var k = l.utente + '|' + l.data; ore[k] = (ore[k] || 0) + oreLav(l) + schPermOre(l); if (schPerm(l)) pd[k] = 1; }
     });
     var scelti = schScelti(); if (scelti) { chi = {}; scelti.forEach(function (u) { chi[u] = 1; }); }
     var ids = uid ? (chi[uid] ? [uid] : []) : Object.keys(chi);
@@ -2509,7 +2556,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       var ass = assOn(d);
       ids.forEach(function (u) {
         var min = SCH_MIN, via = false;
-        ass.forEach(function (a) { if (a.utente !== u) return; if (a.tipo === 'permesso') min -= assOrePerm(a); else via = true; });
+        ass.forEach(function (a) { if (a.utente !== u) return; if (a.tipo === 'permesso') { if (!pd[u + '|' + d]) min -= assOrePerm(a); } else via = true; });
         var o = ore[u + '|' + d] || 0;
         if (!via && min > 0 && o + 0.01 < min) out.push({ u: u, d: d, ore: o, min: Math.round(min * 100) / 100 });
       });
@@ -2759,7 +2806,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (l.categoria && l.categoria !== 'Altro') sub.push(l.categoria);
     if (l.ricambi && l.ricambi.length) sub.push('Ricambi: ' + fmtRic(l.ricambi));
     if (l.foto && l.foto.length) sub.push(l.foto.length + ' foto');
-    var flags = (l.daSegnare ? '<span class="pill soon">Tempo da segnare' + (stimaStr(l.stimaMin, l.stimaMax) ? ' · stimato ' + esc(stimaStr(l.stimaMin, l.stimaMax)) : '') + '</span> ' : '') +
+    var flags = (schPerm(l) ? '<span class="pill">Permesso · non conta come ore lavorate</span> ' : '') + (l.daSegnare ? '<span class="pill soon">Tempo da segnare' + (stimaStr(l.stimaMin, l.stimaMax) ? ' · stimato ' + esc(stimaStr(l.stimaMin, l.stimaMax)) : '') + '</span> ' : '') +
       (l.modDopoConferma ? '<span class="pill soon">Modificata dopo la conferma</span> ' : '') + (l.aggiuntaDopoConferma ? '<span class="pill soon">Aggiunta dopo la conferma</span>' : '');
     var inner = '<span class="dblock hrs"><b>' + (l.daSegnare ? '—' : fmtNum(num(l.oreLavoro) || 0, 2)) + '</b><small>ore</small></span><span class="main"><span class="title">' + esc(l.titolo || 'Mansione') + '</span><span class="sub">' + sub.map(esc).join(' · ') + '</span>' +
       (flags ? '<span class="status">' + flags + '</span>' : '') + prevHtml(l) + '</span>';
@@ -6439,7 +6486,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (per === 'scorso') { var d = new Date(isoToUTC(t.slice(0, 8) + '01') - 86400000), e = utcToISO(d.getTime()); return { a: e.slice(0, 8) + '01', b: e, l: 'il mese scorso' }; }
     return { a: utcToISO(mondayOf(t)), b: t, l: 'questa settimana' };
   }
-  function panEntries(r) { return S.lavori.filter(function (l) { return l.fonte === 'scheda' && !l.annullata && num(l.oreLavoro) > 0 && l.data >= r.a && l.data <= r.b; }); }
+  function panEntries(r) { return S.lavori.filter(function (l) { return l.fonte === 'scheda' && !l.annullata && !schPerm(l) && num(l.oreLavoro) > 0 && l.data >= r.a && l.data <= r.b; }); }
   function panBars(rows, unit) { // barre orizzontali in un solo colore: valore scritto accanto, è anche la tabella
     if (!rows.length) return '<div class="notice">Nessuna ora segnata in questo periodo.</div>';
     var max = Math.max.apply(null, rows.map(function (r) { return r[1]; })) || 1;
@@ -9638,24 +9685,25 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var key = V.oreMonth, per = {}, order = [], all = 0;
     S.lavori.forEach(function (l) {
       if (l.fonte !== 'scheda' || !l.utente || !l.data || String(l.data).slice(0, 7) !== key) return;
-      if (!per[l.utente]) { per[l.utente] = { days: {}, tot: 0 }; order.push(l.utente); }
-      var o = num(l.oreLavoro) || 0; per[l.utente].tot += o; all += o; per[l.utente].days[l.data] = (per[l.utente].days[l.data] || 0) + o;
+      if (!per[l.utente]) { per[l.utente] = { days: {}, perm: {}, tot: 0, pm: 0 }; order.push(l.utente); }
+      var o = oreLav(l), pm = schPermOre(l), q = per[l.utente]; q.tot += o; all += o; q.days[l.data] = (q.days[l.data] || 0) + o;
+      if (pm) { q.pm += pm; q.perm[l.data] = (q.perm[l.data] || 0) + pm; }
     });
     order.sort(byPerson);
     var h = '<div class="cal-nav"><button type="button" class="icon-btn blue" data-act="ore-prev" aria-label="Mese precedente">' + I.left + '</button><h2>' + monthLabel(key) + '</h2><button type="button" class="icon-btn blue" data-act="ore-next" aria-label="Mese successivo">' + I.right + '</button></div>';
     if (!order.length) return h + '<div class="notice" style="margin-top:12px">Nessuna ora segnata in questo mese. Le ore arrivano dalla Scheda lavoro.</div>' + assOreHtml(key);
     h += '<div class="day-sum"><div><span class="big">' + fmtNum(all, 2) + ' <small>h</small></span><span class="cap">Totale squadra · ' + order.length + (order.length === 1 ? ' persona' : ' persone') + '</span></div></div>';
-    if (S.isOwner) h += '<button type="button" class="btn" data-act="ore-xlsx" style="width:100%;margin:12px 0 4px">' + I.dl + ' Scarica Excel delle schede lavoro</button><p class="cap" style="margin:0 2px 8px">Una pagina da stampare per ogni dipendente: giorno per giorno lavorazioni, cliente, barca e ore, con il totale del mese.</p>' +
+    if (S.isOwner) h += '<button type="button" class="btn" data-act="ore-xlsx" style="width:100%;margin:12px 0 4px">' + I.dl + ' Scarica Excel delle schede lavoro</button><p class="cap" style="margin:0 2px 8px">Una pagina da stampare per ogni dipendente: giorno per giorno lavorazioni, cliente, barca e ore, con il totale del mese. Le mansioni che iniziano con «Permesso» sono ore di permesso, non lavorate.</p>' +
       '<button type="button" class="btn sec" data-act="ore-comm" style="width:100%;margin:4px 0 4px">' + I.dl + ' Scarica Excel per il commercialista</button><p class="cap" style="margin:0 2px 8px">Solo le ore: una riga per dipendente e una colonna per giorno, con totali' + (COMM_ASS ? ', ferie, malattia e permessi' : '') + '.</p>';
     h += secH('Dipendenti') + '<div class="group">';
     order.forEach(function (uid) {
       var p = per[uid], days = Object.keys(p.days).sort(), pend = days.filter(function (d) { return !isConfirmed(uid, d) && d <= todayISO(); }).length, open = V.oreOpen === uid;
       h += '<button type="button" class="row" data-act="ore-open" data-u="' + esc(uid) + '" aria-expanded="' + open + '">' + avatar(uid) + '<span class="main"><span class="title">' + esc(nameOf(uid)) + '</span><span class="sub">' +
-        days.length + (days.length === 1 ? ' giorno' : ' giorni') + (pend ? ' · <span class="t-soon">' + pend + ' da confermare</span>' : ' · tutti confermati') + '</span></span><span class="side"><span class="big" style="font-size:1.25rem">' + fmtNum(p.tot, 2) + ' <small>h</small></span></span></button>';
+        days.length + (days.length === 1 ? ' giorno' : ' giorni') + (p.pm ? ' · ' + fmtH(p.pm) + ' di permesso' : '') + (pend ? ' · <span class="t-soon">' + pend + ' da confermare</span>' : ' · tutti confermati') + '</span></span><span class="side"><span class="big" style="font-size:1.25rem">' + fmtNum(p.tot, 2) + ' <small>h</small></span></span></button>';
       if (open) days.forEach(function (d) {
         var cf = isConfirmed(uid, d);
         h += '<button type="button" class="row" data-act="go-scheda" data-d="' + d + '" style="padding-left:58px">' + '<span class="main"><span class="title" style="font-weight:500;text-transform:capitalize">' + esc(fmtDayLong(d)) + '</span></span>' +
-          '<span class="side" style="flex-direction:row;align-items:center;gap:8px">' + (cf ? '<span class="pill ok">Confermata</span>' : '<span class="pill soon">Da confermare</span>') + '<span class="amount">' + fmtH(p.days[d]) + '</span></span></button>';
+          '<span class="side" style="flex-direction:row;align-items:center;gap:8px">' + (cf ? '<span class="pill ok">Confermata</span>' : '<span class="pill soon">Da confermare</span>') + '<span class="amount">' + fmtH(p.days[d]) + (p.perm[d] ? ' <small class="t-soon">+ ' + fmtNum(p.perm[d], 2) + ' perm.</small>' : '') + '</span></span></button>';
       });
     });
     return h + '</div>' + assOreHtml(key);
@@ -9761,17 +9809,21 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ids.forEach(function (uid, n) {
       var list = per[uid].map(function (l) {
         var b = l.barcaId ? boatById(l.barcaId) : null, altre = (l.altreBarche || []).map(boatById).filter(Boolean);
+        var pm = schPermInfo(l);
+        if (pm) return { d: l.data, t: l.titolo || 'Permesso', c: 'Permesso', b: '—', o: pm.ore, pm: true };
         return { d: l.data, t: l.titolo || 'Lavoro', c: l.barcaId ? (b && b.proprietario) || '' : 'Lavori del cantiere', b: l.barcaId ? [b ? b.nome || 'Barca' : 'Barca eliminata'].concat(altre.map(function (x) { return x.nome || 'Barca'; })).join(', ') : '—', o: num(l.oreLavoro) || 0 };
       }).sort(function (a, b) { return a.d.localeCompare(b.d) || a.t.localeCompare(b.t, 'it') || a.c.localeCompare(b.c, 'it'); });
       rows.push(['t', NOME() + ' · Schede lavoro · ' + cap(monthLabel(key))], ['n', nameOf(uid)], ['v'], ['h', 'Data', 'Lavorazione', 'Cliente', 'Barca', 'Ore']);
-      var last = '', band = true, tot = 0;
+      var last = '', band = true, tot = 0, ptot = 0;
       list.forEach(function (x) {
         var first = x.d !== last; if (first) band = !band;
         var dt = new Date(x.d + 'T12:00:00');
         rows.push([band ? (first ? 'e' : 'b') : (first ? 'd' : 'r'), first ? GG3[dt.getDay()] + ' ' + x.d.slice(8, 10) + '/' + x.d.slice(5, 7) : '', x.t, x.c, x.b, Math.round(x.o * 100) / 100]);
-        last = x.d; tot += x.o;
+        last = x.d; if (x.pm) ptot += x.o; else tot += x.o;
       });
-      rows.push(['s', 'Totale ' + nameOf(uid), '', '', '', Math.round(tot * 100) / 100], ['v'], ['f', 'Firma ______________________________']);
+      rows.push(['s', (ptot ? 'Totale ore lavorate ' : 'Totale ') + nameOf(uid), '', '', '', Math.round(tot * 100) / 100]);
+      if (ptot) rows.push(['s', 'Ore di permesso ' + nameOf(uid), '', '', '', Math.round(ptot * 100) / 100]);
+      rows.push(['v'], ['f', 'Firma ______________________________']);
       if (n < ids.length - 1) { breaks.push(rows.length); rows.push(['v']); }
     });
     return { rows: rows, breaks: breaks, n: ids.length };
@@ -9783,16 +9835,17 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function assOrePerm(a) { var o = num(a.ore); if (o != null) return o; var m = /^(\d+):(\d+)$/, x = m.exec(a.dalle || ''), y = m.exec(a.alle || ''); return x && y ? Math.max(0, (+y[1] * 60 + +y[2] - +x[1] * 60 - +x[2]) / 60) : 0; }
   function commSheet(key) {
     var y = +key.slice(0, 4), mo = +key.slice(5, 7), nd = new Date(y, mo, 0).getDate(), per = {};
-    function P(uid) { return per[uid] = per[uid] || { ore: {}, ass: {}, perm: {} }; }
+    function P(uid) { return per[uid] = per[uid] || { ore: {}, ass: {}, perm: {}, pSch: {} }; }
     S.lavori.forEach(function (l) {
       if (l.fonte !== 'scheda' || !l.utente || !l.data || String(l.data).slice(0, 7) !== key) return;
-      var p = P(l.utente), d = +l.data.slice(8, 10); p.ore[d] = (p.ore[d] || 0) + (num(l.oreLavoro) || 0);
+      var p = P(l.utente), d = +l.data.slice(8, 10), pm = schPermOre(l);
+      if (pm) { p.perm[d] = (p.perm[d] || 0) + pm; p.pSch[d] = 1; } else p.ore[d] = (p.ore[d] || 0) + (num(l.oreLavoro) || 0);
     });
     if (COMM_ASS) (S.assenze || []).forEach(function (a) {
       if (a.stato !== 'approvata' || !a.utente) return;
       assDays(a).forEach(function (day) {
         if (!day || day.slice(0, 7) !== key) return; var p = P(a.utente), d = +day.slice(8, 10);
-        if (a.tipo === 'permesso') p.perm[d] = (p.perm[d] || 0) + assOrePerm(a); else p.ass[d] = a.tipo === 'malattia' ? 'M' : 'F';
+        if (a.tipo === 'permesso') { if (!p.pSch[d]) p.perm[d] = (p.perm[d] || 0) + assOrePerm(a); } else p.ass[d] = a.tipo === 'malattia' ? 'M' : 'F'; // permesso anche nella scheda: una volta sola
       });
     });
     var ids = Object.keys(per).sort(function (a, b) { return nameOf(a).localeCompare(nameOf(b), 'it'); });
@@ -10552,7 +10605,9 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ore: { t: 'Ore del mese', p: 'Le ore di ogni dipendente, prese dalla Scheda lavoro.', li: [
       'Cambia mese con le frecce.',
       'Tocca una persona per vedere giorno per giorno le ore e le giornate confermate o ancora da confermare.',
-      'In fondo c’è il totale della squadra.'] },
+      'In fondo c’è il totale della squadra.',
+      'Una mansione della scheda che inizia con «Permesso» (per esempio «Permesso» con 0,5 ore) conta come ore di permesso, non lavorate: qui compare come «+ 0,5 perm.» e nell’Excel del commercialista come P. Se le ore mancano vale la giornata intera (8 ore).',
+      'A|In primo piano «Permessi da controllare» mostra i casi dubbi: permesso senza ore, permesso scritto anche in Ferie e permessi (contato una volta), o un lavoro che nomina un permesso. «Visti» li toglie.'] },
     operazioni: { t: 'Servizi di cantiere', p: 'Le operazioni ripetitive: trasporti, alaggi, movimentazioni, vari, lavaggi.', li: [
       'Ogni gruppo (per esempio «Trasporto») ha le sue varianti, con i passaggi e un tempo stimato.',
       'Avvii un servizio su una barca; chi ci lavora segna il suo tempo, poi lo completi.',
@@ -12904,6 +12959,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         V.oreMonth = oy + '-' + pad(om + 1); V.oreOpen = null; render(); break;
       case 'ore-xlsx': oreXlsx(); break;
       case 'ore-comm': oreCommXlsx(); break;
+      case 'perm-visti': permVisti(); break;
       case 'sch-chi': if (window.__NM_FB && window.__NM_FB.open) window.__NM_FB.open('utenti'); break;
       case 'ore-open': V.oreOpen = V.oreOpen === t.getAttribute('data-u') ? null : t.getAttribute('data-u'); render(); break;
       case 'new-modello': modelloSheet(null); break;
