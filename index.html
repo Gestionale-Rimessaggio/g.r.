@@ -2972,6 +2972,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var tot = lv.reduce(function (a, l) { return a + (l.barcaId === b.id && l.stato === 'fatto' && num(l.importo) != null ? Number(l.importo) : 0); }, 0);
     var oreTot = lv.reduce(function (a, l) { return a + (l.barcaId === b.id && l.stato === 'fatto' ? (num(l.oreLavoro) || 0) : 0); }, 0);
     P.la += secH('Lavori', S.canWrite ? 'new-lav' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
+    if (S.canWrite) P.la += '<button type="button" class="btn sec" data-act="mo-applica" data-id="' + esc(b.id) + '" style="width:100%;margin-bottom:12px">' + I.list + 'Da un modello di lavoro</button>';
     if (lv.length) {
       var shown = V.boatLavAll ? lv : lv.slice(0, 5);
       P.la += '<div class="group">' + shown.map(function (l) { return lavRow(l, false); }).join('') + '</div>';
@@ -2988,12 +2989,128 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     return h + sbHtml(b, P);
   }
 
+  /* ---------- Modelli di lavoro (idea 1.05) ----------
+     Un lavoro che si ripete (tagliando, rimessaggio, carena) si salva come modello: le lavorazioni con le ore e, se serve,
+     il kit dei ricambi. Le ore tipiche si ricavano dalle mansioni segnate ogni giorno nelle schede lavoro: per ogni voce
+     si cercano le mansioni con le stesse parole, si sommano per barca e per mese e si prende il valore di mezzo.
+     Applicato a una barca crea le lavorazioni da fare con il tempo stimato; i pezzi del kit restano scritti nei dettagli
+     (si scalano dal magazzino quando li mettete nella mansione, come sempre). Impostazioni in impostazioni/modelliLavoro. */
+  var MO_VUOTE = ['della', 'delle', 'dello', 'degli', 'dei', 'del', 'con', 'per', 'sul', 'sulla', 'sui', 'alla', 'alle', 'agli', 'dal', 'dalla', 'nel', 'nella', 'una', 'uno', 'che', 'fatto', 'fatta', 'lavoro', 'lavori', 'barca', 'motore', 'motori'];
+  function moParole(t) { return xlNorm(t).split(/[^a-z0-9]+/).filter(function (x) { return x.length >= 3 && MO_VUOTE.indexOf(x) < 0; }).map(function (x) { return x.slice(0, 5); }); }
+  function moOre(titolo) { // le ore tipiche dalle schede lavoro: { h, n } oppure null
+    var k = moParole(titolo); if (!k.length) return null;
+    var need = Math.max(1, Math.ceil(k.length * 0.6)), g = {};
+    S.lavori.forEach(function (l) {
+      if (l.fonte !== 'scheda' || !l.barcaId || !(num(l.oreLavoro) > 0)) return;
+      var w = moParole(l.titolo), hit = k.filter(function (x) { return w.indexOf(x) >= 0; }).length; if (hit < need) return;
+      var key = l.barcaId + '|' + String(l.data || '').slice(0, 7); g[key] = (g[key] || 0) + num(l.oreLavoro);
+    });
+    var v = Object.keys(g).map(function (x) { return g[x]; }).sort(function (a, b) { return a - b; }); if (!v.length) return null;
+    var m = v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2;
+    return { h: Math.round(m * 2) / 2, n: v.length };
+  }
+  function moOreTxt(o) { return o ? 'Dalle schede: di solito ' + fmtH(o.h) + ' (' + (o.n === 1 ? 'una volta' : o.n + ' volte') + ')' : 'Nelle schede non l’ho ancora trovata'; }
+  function moList() { var c = S.moCfg; return c && !c._del && Array.isArray(c.lista) ? c.lista : []; }
+  function moTot(m) { return (m.voci || []).reduce(function (a, v) { var o = moOre(v.t); return a + (o && o.n >= 2 ? o.h : num(v.o) || 0); }, 0); }
+  async function moSalva(l) {
+    var r = S.db.collection('impostazioni').doc('modelliLavoro'), d = { lista: l, modificato: new Date().toISOString() };
+    var ok = await w(function () { return r.set(d); }); if (ok) S.moCfg = d; return ok;
+  }
+  function moLista() {
+    var l = moList();
+    openSheet({ title: 'Modelli di lavoro', menu: true,
+      body: '<p class="context">Un lavoro che fate spesso (tagliando, rimessaggio, carena) salvato con le sue lavorazioni. Da una barca, «Da un modello» crea tutte le lavorazioni con il tempo stimato preso dalle ore che segnate ogni giorno nelle schede lavoro.</p>' +
+        (l.length ? '<div class="group">' + l.map(function (m) {
+          var k = m.kit && (S.kit || []).filter(function (x) { return x.id === m.kit; })[0];
+          return '<button type="button" class="row" data-act="mo-edit" data-id="' + esc(m.id) + '"><span class="main"><span class="title">' + esc(m.nome) + '</span><span class="sub">' +
+            esc([(m.voci || []).length + ((m.voci || []).length === 1 ? ' lavorazione' : ' lavorazioni'), 'circa ' + fmtH(moTot(m)), k ? 'kit ' + k.nome : ''].filter(Boolean).join(' · ')) + '</span></span></button>'; }).join('') + '</div>'
+          : '<div class="notice">Nessun modello per ora.</div>') +
+        (S.canWrite ? '<button type="button" class="btn" data-act="mo-edit" style="width:100%;margin-top:12px">' + I.plus + 'Nuovo modello</button>' : '') });
+  }
+  function moRiga(v) {
+    v = v || {};
+    return '<div class="mo-r" style="margin-bottom:10px"><div style="display:grid;grid-template-columns:1fr 76px 36px;gap:8px;align-items:center">' +
+      '<div class="field" style="margin:0"><input type="text" class="mo-t" value="' + esc(v.t || '') + '" placeholder="es. Cambio olio e filtro" aria-label="Lavorazione" style="padding:8px 10px"></div>' +
+      '<div class="field" style="margin:0"><input type="text" inputmode="decimal" class="mo-o" value="' + (num(v.o) != null ? String(v.o).replace('.', ',') : '') + '" placeholder="ore" aria-label="Ore" style="padding:8px 10px"></div>' +
+      '<button type="button" class="link mo-x" aria-label="Togli" style="font-size:20px">×</button></div><span class="cap mo-h" style="display:block;margin:4px 2px 0"></span></div>';
+  }
+  function moHint(r) {
+    var t = r.querySelector('.mo-t').value, h = r.querySelector('.mo-h'), o = t.trim() ? moOre(t) : null;
+    h.innerHTML = t.trim() ? esc(moOreTxt(o)) + (o ? ' · <button type="button" class="link mo-usa" data-h="' + o.h + '" style="padding:0">usa</button>' : '') : '';
+  }
+  function moEdit(id) {
+    if (!S.canWrite) return;
+    var m = moList().filter(function (x) { return x.id === id; })[0], isNew = !m; m = m || { nome: '', voci: [{}, {}], kit: '' };
+    var ks = (S.kit || []).slice().sort(byName);
+    openSheet({ title: isNew ? 'Nuovo modello' : m.nome, submitLabel: 'Salva',
+      body: field(lab('f-mon', 'Nome del modello'), inp('f-mon', m.nome, 'type="text" required maxlength="60" autocapitalize="sentences" placeholder="es. Tagliando entrobordo"')) +
+        '<div class="lbl">Lavorazioni e ore</div><div id="f-moR">' + (m.voci || []).map(moRiga).join('') + '</div>' +
+        '<button type="button" class="link self-start" id="f-moA" style="margin:0 0 12px">＋ Aggiungi una lavorazione</button>' +
+        '<p class="cap" style="margin:0 0 12px">Sotto ogni lavorazione vedi quante ore ci mettete di solito, dalle mansioni delle schede lavoro (sommate per barca). Se lo scritto è diverso, «usa» le prende.</p>' +
+        (ks.length ? field(lab('f-mok', 'Kit di ricambi (facoltativo)'), '<select id="f-mok">' + opts([['', '— nessuno —']].concat(ks.map(function (k) { return [k.id, k.nome + ' (' + (k.righe || []).length + ' pezzi)']; })), m.kit || '') + '</select>', 'I pezzi del kit finiscono nei dettagli della prima lavorazione, da preparare.') : ''),
+      deleteLabel: 'Elimina il modello', deleteText: 'Elimini il modello ' + (m.nome || '') + '. Le lavorazioni già create non cambiano.',
+      onDelete: isNew ? null : async function () { if (await moSalva(moList().filter(function (x) { return x.id !== m.id; }))) { toast('Modello eliminato'); moLista(); } },
+      onOpen: function (f) {
+        var box = f.querySelector('#f-moR');
+        Array.prototype.forEach.call(box.querySelectorAll('.mo-r'), moHint);
+        f.querySelector('#f-moA').addEventListener('click', function () { box.insertAdjacentHTML('beforeend', moRiga()); var l = box.querySelectorAll('.mo-t'); l[l.length - 1].focus(); });
+        box.addEventListener('click', function (e) {
+          var x = e.target.closest('.mo-x'); if (x) { x.closest('.mo-r').remove(); return; }
+          var u = e.target.closest('.mo-usa'); if (u) { u.closest('.mo-r').querySelector('.mo-o').value = String(u.getAttribute('data-h')).replace('.', ','); }
+        });
+        box.addEventListener('change', function (e) { if (e.target.classList.contains('mo-t')) moHint(e.target.closest('.mo-r')); });
+      },
+      onSubmit: async function (f) {
+        var nome = val(f, 'f-mon'), voci = [];
+        Array.prototype.forEach.call(f.querySelectorAll('.mo-r'), function (r) { var t = r.querySelector('.mo-t').value.trim(); if (t) voci.push({ t: t, o: parseDec(r.querySelector('.mo-o').value) }); });
+        if (!nome) { formErr('Scrivi il nome del modello.'); return false; }
+        if (!voci.length) { formErr('Scrivi almeno una lavorazione.'); return false; }
+        if (moList().some(function (x) { return x.id !== m.id && String(x.nome).toLowerCase() === nome.toLowerCase(); })) { formErr('C’è già un modello con questo nome.'); return false; }
+        var n = { id: m.id || 'm' + Date.now().toString(36), nome: nome, voci: voci, kit: f.querySelector('#f-mok') ? val(f, 'f-mok') : '' };
+        var l = moList().slice(), i = -1; l.forEach(function (x, k) { if (x.id === n.id) i = k; }); if (i >= 0) l[i] = n; else l.push(n);
+        var ok = await moSalva(l); if (ok) { toast(isNew ? 'Modello creato' : 'Modello salvato'); setTimeout(moLista, 0); }
+        return ok;
+      } });
+  }
+  function moApplica(b) {
+    var l = moList();
+    if (!l.length) { openSheet({ title: 'Da un modello', menu: true, body: '<div class="notice">Non c’è ancora nessun modello di lavoro.</div>' + (S.canWrite ? '<button type="button" class="btn" data-act="mo-edit" style="width:100%;margin-top:12px">' + I.plus + 'Crea il primo modello</button>' : '') }); return; }
+    function righe(id) {
+      var m = l.filter(function (x) { return x.id === id; })[0] || l[0];
+      return (m.voci || []).map(function (v, i) {
+        var o = moOre(v.t), h = o && o.n >= 2 ? o.h : num(v.o);
+        return '<div style="display:grid;grid-template-columns:1fr 76px;gap:8px;align-items:center;margin-bottom:4px"><label class="check" style="margin:0"><input type="checkbox" class="moa-c" data-i="' + i + '" checked> ' + esc(v.t) + '</label>' +
+          '<div class="field" style="margin:0"><input type="text" inputmode="decimal" class="moa-o" data-i="' + i + '" value="' + (h != null ? String(h).replace('.', ',') : '') + '" placeholder="ore" aria-label="Ore stimate" style="padding:8px 10px"></div></div>' +
+          '<span class="cap" style="display:block;margin:0 2px 10px">' + esc(o && o.n >= 2 ? moOreTxt(o) : (num(v.o) != null ? 'Ore del modello' : 'Ore da stimare') + (o ? ' · ' + moOreTxt(o).toLowerCase() : '')) + '</span>';
+      }).join('');
+    }
+    openSheet({ title: 'Da un modello · ' + (b.nome || 'Barca'), submitLabel: 'Crea le lavorazioni',
+      body: '<p class="context">Scegli il modello: creo le lavorazioni da fare su ' + esc(b.nome || 'questa barca') + ' con il tempo stimato. Le ore vengono dalle vostre schede lavoro quando ci sono almeno due volte simili.</p>' +
+        field(lab('f-moa', 'Modello'), '<select id="f-moa">' + opts(l.map(function (m) { return [m.id, m.nome]; }), l[0].id) + '</select>') + '<div id="f-moaL">' + righe(l[0].id) + '</div>',
+      onOpen: function (f) { f.querySelector('#f-moa').addEventListener('change', function () { f.querySelector('#f-moaL').innerHTML = righe(this.value); }); },
+      onSubmit: async function (f) {
+        var m = l.filter(function (x) { return x.id === val(f, 'f-moa'); })[0]; if (!m) return false;
+        var k = m.kit && (S.kit || []).filter(function (x) { return x.id === m.kit; })[0], now = new Date().toISOString(), out = [];
+        Array.prototype.forEach.call(f.querySelectorAll('.moa-c'), function (c) {
+          if (!c.checked) return; var i = +c.getAttribute('data-i'), v = m.voci[i];
+          out.push({ barcaId: b.id, titolo: v.t, data: '', stato: 'da_fare', categoria: guessCatInfo(v.t, '', false, b.id).cat || 'Altro', descr: 'Dal modello «' + m.nome + '».',
+            oreStima: parseDec(f.querySelector('.moa-o[data-i="' + i + '"]').value), oreLavoro: null, importo: null, oreMotore: null, ricambi: [], foto: [], inizio: '', entro: '', creato: now, modificato: now });
+        });
+        if (!out.length) { formErr('Spunta almeno una lavorazione.'); return false; }
+        if (k && (k.righe || []).length) out[0].descr += ' Ricambi da preparare (kit «' + k.nome + '»): ' + k.righe.map(function (r) { return fmtNum(num(r.qta) || 1) + ' ' + (r.um ? r.um + ' ' : '') + r.nome; }).join(', ') + '.';
+        for (var i = 0; i < out.length; i++) { var rf = S.db.collection('lavori').doc(), d = out[i]; if (!(await w(function () { return rf.set(d); }))) return false; }
+        toast(out.length === 1 ? 'Creata 1 lavorazione' : 'Create ' + out.length + ' lavorazioni');
+        return true;
+      } });
+  }
+
   function viewLavori() {
     var f = V.lavFilter, h = exampleBanner();
     var nF = lfList().length, fl = [['aperti', 'Da fare e in corso']].concat(nF || f === 'fuori' ? [['fuori', 'Fuori' + (nF ? ' (' + nF + ')' : '')]] : []).concat([['fatti', 'Fatte'], ['tutti', 'Tutte']]);
     h += '<div class="chips" role="group" aria-label="Filtro lavori">' + fl.map(function (o) {
       return '<button type="button" data-act="lav-filter" data-f="' + o[0] + '" aria-pressed="' + (f === o[0]) + '">' + o[1] + '</button>';
     }).join('') + '</div>';
+    if (f === 'aperti' && S.boats.length) h += '<button type="button" class="btn sec" data-act="mo-lista" style="width:100%;margin-top:10px">' + I.list + 'Modelli di lavoro' + (moList().length ? ' · ' + moList().length : '') + '</button>';
     if (f === 'fuori') return h + viewFuori();
     if (!S.boats.length) return h + '<div style="margin-top:14px">' + emptyCard(I.boat, 'Prima aggiungi una barca', 'Ogni lavorazione è collegata a una barca.', ['new-boat', 'Aggiungi barca']) + '</div>';
     var list = S.lavori.filter(function (l) { return f === 'tutti' ? true : f === 'fatti' ? l.stato === 'fatto' : l.stato !== 'fatto'; });
@@ -11026,6 +11143,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'A|Puoi correggere e cancellare le mansioni di tutti.'] },
     lavori: { t: 'Lavorazioni', p: 'L’elenco dei lavori da fare sulle barche. La Scheda lavoro dice «cosa ho fatto oggi», le Lavorazioni «cosa c’è da fare».', li: [
       'Con il + aggiungi un lavoro: barca, categoria, tempo stimato, ricambi previsti. Non ha una data: il giorno si segna solo quando è fatta.',
+      '«Modelli di lavoro»: un lavoro che fate spesso (tagliando, rimessaggio, carena) salvato con le sue lavorazioni e, se volete, un kit di ricambi. Sotto ogni lavorazione l’app mostra quante ore ci mettete di solito, prese dalle mansioni delle schede lavoro. Nella scheda della barca, in Lavori, «Da un modello di lavoro» crea tutte le lavorazioni da fare con il tempo stimato.',
       'Toccalo per cambiarne lo stato: da fare, in corso, fatta. Se segni le ore motore e sono più alte di quelle della barca, la scheda barca si aggiorna.',
       'In alto scegli «Da fare e in corso» (raggruppate per cliente, il proprietario della barca), «Fatte» o «Tutte» (per mese).',
       'Se un lavoro lo fa una ditta esterna (velaio, tappezziere, elettricista…), in «Chi lo fa» scegli «Una ditta esterna»: scrivi la ditta, cosa è uscito dal cantiere e quando deve tornare. La ditta e il suo telefono l’app li ricorda per la volta dopo; in Altro › Ditte esterne puoi segnare anche referente, email e note.',
@@ -13504,6 +13622,9 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'sds-list': sdsLista(); break;
       case 'xl-import': xlSheet(); break;
       case 'xl-export': cpExcel(); break;
+      case 'mo-lista': moLista(); break;
+      case 'mo-edit': moEdit(id); break;
+      case 'mo-applica': var bm = boatById(id); if (bm) moApplica(bm); break;
       case 'do-open': var bd = boatById(id); if (bd) doSheet(bd); break;
       case 'tg-piano': var bt = boatById(id); if (bt) tgSheet(bt); break;
       case 'cp-gest': cpGestisci(); break;
@@ -13925,7 +14046,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     db.collection('impostazioni').onSnapshot(function (snap) {
       var m = null, b = null, ly = {}, asp = null;
       var pm0 = S.portoMio; S.portoMio = null; S.got.impostazioni = true;
-      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'ai') S.aiCfg = d.data(); else if (d.id === 'campi') S.campiCfg = d.data(); else if (d.id === 'depositi') S.depCfg = d.data(); else if (d.id === 'emergenze') S.emCfg = d.data(); else if (d.id === 'reperibilita') S.repCfg = d.data(); else if (d.id === 'pacchetto') S.pacCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'schedaBarca') S.sbCfg = d.data(); else if (d.id === 'schede') S.schCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'vernice') S.vnCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'porto') S.portoMio = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
+      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'ai') S.aiCfg = d.data(); else if (d.id === 'campi') S.campiCfg = d.data(); else if (d.id === 'modelliLavoro') S.moCfg = d.data(); else if (d.id === 'depositi') S.depCfg = d.data(); else if (d.id === 'emergenze') S.emCfg = d.data(); else if (d.id === 'reperibilita') S.repCfg = d.data(); else if (d.id === 'pacchetto') S.pacCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'schedaBarca') S.sbCfg = d.data(); else if (d.id === 'schede') S.schCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'vernice') S.vnCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'porto') S.portoMio = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
       var mc = m !== S.mapCfg; S.mapCfg = m; S.bkInfo = b; S.layouts = ly; S.aspetto = asp;
       if (NM_MARCA.dalDatabase(asp) && V.asp) NM_MARCA.prova(V.asp); // l'aspetto scelto vale subito per tutti
       if ((V.tab === 'mappa' && (mc || pm0 !== S.portoMio)) || V.tab === 'aspetto' || V.tab === 'backup' || V.tab === 'batterie' || V.tab === 'rifiuti' || V.tab === 'notifiche' || V.tab === 'categorie' || V.tab === 'home' || V.tab === 'barche' || V.tab === 'pannello' || V.tab === 'riepiloghi') { if (!LY.drag) render(); }
