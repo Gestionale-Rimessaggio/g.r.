@@ -598,6 +598,9 @@ button.row:active, .row .hit:active { opacity: .65; }
 
 /* Preventivi */
 .pv-box { display: flex; flex-direction: column; gap: 8px; }
+.pd-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; margin: 12px 14px 4px; background: var(--track); }
+.pd-bar span { display: block; height: 100%; }
+.pd-d { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; }
 .pv-row { display: grid; grid-template-columns: minmax(0, 1fr) 76px 40px; gap: 8px; align-items: center; }
 
 /* Rifiuti */
@@ -6555,6 +6558,35 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
 
   /* Confronto tra stagioni (idea X60, Strumenti in più › stagioni): ore per categoria di quest'anno, dal 1° gennaio
      a oggi, affiancate allo stesso periodo dell'anno scorso, con la differenza */
+  /* Ore di cantiere (idea 2.02): nessun dato nuovo, si contano le mansioni della scheda lavoro segnate come
+     «Lavori di cantiere» (senza barca) del mese: quanto pesano sul totale, per persona e per lavoro scritto. */
+  function cantOreBlock() {
+    var t = todayISO(), m0 = t.slice(0, 7), pm = addMonths(m0 + '-01', -1).slice(0, 7);
+    var E = panEntries({ a: m0 + '-01', b: t }), P = panEntries({ a: pm + '-01', b: pm + '-31' });
+    function isC(l) { return !l.barcaId; }
+    function sum(L, fn) { return L.reduce(function (a, l) { return a + (!fn || fn(l) ? num(l.oreLavoro) : 0); }, 0); }
+    function pc(a, b) { return b ? Math.round(a / b * 100) : 0; }
+    var tot = sum(E), ca = sum(E, isC), ba = tot - ca, ptot = sum(P), pca = sum(P, isC);
+    var h = secH('Ore di cantiere · ' + MESI_L[+m0.slice(5) - 1]) + '<p class="cap" style="margin:0 2px 8px">Le ore delle schede lavoro segnate come «Lavori di cantiere» (senza barca), dal 1° del mese a oggi.</p>';
+    if (!tot) return h + '<div class="notice">Nessuna ora segnata questo mese.</div>';
+    h += '<div class="group pan"><div class="pd-bar" aria-hidden="true"><span style="width:' + pc(ba, tot) + '%;background:var(--accent)"></span><span style="width:' + (100 - pc(ba, tot)) + '%;background:var(--soon)"></span></div>' +
+      '<div class="kv-row"><span class="k"><i class="pd-d" style="background:var(--accent)"></i>Sulle barche</span><span class="v">' + esc(fmtNum(ba, 1)) + ' h · ' + pc(ba, tot) + '%</span></div>' +
+      '<div class="kv-row"><span class="k"><i class="pd-d" style="background:var(--soon)"></i><b>Lavori di cantiere</b></span><span class="v"><b>' + esc(fmtNum(ca, 1)) + ' h · ' + pc(ca, tot) + '%</b></span></div>' +
+      '<div class="kv-row"><span class="k">Il mese scorso, lavori di cantiere</span><span class="v">' + (ptot ? esc(fmtNum(pca, 1)) + ' h · ' + pc(pca, ptot) + '%' : '–') + '</span></div></div>';
+    var EC = E.filter(isC);
+    if (!EC.length) return h + '<p class="cap" style="margin:8px 2px 0">Nessuna ora di cantiere segnata questo mese.</p>';
+    var per = {}; E.forEach(function (l) { var k = l.utente || ''; per[k] = per[k] || [0, 0]; per[k][1] += num(l.oreLavoro); if (isC(l)) per[k][0] += num(l.oreLavoro); });
+    var rows = Object.keys(per).filter(function (k) { return per[k][0] > 0; }).sort(function (a, b) { return per[b][0] - per[a][0]; });
+    h += '<div class="lbl" style="margin-top:14px">Per persona: ore di cantiere / ore totali</div><div class="group pan">' + rows.map(function (k) {
+      return '<div class="kv-row"><span class="k">' + esc(nameOf(k)) + '</span><span class="v">' + esc(fmtNum(per[k][0], 1)) + ' / ' + esc(fmtNum(per[k][1], 1)) + ' h · ' + pc(per[k][0], per[k][1]) + '%</span></div>';
+    }).join('') + '</div>';
+    var nm = {}; // stesso lavoro scritto in modi un po' diversi: si raggruppa per testo senza maiuscole e punteggiatura
+    h += '<div class="lbl" style="margin-top:14px">Per lavoro scritto</div>' + panBars(panGroup(EC, function (l) {
+      var k = bpNorm(l.titolo || '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim() || 'senza descrizione';
+      return nm[k] || (nm[k] = cap(String(l.titolo || 'Senza descrizione').trim()));
+    }), 'h');
+    return h;
+  }
   function stagBlock() {
     var t = todayISO(), y = +t.slice(0, 4), a = panEntries({ a: y + '-01-01', b: t }), p = panEntries({ a: (y - 1) + '-01-01', b: (y - 1) + t.slice(4) });
     var m = {}; function add(L, k) { L.forEach(function (l) { var c = l.barcaId ? l.categoria || 'Altro' : 'Lavori di cantiere'; m[c] = m[c] || [0, 0]; m[c][k] += num(l.oreLavoro); }); }
@@ -6594,6 +6626,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     o += panBars(panGroup(E, keyFn), 'h');
     B.push({ id: 'ore', t: 'Ore lavorate', sub: 'per persona, barca, cliente o categoria', z: sec, d: 'l', h: fn(o) });
     if (strOn('stagioni')) B.push({ id: 'stag', t: 'Confronto tra stagioni', sub: 'ore per categoria, quest’anno e l’anno scorso', z: sec, d: 'l', nuovo: '2026-11-02', h: stagBlock });
+    B.push({ id: 'cantore', t: 'Ore di cantiere', sub: 'le ore segnate come lavori di cantiere: totale, per persona e per lavoro', z: sec, d: 'l', nuovo: '2026-11-06', h: cantOreBlock });
     B.push({ id: 'sosp', t: 'Ore sospette', sub: 'doppioni e lavori già segnati da altri', z: sec, d: 'l', nuovo: '2026-11-02', h: sospBlock });
     // Servizi
     var since = utcToISO(isoToUTC(t) - 30 * 86400000), done = (opsOn() ? S.ops : []).filter(function (o) { return opDone(o) && String(o.completataIl || '').slice(0, 10) >= since && num(o.oreReali) > 0; });
