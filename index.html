@@ -1038,6 +1038,78 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
 @keyframes dt-spin { to { transform: rotate(360deg); } }
 .dt-said { margin: 0; font-style: italic; color: var(--ink); }
 .dt-fill, .bp-btn.dt-fill { box-shadow: 0 0 0 2px var(--accent) !important; background-color: var(--accent-bg) !important; }
+/* Cruscotto della scheda barca: ore dei motori, schede in alto, riquadri (6/11/2026) */
+.sb-mot { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; margin-top: 16px; }
+.sb-mt { border: 1px solid var(--edge); border-radius: 14px; padding: 10px 11px 11px; background: linear-gradient(160deg, #1A3E62, var(--card)); color: var(--ink); text-align: left; display: flex; flex-direction: column; min-width: 0; }
+.sb-mt .h { font-size: .68rem; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); font-weight: 600; line-height: 1.25; min-height: 2.5em; overflow-wrap: anywhere; }
+.sb-mt .n { font: 600 1.45rem var(--font-data); margin-top: 4px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.sb-mt .s { font-size: .74rem; color: var(--muted); line-height: 1.25; }
+.sb-mt.soon { background: linear-gradient(160deg, #4A3218, #2A2030); border-color: #6B4A20; } .sb-mt.soon .s { color: var(--soon); }
+.sb-mt.late { background: linear-gradient(160deg, #4A1E22, #2A1A2E); border-color: #7A2C30; } .sb-mt.late .s { color: var(--late); }
+.sb-tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; margin: 16px -14px 0; padding: 0 14px; border-bottom: 1px solid var(--line); position: sticky; top: calc(54px + env(safe-area-inset-top, 0px)); z-index: 4; background: rgba(6, 0, 46, .82); background: color-mix(in srgb, var(--bg) 85%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.sb-tabs::-webkit-scrollbar { display: none; }
+.sb-tabs button { flex: none; border: 0; background: none; color: var(--muted); font-weight: 600; font-size: .92rem; padding: 10px 11px; border-bottom: 2px solid transparent; white-space: nowrap; }
+.sb-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.sb-sis { display: flex; justify-content: flex-end; margin-top: 8px; }
+.sb-sis .link { display: inline-flex; align-items: center; gap: 6px; } .sb-sis svg { width: 15px; height: 15px; }
+.sb-cr { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.sb-cols { display: none; }
+.sb-one, .sb-col { display: flex; flex-direction: column; gap: 10px; }
+.sb-qas { display: flex; gap: 8px; }
+.sb-qa { flex: 1; min-width: 0; border: 0; background: var(--card); color: var(--ink); border-radius: 14px; padding: 10px 4px 9px; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: .78rem; font-weight: 500; cursor: pointer; }
+.sb-qa b { width: 34px; height: 34px; border-radius: 10px; background: var(--accent-bg); color: var(--accent); display: grid; place-items: center; }
+.sb-qa svg { width: 18px; height: 18px; }
+.sb-card { background: var(--card); border-radius: var(--r); padding: 14px; }
+.sb-ch { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
+.sb-ch h3 { margin: 0; font: 700 1.08rem var(--font-head); }
+.sb-ch-out { margin: 6px 2px 2px; } .sb-ch-out h3 { font-size: 1.3rem; }
+.sb-al { display: flex; gap: 10px; padding: 11px 14px; width: 100%; border: 0; background: none; color: var(--ink); text-align: left; }
+.group > .sb-al + .sb-al { border-top: 1px solid var(--line); }
+.sb-al > i { width: 8px; height: 8px; border-radius: 50%; margin-top: 7px; flex: none; }
+.sb-al b { display: block; font-weight: 600; font-size: .92rem; } .sb-al span span { display: block; font-size: .8rem; color: var(--muted); }
+.sb-kpi { display: grid; grid-template-columns: 1fr 1fr; background: var(--card); border-radius: var(--r); overflow: hidden; }
+.sb-kpi button { border: 0; background: none; color: var(--ink); text-align: left; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; border-top: 1px solid var(--line); min-width: 0; }
+.sb-kpi button:nth-child(-n+2) { border-top: 0; } .sb-kpi button:nth-child(odd) { border-right: 1px solid var(--line); }
+.sb-kpi .l { font-size: .8rem; color: var(--muted); } .sb-kpi .v { font: 600 1.35rem var(--font-data); letter-spacing: -.02em; } .sb-kpi .c { font-size: .75rem; color: var(--dim); }
+.sb-score { display: flex; gap: 14px; align-items: center; } .sb-score svg { flex: none; }
+.sb-sn { fill: var(--ink); font: 600 26px var(--font-head); }
+.sb-sl { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.sb-sl button { border: 0; background: none; color: var(--ink); padding: 0; text-align: left; }
+.sb-sl .r, .sb-tg .r { display: flex; justify-content: space-between; gap: 8px; font-size: .86rem; }
+.sb-sl .r span:last-child, .sb-tg .n { font-family: var(--font-data); font-size: .8rem; white-space: nowrap; }
+.sb-bar { display: block; height: 5px; border-radius: 3px; background: var(--track); overflow: hidden; margin-top: 4px; }
+.sb-bar i { display: block; height: 100%; border-radius: 3px; }
+.sb-tg { padding: 9px 0; } .sb-tg + .sb-tg { border-top: 1px solid var(--line); } .sb-tg em { font-style: normal; color: var(--muted); }
+.sb-varo { display: flex; justify-content: space-between; align-items: center; background: linear-gradient(135deg, #4A3218, #2A2030); border: 1px solid #6B4A20; border-radius: 14px; padding: 10px 12px; }
+.sb-varo .k { display: block; font-size: .72rem; color: var(--soon); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+.sb-varo b { font: 600 1.02rem var(--font-head); }
+.sb-varo .cd { text-align: right; } .sb-varo .cd b { display: block; font: 600 1.6rem var(--font-data); color: var(--soon); line-height: 1; } .sb-varo .cd span { font-size: .74rem; color: var(--muted); }
+.sb-vst { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0 4px; }
+.sb-ax { display: flex; justify-content: space-between; font-size: .72rem; color: var(--dim); margin-top: 10px; }
+.sb-gr { display: block; width: 100%; border: 0; background: none; color: var(--ink); padding: 0; margin-top: 9px; text-align: left; }
+.sb-gr .r { display: flex; justify-content: space-between; gap: 8px; font-size: .84rem; } .sb-gr .r .cap { white-space: nowrap; }
+.sb-gr .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.sb-gr .tr { display: block; position: relative; height: 9px; background: var(--cell-out); border-radius: 5px; margin-top: 4px; }
+.sb-gr .tr i { position: absolute; top: 0; height: 100%; border-radius: 5px; }
+.sb-gr .tr s { position: absolute; top: -2px; bottom: -2px; border-left: 1.5px dashed var(--muted); }
+.sb-gr .tr u { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--soon); }
+.sb-chart { width: 100%; height: auto; display: block; }
+.sb-oh { font: 600 1.15rem var(--font-data); text-align: right; } .sb-oh small { display: block; font: 500 .72rem var(--font-body); color: var(--muted); }
+.sb-ord { display: flex; align-items: center; gap: 10px; padding: 10px 14px; } .group > .sb-ord + .sb-ord { border-top: 1px solid var(--line); }
+.sb-ord .nm { flex: 1; min-width: 0; font-weight: 600; } .sb-ord .nm small { display: block; font-weight: 400; color: var(--muted); font-size: .76rem; }
+.sb-ord .mv { display: flex; gap: 4px; } .sb-ord .mv button { width: 32px; height: 32px; border: 0; border-radius: 8px; background: var(--card-2); color: var(--ink); }
+.sb-ord:first-child .mv button:first-child, .sb-ord:last-child .mv button:last-child { opacity: .3; }
+.sb-sw { position: relative; flex: none; width: 42px; height: 26px; } .sb-sw input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.sb-sw span { position: absolute; inset: 0; border-radius: 13px; background: var(--track); pointer-events: none; transition: background .15s; }
+.sb-sw span:after { content: ""; position: absolute; left: 3px; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left .15s; }
+.sb-sw input:checked + span { background: var(--accent); } .sb-sw input:checked + span:after { left: 19px; }
+@media (min-width: 768px) and (min-height: 500px) {
+  .sb-tabs { margin: 16px 0 0; padding: 0; top: 0; }
+  .sb-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+  .sb-one { display: none; }
+  .sb-qas { max-width: 560px; }
+  .sb-mot { grid-template-columns: repeat(auto-fill, minmax(150px, 190px)); }
+}
 </style>
 
 <div class="splash" id="splash" role="img" aria-label=""><img id="logo-src" alt=""></div>
@@ -1253,6 +1325,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function scadInfo(s) {
     var b = boatById(s.barcaId);
     var ore = b ? num(b.oreMotore) : null;
+    if (b && /generator/i.test(s.tipo || '')) { var gn = (S.comp || []).filter(function (x) { return x.barcaId === b.id && /generator|gruppo elettrogeno/i.test(x.tipo || '') && num(x.ore) != null; })[0]; if (gn) ore = num(gn.ore); } // il tagliando del generatore va con le sue ore
     var days = s.data ? daysUntil(s.data) : null;
     var oreS = num(s.oreScadenza);
     var oreLeft = (oreS != null && ore != null) ? oreS - ore : null;
@@ -2281,6 +2354,271 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       } });
   }
 
+  /* ---------- Cruscotto della scheda barca (6/11/2026, spunto dal cruscotto di HullHub) ----------
+     In alto le ore di ogni motore e del generatore, sotto le schede: Cruscotto, Motori, Attrezzatura, Lavori, Scadenze,
+     Deposito, Foto e storia, Dati. L'ordine delle schede e dei riquadri del Cruscotto (e quali nascondere) lo sceglie
+     l'amministratore con «Sistema la scheda» (impostazioni/schedaBarca) e vale per tutti i dipendenti. */
+  var SB_TABS = [['cr', 'Cruscotto'], ['mo', 'Motori'], ['at', 'Attrezzatura'], ['la', 'Lavori'], ['sc', 'Scadenze'], ['de', 'Deposito'], ['fo', 'Foto e storia'], ['da', 'Dati']];
+  var SB_RIQ = [['rapidi', 'Tasti rapidi'], ['gestire', 'Da gestire'], ['programma', 'Programma lavori e varo'], ['stato', 'Stato della barca'], ['tagliandi', 'Prossimi tagliandi'], ['numeri', 'Numeri']];
+  function sbCfg() { var c = S.sbCfg; return c && !c._del ? c : {}; }
+  function sbList(all, ord, off) { // l'ordine salvato, poi le voci nuove; off = nascoste
+    var keys = all.map(function (x) { return x[0]; }), o = (ord || []).filter(function (k, i, a) { return keys.indexOf(k) >= 0 && a.indexOf(k) === i; });
+    keys.forEach(function (k) { if (o.indexOf(k) < 0) o.push(k); });
+    return o.map(function (k) { return { k: k, t: all[keys.indexOf(k)][1], off: (off || []).indexOf(k) >= 0 }; });
+  }
+  function sbTabs() {
+    var c = sbCfg(), l = sbList(SB_TABS, c.tabs, c.tabsOff).filter(function (x) { return x.k !== 'cr' && (x.k !== 'de' || depoOn()); });
+    return [{ k: 'cr', t: 'Cruscotto', off: false }].concat(l);
+  }
+  function sbGen(b) { return compOf(b.id).filter(function (x) { return /generator|gruppo elettrogeno/i.test(x.tipo || ''); }); }
+  // i motori con il nome da mostrare: con due motori «sinistro» e «dritto», come si leggono di solito
+  function sbMotori(b) {
+    var ml = b.motoreTipo === 'Nessuno' ? [] : motList(b);
+    return ml.map(function (x, i) { return { nome: ml.length === 1 ? 'Motore' : ml.length === 2 ? (i ? 'Motore dritto' : 'Motore sinistro') : 'Motore ' + (i + 1), mod: x.modello || '', mat: x.matricola || '', cv: num(x.cv), ore: num(x.ore), i: i }; });
+  }
+  function sbHourScad(b, gen) { // la scadenza a ore più vicina: del generatore (se nel tipo c'è «generatore») o dei motori
+    return openScad(b.id).filter(function (x) { return x.i.oreLeft != null && (gen ? /generator/i.test(x.s.tipo || '') : !/generator/i.test(x.s.tipo || '')); }).sort(function (a, c) { return a.i.oreLeft - c.i.oreLeft; })[0];
+  }
+  function sbOreTiles(b) {
+    var ms = sbMotori(b), gs = sbGen(b), hs = sbHourScad(b), act = S.canWrite ? ' data-act="ore" data-id="' + esc(b.id) + '"' : '';
+    if (!ms.length && !gs.length) return '';
+    var quando = function (d) { var n = d ? -daysUntil(d) : null; return n == null ? '' : ' · ' + (n <= 0 ? 'oggi' : n === 1 ? 'ieri' : n < 60 ? n + ' g fa' : Math.round(n / 30) + ' mesi fa'); }, agg = quando(b.oreAgg);
+    function tile(h, sub, n, warn) { return '<button type="button" class="sb-mt' + (warn ? ' ' + warn : '') + '"' + act + '><span class="h">' + h + '</span><span class="n">' + (n != null ? esc(fmtNum(n)) : '–') + '</span><span class="s">' + sub + '</span></button>'; }
+    var warnM = hs && hs.i.oreLeft <= 20 ? (hs.i.oreLeft <= 0 ? 'late' : 'soon') : '', subM = hs && warnM ? esc((hs.s.tipo || 'Tagliando') + (hs.i.oreLeft <= 0 ? ' superato' : ' tra ' + fmtNum(hs.i.oreLeft) + ' h')) : 'ore' + esc(agg);
+    var h = ms.map(function (m) { return tile(esc(m.nome) + (m.mod ? '<br>' + esc(m.mod) : ''), subM, m.ore, warnM); }).join('');
+    gs.forEach(function (g) {
+      var gh = sbHourScad(b, true), go = num(g.ore), wg = '', sg = 'ore' + esc(quando(g.oreAgg));
+      if (gh && go != null && num(gh.s.oreScadenza) != null) { var lf = num(gh.s.oreScadenza) - go; if (lf <= 20) { wg = lf <= 0 ? 'late' : 'soon'; sg = esc((gh.s.tipo || 'Tagliando') + (lf <= 0 ? ' superato' : ' tra ' + fmtNum(lf) + ' h')); } }
+      h += tile('Generatore' + (g.modello ? '<br>' + esc(g.modello) : ''), sg, go, wg);
+    });
+    return '<div class="sb-mot">' + h + '</div>';
+  }
+  function sbTabBar(tabs, cur) {
+    return '<div class="sb-tabs" role="tablist">' + tabs.map(function (t) { return '<button type="button" role="tab" data-act="sb-tab" data-t="' + t.k + '" aria-selected="' + (t.k === cur) + '">' + esc(t.t) + '</button>'; }).join('') + '</div>';
+  }
+  // tagliandi: le scadenze aperte che si ripetono (a ore o a mesi), con quanto dell'intervallo è già passato
+  function sbTagliandi(b) {
+    return openScad(b.id).map(function (x) {
+      var s = x.s, used = null, parts = [];
+      var ro = num(s.ricorrenzaOre), os = num(s.oreScadenza), rm = num(s.ricorrenzaMesi);
+      if (os != null && x.i.oreLeft != null) { var left = x.i.oreLeft, ric = ro || 100; used = Math.max(used || 0, 1 - left / ric); parts.push(left <= 0 ? 'superato' : fmtNum(left) + ' h'); }
+      if (s.data && rm) {
+        var end = isoToUTC(s.data), st = new Date(end); st.setUTCMonth(st.getUTCMonth() - rm);
+        var u2 = (isoToUTC(todayISO()) - st.getTime()) / (end - st.getTime()); used = Math.max(used == null ? 0 : used, u2);
+        var d = daysUntil(s.data); parts.push(d < 0 ? 'scaduto' : d <= 60 ? d + ' g' : Math.round(d / 30) + ' mesi');
+      } else if (s.data && os == null) return null;
+      if (used == null) return null;
+      return { s: s, i: x.i, used: Math.max(0, Math.min(1, used)), txt: parts.join(' · ') };
+    }).filter(Boolean).sort(function (a, c) { return c.used - a.used; });
+  }
+  function sbLavDate(l) { // inizio e fine di un lavoro aperto: date scritte o uscita e rientro dalla ditta esterna
+    var f = l.fuori && l.fuori.ditta && !l.fuori.rientrato ? l.fuori : null;
+    return { a: l.inizio || (f && f.uscito) || '', z: l.entro || (f && f.rientro) || '', fuori: !!f };
+  }
+  function sbProgramma(b) {
+    var oggi = todayISO(), varo = variOpen(b.id).filter(function (v) { return v.tipo === 'varo'; })[0];
+    var lv = S.lavori.filter(function (l) { return l.barcaId === b.id && l.stato !== 'fatto' && !l.annullata && l.fonte !== 'scheda'; });
+    var conD = [], senza = [];
+    lv.forEach(function (l) { var d = sbLavDate(l); if (d.a || d.z) conD.push({ l: l, a: d.a, z: d.z, fuori: d.fuori }); else senza.push(l); });
+    var h = '';
+    if (varo) {
+      var dv = daysUntil(varo.data), dopo = conD.filter(function (x) { return x.z && x.z > varo.data; }), ult = conD.reduce(function (m, x) { return x.z > m ? x.z : m; }, '');
+      h += '<div class="sb-varo"><div><span class="k">Varo</span><b>' + esc(cap(fmtDayLong(varo.data))) + '</b></div><div class="cd"><b>' + (dv < 0 ? '!' : dv) + '</b><span>' + (dv < 0 ? 'in ritardo' : dv === 1 ? 'giorno' : 'giorni') + '</span></div></div>';
+      var st = dopo.length ? '<span class="pill late">A rischio</span><span class="cap">' + dopo.length + (dopo.length === 1 ? ' lavoro finisce' : ' lavori finiscono') + ' dopo il varo</span>'
+        : lv.length ? '<span class="pill ok">In tempo</span><span class="cap">' + lv.length + (lv.length === 1 ? ' lavoro da fare' : ' lavori da fare') + (ult ? ' · l’ultimo finisce il ' + esc(fmtDate(ult)) + ', ' + Math.max(0, daysUntil(varo.data) - daysUntil(ult)) + ' giorni di margine' : '') + '</span>'
+          : '<span class="pill ok">In tempo</span><span class="cap">Nessun lavoro da fare prima del varo</span>';
+      h += '<div class="sb-vst">' + st + '</div>';
+    } else h += '<div class="sb-vst"><span class="cap">Nessun varo in programma.</span>' + (S.canWrite ? '<button type="button" class="link" data-act="new-vari" data-boat="' + esc(b.id) + '">+ Programma il varo</button>' : '') + '</div>';
+    if (conD.length) {
+      var t0 = oggi, t1 = varo ? varo.data : oggi;
+      conD.forEach(function (x) { if (x.a && x.a < t0) t0 = x.a; if (x.z && x.z > t1) t1 = x.z; if (x.a && x.a > t1) t1 = x.a; });
+      var A = isoToUTC(t0) - 7 * 864e5, Z = Math.max(isoToUTC(t1) + 7 * 864e5, A + 30 * 864e5), W = Z - A;
+      var pos = function (iso) { return Math.max(0, Math.min(100, (isoToUTC(iso) - A) / W * 100)); };
+      var pT = pos(oggi), pV = varo ? pos(varo.data) : null;
+      h += '<div class="sb-ax"><span>' + esc(fmtDate(new Date(A).toISOString().slice(0, 10))) + '</span><span>oggi</span><span>' + esc(fmtDate(new Date(Z).toISOString().slice(0, 10))) + '</span></div>';
+      conD.sort(function (x, y) { return String(x.a || x.z).localeCompare(String(y.a || y.z)); }).slice(0, 8).forEach(function (x) {
+        var a = x.a || (x.z < oggi ? x.z : oggi), z = x.z || a, late = x.z && x.z < oggi;
+        var col = late ? 'var(--late)' : x.fuori ? 'var(--vio)' : x.l.stato === 'in_corso' ? 'var(--accent)' : '#3B6EA8';
+        var l0 = pos(a), w0 = Math.max(2, pos(z) - l0);
+        h += '<button type="button" class="sb-gr" data-act="edit-lav" data-id="' + esc(x.l.id) + '"><span class="r"><span class="t">' + esc(x.l.titolo || 'Lavoro') + '</span><span class="cap">' + esc(x.z ? (late ? 'in ritardo · ' : 'entro ') + fmtDate(x.z) : 'dal ' + fmtDate(x.a)) + '</span></span>' +
+          '<span class="tr"><i style="left:' + l0.toFixed(1) + '%;width:' + w0.toFixed(1) + '%;background:' + col + '"></i><s style="left:' + pT.toFixed(1) + '%"></s>' + (pV != null ? '<u style="left:' + pV.toFixed(1) + '%"></u>' : '') + '</span></button>';
+      });
+      h += '<div class="legend"><span><i style="background:#3B6EA8"></i>Da fare</span><span><i style="background:var(--accent)"></i>In corso</span><span><i style="background:var(--vio)"></i>Da una ditta esterna</span><span><i style="background:var(--late)"></i>In ritardo</span>' + (varo ? '<span><i style="background:var(--soon);width:3px;height:12px"></i>Varo</span>' : '') + '</div>';
+    }
+    if (senza.length) h += '<p class="cap" style="margin:10px 0 0">Senza date: ' + esc(senza.slice(0, 6).map(function (l) { return l.titolo || 'Lavoro'; }).join(', ')) + (senza.length > 6 ? ' e altri ' + (senza.length - 6) : '') + '. Apri un lavoro e scrivi «Inizio» ed «Entro il» per vederlo qui.</p>';
+    if (!lv.length && !varo) h += '<p class="cap" style="margin:6px 0 0">Nessun lavoro da fare.</p>';
+    return h;
+  }
+  // stato della barca: un punteggio su 100, media delle voci che si possono calcolare
+  function sbStato(b) {
+    var v = [], sc = openScad(b.id);
+    function media(l) { return l.length ? Math.round(l.reduce(function (a, x) { return a + x; }, 0) / l.length) : null; }
+    var lvl = function (x) { return x.i.level === 'late' ? 0 : x.i.level === 'soon' ? 60 : 100; };
+    var isT = function (x) { return num(x.s.oreScadenza) != null || num(x.s.ricorrenzaOre) != null || /tagliand|olio|filtr|girant|motor|generator/i.test(x.s.tipo || ''); };
+    var t = media(sc.filter(isT).map(lvl)); if (t != null) v.push(['Tagliandi motori', t, 'mo']);
+    var d = media(sc.filter(function (x) { return !isT(x); }).map(lvl)); if (d != null) v.push(['Scadenze e documenti', d, 'sc']);
+    var oggi = todayISO(), la = S.lavori.filter(function (l) { return l.barcaId === b.id && l.stato !== 'fatto' && !l.annullata && l.fonte !== 'scheda'; });
+    if (la.length) v.push(['Lavori nei tempi', Math.round(100 * la.filter(function (l) { var z = sbLavDate(l).z; return !z || z >= oggi; }).length / la.length), 'la']);
+    if (b.stato !== 'In acqua' || num(b.batterie) > 0) { var bi = battInfo(b); if (bi.n > 0) v.push(['Batterie', bi.d == null ? 0 : bi.late ? Math.max(0, 100 - (bi.d - battDays() + 1) * 5) : 100, 'at']); }
+    var at = S.attr.filter(function (x) { return x.barcaId === b.id && x.stato; }).map(function (x) { return x.stato === 'buono' ? 100 : x.stato === 'sistemare' ? 50 : 0; });
+    if (at.length) v.push(['Attrezzatura', media(at), 'at']);
+    return { voci: v, tot: media(v.map(function (x) { return x[1]; })) };
+  }
+  function sbAvvisi(b) {
+    var a = [], oggi = todayISO();
+    openScad(b.id).forEach(function (x) { if (x.i.level !== 'ok') a.push([x.i.level, x.s.tipo || 'Scadenza', x.i.text, 'sc']); });
+    if (b.stato !== 'In acqua' || num(b.batterie) > 0) { var bi = battInfo(b); if (bi.late) a.push(['late', 'Batterie da caricare', bi.txt, 'at']); }
+    S.attr.filter(function (x) { return x.barcaId === b.id && (x.stato === 'sistemare' || x.stato === 'sostituire'); }).forEach(function (x) { a.push([x.stato === 'sostituire' ? 'late' : 'soon', attrLabel(x), x.stato === 'sostituire' ? 'da sostituire' : 'da sistemare', 'at']); });
+    S.lavori.filter(function (l) { return l.barcaId === b.id && l.stato !== 'fatto' && !l.annullata && l.fonte !== 'scheda'; }).forEach(function (l) {
+      var z = sbLavDate(l).z; if (z && z < oggi) a.push(['late', l.titolo || 'Lavoro', (l.fuori && l.fuori.ditta && !l.fuori.rientrato ? 'non ancora rientrato da ' + l.fuori.ditta : 'doveva finire il ' + fmtDate(z)), 'la']);
+    });
+    variOpen(b.id).forEach(function (v) { var d = daysUntil(v.data); if (d <= 30) a.push([d < 0 ? 'late' : 'acc', (TIPI_V[v.tipo] || 'Movimento') + ' programmato', variWhen(v) + (v.note ? ' · ' + v.note : ''), 'sc']); });
+    var rk = { late: 0, soon: 1, acc: 2 };
+    return a.sort(function (x, y) { return rk[x[0]] - rk[y[0]]; });
+  }
+  function sbCard(title, link, body) { return '<div class="sb-card"><div class="sb-ch"><h3>' + esc(title) + '</h3>' + (link || '') + '</div>' + body + '</div>'; }
+  function sbLink(t, label) { return '<button type="button" class="link" data-act="sb-tab" data-t="' + t + '">' + esc(label) + ' ›</button>'; }
+  function sbRiq(b, k) {
+    if (k === 'rapidi') {
+      if (!S.canWrite) return '';
+      var q = function (act, ic, t, cls) { return '<button type="button" class="sb-qa" data-act="' + act + '" data-boat="' + esc(b.id) + '" data-id="' + esc(b.id) + '"><b' + (cls ? ' class="' + cls + '"' : '') + '>' + ic + '</b>' + t + '</button>'; };
+      return '<div class="sb-qas">' + q('new-lav', I.plus, 'Lavoro') + (sbMotori(b).length || sbGen(b).length ? q('ore', I.hours, 'Ore') : '') + q('new-scad', I.alarm, 'Scadenza') +
+        (S.assets ? '<label class="sb-qa"><b>' + I.camera + '</b>Foto<input type="file" accept="image/*" multiple class="ph-in vh" data-target="boat:' + esc(b.id) + '"></label>' : '') + q('new-vari', I.updown, 'Varo') + '</div>';
+    }
+    if (k === 'gestire') {
+      var av = sbAvvisi(b), col = { late: 'var(--late)', soon: 'var(--soon)', acc: 'var(--accent)' };
+      return '<div class="sb-ch sb-ch-out"><h3>Da gestire</h3>' + (av.length ? '<span class="pill ' + (av.some(function (x) { return x[0] === 'late'; }) ? 'late' : 'soon') + '">' + av.length + (av.length === 1 ? ' avviso' : ' avvisi') + '</span>' : '') + '</div>' +
+        (av.length ? '<div class="group">' + av.slice(0, 6).map(function (x) { return '<button type="button" class="sb-al" data-act="sb-tab" data-t="' + x[3] + '"><i style="background:' + col[x[0]] + '"></i><span><b>' + esc(x[1]) + '</b><span>' + esc(x[2]) + '</span></span></button>'; }).join('') +
+          (av.length > 6 ? '<div class="sb-al cap">e altri ' + (av.length - 6) + '</div>' : '') + '</div>' : '<div class="notice">Niente da gestire: scadenze, batterie, attrezzatura e lavori sono a posto.</div>');
+    }
+    if (k === 'numeri') {
+      var oggi = todayISO(), la = S.lavori.filter(function (l) { return l.barcaId === b.id && l.stato !== 'fatto' && !l.annullata && l.fonte !== 'scheda'; }), lr = la.filter(function (l) { var z = sbLavDate(l).z; return z && z < oggi; }).length;
+      var sc = openScad(b.id), ric = ricOfBoat(b), ob = boatOre(b.id);
+      var n = function (t, l, v, c) { return '<button type="button" data-act="sb-tab" data-t="' + t + '"><span class="l">' + l + '</span><span class="v">' + v + '</span><span class="c">' + c + '</span></button>'; };
+      return '<div class="sb-kpi">' + n('la', 'Lavori aperti', la.length, lr ? '<span class="t-late">' + lr + ' in ritardo</span>' : 'nessuno in ritardo') + n('la', 'Ore lavorate', ob ? esc(fmtH(ob)) : '0 h', 'dalle schede lavoro') +
+        n('sc', 'Scadenze aperte', sc.length, sc.length && sc[0].s.data ? 'prossima ' + esc(fmtDate(sc[0].s.data)) : sc.length ? esc(sc[0].i.text) : 'nessuna') + n('mo', 'Ricambi montati', ric.length, 'dalle mansioni e dal magazzino') + '</div>';
+    }
+    if (k === 'stato') {
+      var st = sbStato(b); if (st.tot == null) return sbCard('Stato della barca', '', '<p class="cap" style="margin:0">Si calcola quando ci sono scadenze, lavori con le date, batterie o attrezzatura con lo stato.</p>');
+      var lv = st.tot >= 85 ? ['ok', 'A posto'] : st.tot >= 60 ? ['soon', 'Da seguire'] : ['late', 'Da sistemare'], C = 2 * Math.PI * 34;
+      var colOf = function (p) { return p >= 85 ? 'var(--ok)' : p >= 60 ? 'var(--soon)' : 'var(--late)'; };
+      return sbCard('Stato della barca', '<span class="pill ' + lv[0] + '">' + lv[1] + '</span>', '<div class="sb-score"><svg viewBox="0 0 92 92" width="92" height="92" aria-hidden="true"><circle cx="46" cy="46" r="34" fill="none" stroke="var(--track)" stroke-width="9"/><circle cx="46" cy="46" r="34" fill="none" stroke="' + colOf(st.tot) + '" stroke-width="9" stroke-linecap="round" stroke-dasharray="' + (C * st.tot / 100).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 46 46)"/><text x="46" y="49" text-anchor="middle" class="sb-sn">' + st.tot + '</text><text x="46" y="65" text-anchor="middle" class="g-sub">su 100</text></svg>' +
+        '<div class="sb-sl">' + st.voci.map(function (x) { return '<button type="button" data-act="sb-tab" data-t="' + x[2] + '"><span class="r"><span>' + esc(x[0]) + '</span><span>' + x[1] + '%</span></span><span class="sb-bar"><i style="width:' + x[1] + '%;background:' + colOf(x[1]) + '"></i></span></button>'; }).join('') + '</div></div>' +
+        '<p class="cap" style="margin:10px 0 0">Calcolato su tagliandi, scadenze, lavori in ritardo, carica delle batterie e stato dell’attrezzatura. Tocca una voce per vederla.</p>');
+    }
+    if (k === 'tagliandi') return sbCard('Prossimi tagliandi', sbLink('mo', 'Motori'), sbTagBody(b));
+    if (k === 'programma') return sbCard('Programma lavori', sbLink('la', 'Tutti'), sbProgramma(b));
+    return '';
+  }
+  function sbTagBody(b) {
+    var tg = sbTagliandi(b);
+    return tg.length ? tg.slice(0, 6).map(function (x) {
+      var c = x.i.level === 'late' ? 'var(--late)' : x.i.level === 'soon' ? 'var(--soon)' : 'var(--accent)';
+      return '<div class="sb-tg"><span class="r"><span>' + esc(x.s.tipo || 'Tagliando') + (x.s.modello ? ' <em>· ' + esc(x.s.modello) + '</em>' : '') + '</span><span class="n" style="color:' + c + '">' + esc(x.txt) + '</span></span><span class="sb-bar"><i style="width:' + Math.round(x.used * 100) + '%;background:' + c + '"></i></span></div>';
+    }).join('') + '<p class="cap" style="margin:8px 0 0">La barra è la parte dell’intervallo già passata, in ore o in mesi (vale la più avanti).</p>'
+      : '<p class="cap" style="margin:0">Nessun tagliando che si ripete. Aggiungi una scadenza con «ogni … ore» o «ogni … mesi» e la vedi qui.</p>';
+  }
+  function sbOrePts(b) { // le letture delle ore: dalla scheda (oreLog), dai lavori e dai verbali; per i motori conta quello con più ore
+    var pts = {};
+    (b.oreLog || []).forEach(function (x) { if (x && x.d && num(x.o) != null) pts[x.d] = Math.max(pts[x.d] || 0, num(x.o)); });
+    S.lavori.forEach(function (l) { if (l.barcaId === b.id && l.data && num(l.oreMotore) != null) { var d = String(l.data).slice(0, 10); pts[d] = Math.max(pts[d] || 0, num(l.oreMotore)); } });
+    (S.verbali || []).forEach(function (v) { if (v.barcaId === b.id && !v._del && v.data && num(v.oreMotore) != null) pts[v.data] = Math.max(pts[v.data] || 0, num(v.oreMotore)); });
+    return Object.keys(pts).sort().map(function (d) { return { d: d, o: pts[d] }; });
+  }
+  function sbStorico(b) {
+    var l = sbOrePts(b);
+    if (l.length < 2) return '<p class="cap" style="margin:0">Servono almeno due letture: si prendono da «Ore», dai lavori con le ore motore e dai verbali.</p>';
+    var x0 = isoToUTC(l[0].d), x1 = isoToUTC(l[l.length - 1].d), y0 = l[0].o, y1 = l[l.length - 1].o, ymin = Math.min.apply(null, l.map(function (p) { return p.o; })), ymax = Math.max.apply(null, l.map(function (p) { return p.o; }));
+    var X = function (d) { return x1 > x0 ? (isoToUTC(d) - x0) / (x1 - x0) * 290 + 5 : 150; }, Y = function (o) { return ymax > ymin ? 85 - (o - ymin) / (ymax - ymin) * 75 : 50; };
+    var anni = (x1 - x0) / (365 * 864e5), perAnno = anni > 0.2 ? Math.round((y1 - y0) / anni) : null;
+    return '<svg viewBox="0 0 300 92" class="sb-chart" aria-hidden="true"><polyline fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" points="' + l.map(function (p) { return X(p.d).toFixed(1) + ',' + Y(p.o).toFixed(1); }).join(' ') + '"/>' +
+      l.map(function (p) { return '<circle cx="' + X(p.d).toFixed(1) + '" cy="' + Y(p.o).toFixed(1) + '" r="3" fill="var(--accent)"/>'; }).join('') + '</svg>' +
+      '<div class="axis"><span>' + esc(fmtDate(l[0].d)) + ' · ' + esc(fmtNum(y0)) + ' h</span><span>' + esc(fmtDate(l[l.length - 1].d)) + ' · ' + esc(fmtNum(y1)) + ' h</span></div>' +
+      '<p class="cap" style="margin:8px 0 0">' + l.length + ' letture' + (perAnno != null ? ' · circa ' + fmtNum(perAnno) + ' ore l’anno' : '') + '. Per i motori conta quello con più ore.</p>';
+  }
+  function sbMotoriTab(b) {
+    var ms = sbMotori(b), gs = sbGen(b), h = '';
+    var rows = ms.map(function (m) { return '<div class="kv-row"><span class="k" style="color:var(--ink)"><b>' + esc(m.nome) + '</b><br><span class="cap">' + esc([m.mod, m.cv != null ? fmtNum(m.cv) + ' cv' : '', m.mat ? 'matr. ' + m.mat : ''].filter(Boolean).join(' · ') || '–') + '</span></span><span class="v sb-oh">' + (m.ore != null ? esc(fmtNum(m.ore)) : '–') + '<small>ore</small></span></div>'; })
+      .concat(gs.map(function (g) { return '<button type="button" class="kv-row" data-act="edit-comp" data-id="' + esc(g.id) + '" style="width:100%;border:0;background:none;color:inherit;text-align:left"><span class="k" style="color:var(--ink)"><b>Generatore</b><br><span class="cap">' + esc([g.modello, g.misura, g.matricola ? 'matr. ' + g.matricola : ''].filter(Boolean).join(' · ') || '–') + '</span></span><span class="v sb-oh">' + (num(g.ore) != null ? esc(fmtNum(g.ore)) : '–') + '<small>ore</small></span></button>'; }));
+    h += secH('Motori e generatore', S.canWrite ? 'edit-boat' : '', 'Modifica', ' data-id="' + esc(b.id) + '"');
+    h += rows.length ? '<div class="group">' + rows.join('') + '</div>' : '<div class="notice">Nessun motore segnato. Aggiungili con la matita in alto; il generatore si aggiunge tra i componenti (Attrezzatura).</div>';
+    if (rows.length && S.canWrite) h += '<button type="button" class="btn" data-act="ore" data-id="' + esc(b.id) + '" style="width:100%;margin-top:10px">' + I.hours + 'Aggiorna le ore</button>';
+    if (b.motoreTipo && b.motoreTipo !== 'Nessuno') h += '<p class="cap" style="margin:8px 4px 0">Installazione: ' + esc(b.motoreTipo.toLowerCase()) + '.</p>';
+    h += secH('Storico delle ore') + '<div class="sb-card">' + sbStorico(b) + '</div>';
+    h += secH('Prossimi tagliandi') + '<div class="sb-card">' + sbTagBody(b) + '</div>';
+    return h;
+  }
+  function sbHtml(b, P) {
+    var tabs = sbTabs(), vis = tabs.filter(function (t) { return !t.off; }), cur = V.boatTab;
+    if (!vis.some(function (t) { return t.k === cur; })) cur = 'cr';
+    var h = sbOreTiles(b) + sbTabBar(vis, cur), c = sbCfg(), riq = sbList(SB_RIQ, c.riq, c.riqOff).filter(function (x) { return !x.off; });
+    if (cur === 'cr') {
+      if (S.isOwner && S.canWrite) h += '<div class="sb-sis"><button type="button" class="link" data-act="sb-sis">' + I.pencil + 'Sistema la scheda</button></div>';
+      var parts = riq.map(function (x) { return [x.k, sbRiq(b, x.k)]; }).filter(function (x) { return x[1]; });
+      // sul computer due colonne: i riquadri si alternano tenendo l'ordine scelto (tasti rapidi sempre su tutta la riga)
+      var full = parts.filter(function (x) { return x[0] === 'rapidi'; }), rest = parts.filter(function (x) { return x[0] !== 'rapidi'; });
+      var colA = rest.filter(function (x, i) { return i % 2 === 0; }), colB = rest.filter(function (x, i) { return i % 2 === 1; });
+      var rapIdx = parts.map(function (x) { return x[0]; }).indexOf('rapidi');
+      h += '<div class="sb-cr">' + (full.length && rapIdx === 0 ? full[0][1] : '') +
+        '<div class="sb-cols"><div class="sb-col">' + colA.map(function (x) { return x[1]; }).join('') + '</div><div class="sb-col">' + colB.map(function (x) { return x[1]; }).join('') + '</div></div>' +
+        '<div class="sb-one">' + rest.map(function (x) { return x[1]; }).join('') + '</div>' +
+        (full.length && rapIdx > 0 ? full[0][1] : '') + '</div>';
+    }
+    else if (cur === 'mo') h += sbMotoriTab(b) + P.mo;
+    else if (cur === 'la') h += P.la + P.lx;
+    else h += P[cur] || '';
+    return h;
+  }
+  /* Per il portale del cliente (nm-fb.js, portaleOf): il cruscotto della barca senza le cose interne
+     (niente nomi dei dipendenti, note, preventivi, servizi, avvisi interni). Il cliente vede Cruscotto, Motori,
+     Attrezzatura, Scadenze, Deposito, Foto e storia e i lavori fatti (scelta di Torcio 6/11/2026). */
+  window.__sbPortale = function (bid) {
+    var b = boatById(bid); if (!b) return null;
+    var st = sbStato(b), varo = variOpen(bid).filter(function (v) { return v.tipo === 'varo'; })[0], bi = (b.stato !== 'In acqua' || num(b.batterie) > 0) ? battInfo(b) : null;
+    return {
+      motori: sbMotori(b).map(function (m) { return { n: m.nome, m: m.mod, cv: m.cv, o: m.ore }; }),
+      gen: sbGen(b).map(function (g) { return { m: g.modello || '', o: num(g.ore) }; }), oreAgg: b.oreAgg || '',
+      orePts: sbOrePts(b).slice(-40),
+      tagliandi: sbTagliandi(b).slice(0, 8).map(function (x) { return { t: x.s.tipo || 'Tagliando', m: x.s.modello || '', txt: x.txt, u: Math.round(x.used * 100), lv: x.i.level }; }),
+      stato: st.tot == null ? null : { tot: st.tot, voci: st.voci.map(function (v) { return { t: v[0], p: v[1] }; }) },
+      varo: varo ? varo.data : '',
+      attr: S.attr.filter(function (x) { return x.barcaId === bid; }).sort(function (x, y) { return attrLabel(x).localeCompare(attrLabel(y), 'it'); }).slice(0, 40)
+        .map(function (x) { return { t: attrLabel(x), s: [[x.marca, x.modello].filter(Boolean).join(' '), x.misure, [x.colore, x.tessuto].filter(Boolean).join(', ')].filter(Boolean).join(' · '), st: x.stato || '' }; }),
+      comp: compOf(bid).slice(0, 40).map(function (x) { return { t: [x.tipo, x.modello].filter(Boolean).join(' · ') || 'Componente', s: [x.anno ? 'anno ' + x.anno : '', x.misura].filter(Boolean).join(' · '), g: x.garanzia && x.garanzia >= todayISO() ? x.garanzia : '' }; }),
+      batt: bi && bi.n > 0 ? { n: bi.n, d: bi.d, late: !!bi.late } : null,
+      scad: openScad(bid).slice(0, 20).map(function (x) { return { t: x.s.tipo || 'Scadenza', m: x.s.modello || '', txt: x.i.text, lv: x.i.level }; }),
+      foto: (b.foto || []).slice(0, 30),
+      verbali: vbOn() ? vbOf(bid).slice(0, 10).map(function (v) { return { t: v.tipo === 'uscita' ? 'uscita' : 'ingresso', d: v.data || '', o: v.oreMotore != null && v.oreMotore !== '' ? String(v.oreMotore) : '', foto: (v.foto || []).slice(0, 6) }; }) : [],
+      vari: S.vari.filter(function (v) { return v.barcaId === bid && v.fatto; }).sort(function (x, y) { return String(y.fattoIl || y.data || '').localeCompare(String(x.fattoIl || x.data || '')); }).slice(0, 12)
+        .map(function (v) { return { t: TIPI_V[v.tipo] || 'Movimento', d: v.fattoIl || v.data || '' }; })
+    };
+  };
+  function sbSistema() {
+    var c = sbCfg(), tabs = sbList(SB_TABS, c.tabs, c.tabsOff).filter(function (x) { return x.k !== 'cr'; }), riq = sbList(SB_RIQ, c.riq, c.riqOff);
+    var row = function (x, g) { return '<div class="sb-ord" data-k="' + x.k + '" data-g="' + g + '"><span class="nm">' + esc(x.t) + (x.k === 'de' && !depoOn() ? '<small>si vede se è acceso «Roba del cliente in deposito»</small>' : '') + '</span><span class="mv"><button type="button" data-sbmv="-1" aria-label="Su">▲</button><button type="button" data-sbmv="1" aria-label="Giù">▼</button></span><label class="sb-sw"><input type="checkbox"' + (x.off ? '' : ' checked') + ' aria-label="Mostra ' + esc(x.t) + '"><span></span></label></div>'; };
+    openSheet({
+      title: 'Sistema la scheda', submitLabel: 'Salva',
+      body: '<p class="context">Vale per tutte le barche e per tutti i dipendenti. Sposta con le frecce; l’interruttore nasconde una scheda o un riquadro. Il Cruscotto resta sempre il primo.</p>' +
+        '<div class="lbl">Schede in alto</div><div class="group" id="sb-g-t">' + tabs.map(function (x) { return row(x, 't'); }).join('') + '</div>' +
+        '<div class="lbl" style="margin-top:14px">Riquadri del Cruscotto</div><div class="group" id="sb-g-r">' + riq.map(function (x) { return row(x, 'r'); }).join('') + '</div>' +
+        '<button type="button" class="link self-start" id="sb-reset" style="margin-top:10px">Torna all’ordine di partenza</button>',
+      onOpen: function (f) {
+        f.addEventListener('click', function (e) {
+          var m = e.target.closest('[data-sbmv]'); if (m) { var r = m.closest('.sb-ord'), d = m.getAttribute('data-sbmv'); if (d === '-1' && r.previousElementSibling) r.parentNode.insertBefore(r, r.previousElementSibling); else if (d === '1' && r.nextElementSibling) r.parentNode.insertBefore(r.nextElementSibling, r); return; }
+          if (e.target.id === 'sb-reset') {
+            [['#sb-g-t', SB_TABS.filter(function (x) { return x[0] !== 'cr'; })], ['#sb-g-r', SB_RIQ]].forEach(function (p) { var g = f.querySelector(p[0]); p[1].forEach(function (x) { var r = g.querySelector('[data-k="' + x[0] + '"]'); if (r) { g.appendChild(r); r.querySelector('input').checked = true; } }); });
+          }
+        });
+      },
+      onSubmit: async function (f) {
+        var rd = function (g) { var l = Array.prototype.slice.call(f.querySelectorAll('#' + g + ' .sb-ord')); return { ord: l.map(function (r) { return r.getAttribute('data-k'); }), off: l.filter(function (r) { return !r.querySelector('input').checked; }).map(function (r) { return r.getAttribute('data-k'); }) }; };
+        var t = rd('sb-g-t'), r = rd('sb-g-r'), d = { tabs: t.ord, tabsOff: t.off, riq: r.ord, riqOff: r.off, modificato: new Date().toISOString(), da: S.myId || '' };
+        var ref = S.db.collection('impostazioni').doc('schedaBarca');
+        if (await w(function () { return ref.set(d); })) { S.sbCfg = d; toast('Scheda sistemata'); render(); return true; }
+        return false;
+      }
+    });
+  }
   function viewBoat() {
     var b = boatById(V.boatId);
     if (!b) { if (V.boatId === S.pendingBoat) return '<div class="notice" style="margin-top:14px">Apro la scheda…</div>'; V.boatId = null; return viewBarche(); }
@@ -2294,21 +2632,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var missD = b.daCompletare ? boatMissing(b) : [];
     if (missD.length) h += '<div class="notice" style="margin-top:12px"><span class="t-soon" style="font-weight:600">Barca creata al volo: manca ' + esc(missD.join(', ')) + '.</span>' +
       (S.canWrite ? ' <button type="button" class="link" data-act="edit-boat" data-id="' + esc(b.id) + '">Completa la scheda</button>' : '') + '</div>';
-
-    var hasMotor = b.motoreTipo !== 'Nessuno', ore = num(b.oreMotore), oreTile;
-    var hourScad = openScad(b.id).filter(function (x) { return x.i.oreLeft != null; }).sort(function (a, c) { return a.i.oreLeft - c.i.oreLeft; })[0];
-    if (!hasMotor) oreTile = '<div class="tile"><span class="tile-h">Ore motore</span><span class="cap">Barca senza motore</span></div>';
-    else {
-      var pct = 0, col = 'var(--accent)', cap1 = 'Nessuna scadenza a ore';
-      if (hourScad) {
-        var ric = num(hourScad.s.ricorrenzaOre) || 100, left = hourScad.i.oreLeft;
-        pct = left <= 0 ? 1 : Math.max(0, Math.min(1, 1 - left / ric));
-        col = left <= 0 ? 'var(--late)' : left <= 20 ? 'var(--soon)' : 'var(--accent)';
-        cap1 = esc(hourScad.s.tipo) + (left <= 0 ? ': superato di ' + fmtNum(-left) + ' h' : ' tra ' + fmtNum(left) + ' h');
-      }
-      oreTile = '<button type="button" class="tile"' + (S.canWrite ? ' data-act="ore" data-id="' + esc(b.id) + '"' : '') + '><span class="tile-h"><span class="t-acc">' + I.alarm + '</span>Ore motore</span>' +
-        ring(pct, col, ore != null ? fmtNum(ore) : '–', 'ore') + '<span class="cap' + (hourScad && hourScad.i.oreLeft <= 0 ? ' t-late' : '') + '">' + cap1 + '</span>' + (S.canWrite ? '<span class="cap t-acc">Tocca per aggiornare</span>' : '') + '</button>';
-    }
+    var P = { lx: '', cr: '', mo: '', at: '', la: '', sc: '', de: '', fo: '', da: '' };
     var sv = [];
     if (num(b.lunghezza) != null) { var bbm = beamOf(b); sv.push([fmtNum(b.lunghezza, 2) + ' × ' + fmtNum(bbm.B, 2) + ' m', bbm.est ? 'Lunghezza × larghezza (stimata)' : 'Lunghezza × larghezza']); }
     var oreB = boatOre(b.id); if (oreB) sv.push([fmtH(oreB), 'Ore lavorate, tutti']);
@@ -2318,9 +2642,9 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     else if (num(b.potenza) != null) sv.push([fmtNum(b.potenza) + ' cv' + (num(b.nMotori) > 1 ? ' ×' + b.nMotori : ''), 'Potenza']);
     var schedaTile = '<div class="tile"><span class="tile-h"><span class="t-ok">' + I.boat + '</span>Scheda</span>' +
       (sv.length ? '<div class="stack">' + sv.map(function (x) { return '<div><b>' + esc(x[0]) + '</b><span>' + esc(x[1]) + '</span></div>'; }).join('') + '</div>' : '<span class="cap">Aggiungi lunghezza, anno e potenza con la matita in alto</span>') + '</div>';
-    h += '<div class="tiles" style="margin-top:18px">' + oreTile + schedaTile + '</div>';
+    P.da += '<div class="tiles" style="margin-top:14px"><div style="grid-column:1/-1">' + schedaTile + '</div></div>';
     var onMap = !!(boatPos(b) && boatDims(b)), berth = Porto.berthLabel(b.id);
-    h += '<div class="grid2" style="margin-top:10px"><button type="button" class="btn sec" data-act="res-open">' + I.doc + 'Resoconto</button>' +
+    P.fo += '<div class="grid2" style="margin-top:14px"><button type="button" class="btn sec" data-act="res-open">' + I.doc + 'Resoconto</button>' +
       (berth && !onMap ? '<button type="button" class="btn sec" data-act="go-porto" data-id="' + esc(berth) + '">' + I.map + 'Al porto · ' + esc(berth) + '</button>' : '<button type="button" class="btn sec" data-act="go-map" data-id="' + esc(b.id) + '">' + I.map + (onMap ? 'Sulla mappa' : 'Posiziona') + '</button>') + '</div>' +
       '<button type="button" class="btn sec" data-act="storia-open" style="width:100%;margin-top:10px">' + I.hours + 'Storia della barca</button>';
 
@@ -2329,9 +2653,9 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       .sort(function (a, c) { return String(c.data || '').localeCompare(String(a.data || '')); })
       .forEach(function (l) { l.foto.forEach(function (id) { fotoB.push({ id: id, boat: false }); }); });
     if (fotoB.length || S.assets) {
-      h += secH('Foto' + (fotoB.length ? ' (' + fotoB.length + ')' : ''));
-      h += fotoB.length ? '<div class="gallery">' + fotoB.slice(0, 30).map(function (f) { return '<button type="button" data-act="photo" data-id="' + esc(f.id) + '"' + (f.boat ? ' data-boat="' + esc(b.id) + '"' : '') + ' aria-label="Apri foto"><img alt="" loading="lazy" src="' + esc(blobSrc(f.id)) + '" data-blob="' + esc(f.id) + '"></button>'; }).join('') + '</div>' : '';
-      if (S.assets) h += '<label class="btn sec" style="margin-top:10px">' + I.camera + 'Aggiungi foto della barca<input type="file" accept="image/*" multiple class="ph-in vh" data-target="boat:' + esc(b.id) + '"></label>';
+      P.fo += secH('Foto' + (fotoB.length ? ' (' + fotoB.length + ')' : ''));
+      P.fo += fotoB.length ? '<div class="gallery">' + fotoB.slice(0, 30).map(function (f) { return '<button type="button" data-act="photo" data-id="' + esc(f.id) + '"' + (f.boat ? ' data-boat="' + esc(b.id) + '"' : '') + ' aria-label="Apri foto"><img alt="" loading="lazy" src="' + esc(blobSrc(f.id)) + '" data-blob="' + esc(f.id) + '"></button>'; }).join('') + '</div>' : '';
+      if (S.assets) P.fo += '<label class="btn sec" style="margin-top:10px">' + I.camera + 'Aggiungi foto della barca<input type="file" accept="image/*" multiple class="ph-in vh" data-target="boat:' + esc(b.id) + '"></label>';
     }
 
     var kv = [];
@@ -2349,78 +2673,78 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (b.proprietario) kv.push(['Proprietario', esc(b.proprietario)]);
     if (b.telefono) kv.push(['Telefono', '<span class="sel">' + esc(b.telefono) + '</span><button type="button" class="mini" data-act="copy" data-text="' + esc(b.telefono) + '">Copia</button>']);
     if (b.email) kv.push(['Email', '<span class="sel">' + esc(b.email) + '</span><button type="button" class="mini" data-act="copy" data-text="' + esc(b.email) + '">Copia</button>']);
-    if (kv.length) h += secH('Dettagli') + '<div class="group">' + kv.map(function (r) { return '<div class="kv-row"><span class="k">' + r[0] + '</span><span class="v">' + r[1] + '</span></div>'; }).join('') + '</div>';
-    if (b.note) h += secH('Note') + '<div class="group notes">' + esc(b.note) + '</div>';
+    if (kv.length) P.da += secH('Dettagli') + '<div class="group">' + kv.map(function (r) { return '<div class="kv-row"><span class="k">' + r[0] + '</span><span class="v">' + r[1] + '</span></div>'; }).join('') + '</div>';
+    if (b.note) P.da += secH('Note') + '<div class="group notes">' + esc(b.note) + '</div>';
 
     var atb = S.attr.filter(function (x) { return x.barcaId === b.id; }).sort(function (x, y) { return String(x.tipo || x.nome || '').localeCompare(String(y.tipo || y.nome || ''), 'it'); });
-    h += secH('Attrezzatura di bordo', S.canWrite ? 'new-attr' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
-    h += atb.length ? '<div class="group">' + atb.map(attrRow).join('') + '</div>' : '<div class="notice">Niente segnato. Aggiungi salpancora, verricelli, cuscineria, tendalino, teli e coperture: marca, misure e colori restano qui per la prossima volta.</div>';
+    P.at += secH('Attrezzatura di bordo', S.canWrite ? 'new-attr' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
+    P.at += atb.length ? '<div class="group">' + atb.map(attrRow).join('') + '</div>' : '<div class="notice">Niente segnato. Aggiungi salpancora, verricelli, cuscineria, tendalino, teli e coperture: marca, misure e colori restano qui per la prossima volta.</div>';
 
     if (ncOn()) {
     var ncb = ncTutte().filter(function (n) { return n.barcaId === b.id && (n.per === S.myId || n.creatoDa === S.myId); }).slice(0, 6);
-    h += secH('Note ai colleghi' + (ncb.length ? ' (' + ncb.length + ')' : ''), S.canWrite ? 'nc-new' : '', '+ Scrivi', ' data-boat="' + esc(b.id) + '"');
-    h += ncb.length ? '<div class="group">' + ncb.map(function (n) { return ncRow(n, n.creatoDa === S.myId && n.per !== S.myId); }).join('') + '</div>' : '<div class="notice">Nessuna nota su questa barca. Con «Scrivi» ne lasci una a un collega: la trova in Home.</div>';
+    P.la += secH('Note ai colleghi' + (ncb.length ? ' (' + ncb.length + ')' : ''), S.canWrite ? 'nc-new' : '', '+ Scrivi', ' data-boat="' + esc(b.id) + '"');
+    P.la += ncb.length ? '<div class="group">' + ncb.map(function (n) { return ncRow(n, n.creatoDa === S.myId && n.per !== S.myId); }).join('') + '</div>' : '<div class="notice">Nessuna nota su questa barca. Con «Scrivi» ne lasci una a un collega: la trova in Home.</div>';
     }
 
     var cpb = compOf(b.id);
-    h += secH('Componenti a bordo' + (cpb.length ? ' (' + cpb.length + ')' : ''), S.canWrite ? 'new-comp' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
-    h += cpb.length ? '<div class="group">' + cpb.map(compRow).join('') + '</div>' : '<div class="notice">Niente segnato. Motori, generatore, dissalatore, pompe, elica, elettronica: modello, matricola, anno e chi li ha montati' + (strOn('targhetta') ? ', anche dalla foto della targhetta' : '') + '.</div>';
+    P.at += secH('Componenti a bordo' + (cpb.length ? ' (' + cpb.length + ')' : ''), S.canWrite ? 'new-comp' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
+    P.at += cpb.length ? '<div class="group">' + cpb.map(compRow).join('') + '</div>' : '<div class="notice">Niente segnato. Motori, generatore, dissalatore, pompe, elica, elettronica: modello, matricola, anno e chi li ha montati' + (strOn('targhetta') ? ', anche dalla foto della targhetta' : '') + '.</div>';
 
     if (depoOn()) {
     var dpb = depoOf(b.id), dpr = depoOf(b.id, true).filter(function (x) { return x.stato === 'restituito'; });
-    h += secH('Roba in deposito' + (dpb.length ? ' (' + dpb.length + ')' : ''), S.canWrite ? 'new-depo' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
-    h += dpb.length ? '<div class="group">' + dpb.map(depoRow).join('') + '</div>' + (S.canWrite ? '<button type="button" class="btn sec" data-act="depo-ric" data-id="' + esc(b.id) + '" style="width:100%;margin-top:10px">' + I.check + 'Riconsegna: spunta cosa restituisci</button>' : '')
+    P.de += secH('Roba in deposito' + (dpb.length ? ' (' + dpb.length + ')' : ''), S.canWrite ? 'new-depo' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
+    P.de += dpb.length ? '<div class="group">' + dpb.map(depoRow).join('') + '</div>' + (S.canWrite ? '<button type="button" class="btn sec" data-act="depo-ric" data-id="' + esc(b.id) + '" style="width:100%;margin-top:10px">' + I.check + 'Riconsegna: spunta cosa restituisci</button>' : '')
       : '<div class="notice">Niente in deposito. Segna qui tender, fuoribordo, cuscini e tendalini del cliente: cosa, dove sono riposti e una foto.</div>';
-    if (dpr.length) h += '<div class="sec-h" style="margin-top:14px"><span class="cap">Restituite</span></div><div class="group">' + dpr.slice(0, 10).map(depoRow).join('') + '</div>';
+    if (dpr.length) P.de += '<div class="sec-h" style="margin-top:14px"><span class="cap">Restituite</span></div><div class="group">' + dpr.slice(0, 10).map(depoRow).join('') + '</div>';
     }
 
     var ricB = ricOfBoat(b);
-    h += secH('Ricambi montati' + (ricB.length ? ' (' + ricB.length + ')' : ''));
-    h += ricB.length ? '<div class="group">' + ricB.slice(0, V.boatRicAll ? 999 : 8).map(ricRow).join('') + '</div>' + (ricB.length > 8 && !V.boatRicAll ? '<button type="button" class="link" data-act="ric-all" style="margin:8px 4px">Mostra tutti i ' + ricB.length + '</button>' : '')
+    P.mo += secH('Ricambi montati' + (ricB.length ? ' (' + ricB.length + ')' : ''));
+    P.mo += ricB.length ? '<div class="group">' + ricB.slice(0, V.boatRicAll ? 999 : 8).map(ricRow).join('') + '</div>' + (ricB.length > 8 && !V.boatRicAll ? '<button type="button" class="link" data-act="ric-all" style="margin:8px 4px">Mostra tutti i ' + ricB.length + '</button>' : '')
       : '<div class="notice">Nessun ricambio segnato. Si riempie da solo con i ricambi delle mansioni e con gli scarichi dal magazzino per questa barca.</div>';
 
     if (b.stato !== 'In acqua' || num(b.batterie) > 0) {
       var bi = battInfo(b);
-      h += secH('Batterie', S.canWrite ? 'batt-open' : '', 'Segna carica', ' data-id="' + esc(b.id) + '"');
-      h += '<div class="group">' + battRow(b) + '</div>';
+      P.at += secH('Batterie', S.canWrite ? 'batt-open' : '', 'Segna carica', ' data-id="' + esc(b.id) + '"');
+      P.at += '<div class="group">' + battRow(b) + '</div>';
     }
 
     var vb = variOpen(b.id);
-    h += secH('Vari e alaggi', S.canWrite ? 'new-vari' : '', '+ Programma', ' data-boat="' + esc(b.id) + '"');
-    h += vb.length ? '<div class="group">' + vb.map(function (v) { return variRow(v, false); }).join('') + '</div>' : '<div class="notice">Nessun varo o alaggio in programma.</div>';
+    P.sc += secH('Vari e alaggi', S.canWrite ? 'new-vari' : '', '+ Programma', ' data-boat="' + esc(b.id) + '"');
+    P.sc += vb.length ? '<div class="group">' + vb.map(function (v) { return variRow(v, false); }).join('') + '</div>' : '<div class="notice">Nessun varo o alaggio in programma.</div>';
 
     var sc = openScad(b.id), scDone = S.scadenze.filter(function (s) { return s.fatta && s.barcaId === b.id; });
-    h += secH('Scadenze', S.canWrite ? 'new-scad' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
-    h += sc.length ? '<div class="group">' + sc.map(function (x) { return scadRow(x, false); }).join('') + '</div>' : '<div class="notice">Nessuna scadenza aperta.</div>';
-    if (scDone.length) h += '<div class="sec-h" style="margin-top:14px"><span class="cap">Completate</span></div><div class="group">' + scDone.map(function (s) { return scadRow({ s: s, i: scadInfo(s) }, false); }).join('') + '</div>';
+    P.sc += secH('Scadenze', S.canWrite ? 'new-scad' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
+    P.sc += sc.length ? '<div class="group">' + sc.map(function (x) { return scadRow(x, false); }).join('') + '</div>' : '<div class="notice">Nessuna scadenza aperta.</div>';
+    if (scDone.length) P.sc += '<div class="sec-h" style="margin-top:14px"><span class="cap">Completate</span></div><div class="group">' + scDone.map(function (s) { return scadRow({ s: s, i: scadInfo(s) }, false); }).join('') + '</div>';
 
     var bops = opsOn() ? S.ops.filter(function (o) { return o.barcaId === b.id; }).sort(function (a, c) { return opDone(a) - opDone(c) || String(c.creato || '').localeCompare(String(a.creato || '')); }) : null;
-    if (bops) h += secH('Servizi', S.canWrite ? 'new-op' : '', '+ Nuovo', ' data-boat="' + esc(b.id) + '"');
-    if (bops) h += bops.length ? '<div class="group">' + bops.slice(0, 6).map(function (o) { return opRow(o, false); }).join('') + '</div>' : '<div class="notice">Nessun servizio per questa barca.</div>';
+    if (bops) P.lx += secH('Servizi', S.canWrite ? 'new-op' : '', '+ Nuovo', ' data-boat="' + esc(b.id) + '"');
+    if (bops) P.lx += bops.length ? '<div class="group">' + bops.slice(0, 6).map(function (o) { return opRow(o, false); }).join('') + '</div>' : '<div class="notice">Nessun servizio per questa barca.</div>';
 
-    h += secH('Trasporto: passa?') + passaHtml(b);
+    P.da += secH('Trasporto: passa?') + passaHtml(b);
     var pvs = prevOn() ? prevOfBoat(b.id) : null;
-    if (pvs) h += secH('Preventivi', S.canWrite ? 'prev-new' : '', '+ Nuovo', ' data-boat="' + esc(b.id) + '"');
-    if (pvs) h += pvs.length ? '<div class="group">' + pvs.slice(0, 5).map(function (p) { return prevRow(p, false); }).join('') + '</div>' : '<div class="notice">Nessun preventivo per questa barca.</div>';
+    if (pvs) P.lx += secH('Preventivi', S.canWrite ? 'prev-new' : '', '+ Nuovo', ' data-boat="' + esc(b.id) + '"');
+    if (pvs) P.lx += pvs.length ? '<div class="group">' + pvs.slice(0, 5).map(function (p) { return prevRow(p, false); }).join('') + '</div>' : '<div class="notice">Nessun preventivo per questa barca.</div>';
 
     var lv = sortLavori(S.lavori.filter(function (l) { return l.barcaId === b.id || (l.altreBarche || []).indexOf(b.id) >= 0; }));
     var tot = lv.reduce(function (a, l) { return a + (l.barcaId === b.id && l.stato === 'fatto' && num(l.importo) != null ? Number(l.importo) : 0); }, 0);
     var oreTot = lv.reduce(function (a, l) { return a + (l.barcaId === b.id && l.stato === 'fatto' ? (num(l.oreLavoro) || 0) : 0); }, 0);
-    h += secH('Lavori', S.canWrite ? 'new-lav' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
+    P.la += secH('Lavori', S.canWrite ? 'new-lav' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
     if (lv.length) {
       var shown = V.boatLavAll ? lv : lv.slice(0, 5);
-      h += '<div class="group">' + shown.map(function (l) { return lavRow(l, false); }).join('') + '</div>';
+      P.la += '<div class="group">' + shown.map(function (l) { return lavRow(l, false); }).join('') + '</div>';
       var tots = [];
       if (oreTot) tots.push('Ore lavorate: <b style="color:var(--ink)">' + esc(fmtH(oreTot)) + '</b>');
       if (tot) tots.push('Importi: <b style="color:var(--ink)">' + esc(fmtEuro(tot)) + '</b>');
-      h += '<div class="sec-h" style="margin-top:10px"><span class="cap">' + tots.join(' · ') + '</span>' +
+      P.la += '<div class="sec-h" style="margin-top:10px"><span class="cap">' + tots.join(' · ') + '</span>' +
         (lv.length > 5 ? '<button type="button" class="link" data-act="boat-lav-all">' + (V.boatLavAll ? 'Mostra meno' : 'Vedi tutti (' + lv.length + ')') + '</button>' : '') + '</div>';
-    } else h += '<div class="notice">Nessun lavoro registrato.</div>';
-    if (vbOn()) h += '<button type="button" class="btn sec" data-act="vb-list" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">' + I.camera + 'Verbale di presa in carico' + (vbOf(b.id).length ? ' · ' + vbOf(b.id).length : '') + '</button>';
-    if (sezOn('qrbarca')) h += '<button type="button" class="btn sec" data-act="boat-qr" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">' + I.doc + 'Etichetta QR da attaccare alla barca</button>';
-    if (S.canWrite) h += '<button type="button" class="btn sec" data-act="boat-sold" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">Barca venduta: cambia proprietario</button>' + (b.proprietari && b.proprietari.length ? '<p class="cap" style="margin:6px 4px 0">Proprietari di prima: ' + esc(b.proprietari.map(function (x) { return x.nome + (x.fino ? ' (fino al ' + fmtDate(x.fino) + ')' : ''); }).join(', ')) + '</p>' : '');
-    if (S.isOwner && S.canWrite && S.boats.length > 1) h += '<button type="button" class="btn sec" data-act="boat-merge" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">Unisci con un’altra barca</button><p class="cap" style="margin:6px 4px 0">Solo per l’amministratore: se questa barca ha una scheda doppia.</p>';
-    return h;
+    } else P.la += '<div class="notice">Nessun lavoro registrato.</div>';
+    if (vbOn()) P.fo += '<button type="button" class="btn sec" data-act="vb-list" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">' + I.camera + 'Verbale di presa in carico' + (vbOf(b.id).length ? ' · ' + vbOf(b.id).length : '') + '</button>';
+    if (sezOn('qrbarca')) P.da += '<button type="button" class="btn sec" data-act="boat-qr" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">' + I.doc + 'Etichetta QR da attaccare alla barca</button>';
+    if (S.canWrite) P.da += '<button type="button" class="btn sec" data-act="boat-sold" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">Barca venduta: cambia proprietario</button>' + (b.proprietari && b.proprietari.length ? '<p class="cap" style="margin:6px 4px 0">Proprietari di prima: ' + esc(b.proprietari.map(function (x) { return x.nome + (x.fino ? ' (fino al ' + fmtDate(x.fino) + ')' : ''); }).join(', ')) + '</p>' : '');
+    if (S.isOwner && S.canWrite && S.boats.length > 1) P.da += '<button type="button" class="btn sec" data-act="boat-merge" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">Unisci con un’altra barca</button><p class="cap" style="margin:6px 4px 0">Solo per l’amministratore: se questa barca ha una scheda doppia.</p>';
+    return h + sbHtml(b, P);
   }
 
   function viewLavori() {
@@ -8359,13 +8683,19 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         '<div class="grid2">' + field(lab('fc-mod', 'Marca e modello'), inp('fc-mod', x.modello, 'placeholder="es. Volvo Penta D4-300"')) + field(lab('fc-mat', 'Matricola'), inp('fc-mat', x.matricola, 'autocapitalize="characters" placeholder="numero di serie"')) + '</div>' +
         '<div class="grid2">' + field(lab('fc-anno', 'Anno'), inp('fc-anno', x.anno, 'type="text" inputmode="numeric" maxlength="4" placeholder="es. 2019"')) + field(lab('fc-pot', 'Potenza o misura'), inp('fc-pot', x.misura, 'placeholder="es. 300 cv, 8 kW, 60 l/h"')) + '</div>' +
         '<div class="grid2">' + field(lab('fc-chi', 'Montato da'), inp('fc-chi', x.montatoDa, 'list="fc-chil" placeholder="es. noi, una ditta, il cantiere costruttore"') + '<datalist id="fc-chil"><option value="Noi">' + lfDitte().map(function (d) { return '<option value="' + esc(d.nome) + '">'; }).join('') + '</datalist>') + field(lab('fc-il', 'Montato il'), inp('fc-il', x.montatoIl, 'type="date"')) + '</div>' +
+        '<div id="fc-oreW"' + (/generator|gruppo elettrogeno/i.test(x.tipo || '') ? '' : ' hidden') + '>' + field(lab('fc-ore', 'Ore sul contaore'), inp('fc-ore', x.ore, 'type="text" inputmode="numeric" placeholder="es. 612"'), 'Si vedono in alto nella scheda della barca, accanto ai motori.') + '</div>' +
         field(lab('fc-gar', 'Garanzia fino al'), inp('fc-gar', x.garanzia, 'type="date"'), 'Facoltativa: finché vale, nella scheda compare «Garanzia fino al…».') +
         field(lab('fc-note', 'Note'), '<textarea id="fc-note" placeholder="es. girante cambiata nel 2025, codice filtro gasolio">' + esc(x.note || '') + '</textarea>') + photoBlock(x.foto),
       item: x, onDelete: isNew ? null : async function () { if (await delSeq([S.db.collection('componenti').doc(x.id)])) { closeSheet(); toast('Componente eliminato'); } },
-      onOpen: function (f) { if (isNew) setTimeout(function () { try { f.querySelector('#fc-tipo').focus(); } catch (e) { } }, 60); },
+      onOpen: function (f) {
+        var ti = f.querySelector('#fc-tipo'), ow = f.querySelector('#fc-oreW');
+        ti.addEventListener('input', function () { ow.hidden = !/generator|gruppo elettrogeno/i.test(ti.value); });
+        if (isNew) setTimeout(function () { try { ti.focus(); } catch (e) { } }, 60);
+      },
       onSubmit: async function (f) {
-        var now = new Date().toISOString(), an = val(f, 'fc-anno');
-        var d = { tipo: val(f, 'fc-tipo'), modello: val(f, 'fc-mod'), matricola: val(f, 'fc-mat'), anno: /^\d{4}$/.test(an) ? an : '', misura: val(f, 'fc-pot'), montatoDa: val(f, 'fc-chi'), montatoIl: val(f, 'fc-il'), garanzia: val(f, 'fc-gar'), note: val(f, 'fc-note'), foto: SHEET.foto.slice(), barcaId: x.barcaId, modificato: now };
+        var now = new Date().toISOString(), an = val(f, 'fc-anno'), oreT = f.querySelector('#fc-oreW').hidden ? '' : val(f, 'fc-ore'), oreN = oreT ? parseIntS(oreT) : null;
+        if (oreT && oreN == null) { formErr('Le ore vanno scritte in numeri, per esempio 612.'); return false; }
+        var d = { tipo: val(f, 'fc-tipo'), modello: val(f, 'fc-mod'), matricola: val(f, 'fc-mat'), anno: /^\d{4}$/.test(an) ? an : '', misura: val(f, 'fc-pot'), montatoDa: val(f, 'fc-chi'), montatoIl: val(f, 'fc-il'), garanzia: val(f, 'fc-gar'), note: val(f, 'fc-note'), ore: oreN, oreAgg: oreN != null && oreN !== num(x.ore) ? todayISO() : (x.oreAgg || ''), foto: SHEET.foto.slice(), barcaId: x.barcaId, modificato: now };
         if (!d.tipo && !d.modello) { formErr('Scrivi almeno cosa è, per esempio Motore o Generatore.'); return false; }
         if (an && !d.anno) { formErr('L’anno va scritto con 4 cifre, per esempio 2019.'); return false; }
         var ok;
@@ -10484,8 +10814,12 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       '«Dove si trova» nella matita: al porto, al cantiere o fuori (altro porto o cantiere di altri, con nome e paese). Quando segni fatto l’alaggio la barca passa da sola al cantiere, col varo al porto. Il cliente lo vede nella sua pagina con la stessa icona.',
       'La matita in alto modifica i dati: modello, misure, motori, stato, ore motore, proprietario con telefono ed email.',
       'Nella matita ogni motore è una riga con marca e modello, matricola, cv e ore: «Aggiungi riga» per un altro motore (copia marca e cv del primo), × per toglierlo. Il numero dei motori si conta da solo.',
-      'Toccando «Ore motore» si aggiornano le ore di ogni motore; per scadenze e tagliandi conta il motore con più ore.',
-      'Sotto trovi attrezzatura di bordo, ricambi montati, batterie, vari, scadenze, servizi, preventivi e lavori: ognuno ha il suo + per aggiungere da qui.',
+      'In alto ci sono le ore di ogni motore e del generatore: toccandole si aggiornano. Per i tagliandi dei motori conta quello con più ore; una scadenza con «generatore» nel nome va con le ore del generatore. Il generatore si aggiunge tra i componenti (tipo «Generatore»), con le sue ore.',
+      'Sotto ci sono le schede: Cruscotto, Motori, Attrezzatura, Lavori, Scadenze, Deposito, Foto e storia, Dati. Ognuna ha il suo + per aggiungere da qui.',
+      'Il Cruscotto riassume la barca: tasti rapidi, «Da gestire» (scadenze vicine, batterie, attrezzatura da sistemare, lavori in ritardo, vari e alaggi dei prossimi 30 giorni), il programma dei lavori con i giorni al varo, lo stato della barca su 100, i prossimi tagliandi e i numeri. Tocca una voce per andare alla sua scheda.',
+      'Nel Programma lavori compaiono i lavori da fare con «Inizio» ed «Entro il» (si scrivono nel lavoro) e quelli portati da una ditta esterna, con il giorno del varo: «In tempo» o «A rischio» se un lavoro finisce dopo il varo.',
+      'Lo stato della barca è la media di tagliandi, scadenze, lavori nei tempi, carica delle batterie e stato dell’attrezzatura (buono, da sistemare, da sostituire).',
+      'A|«Sistema la scheda», in alto nel Cruscotto, sceglie l’ordine delle schede e dei riquadri e quali nascondere: vale per tutte le barche e per tutti i dipendenti. Il cliente nel portale vede Cruscotto, Motori, Attrezzatura, Scadenze, Deposito, Foto e storia e i lavori fatti.',
       'N|«Trasporto: passa?» controlla se la barca sul carrello passa dai portoni e dalla strada fino alla Marina.',
       'L|«Trasporto: passa?» controlla se la barca sul carrello passa dai ponti, sottopassi e strettoie della strada del trasporto. «Vedi la strada sulla mappa» la mostra con i passaggi colorati: verde passa, rosso non passa, grigio misura mancante.',
       'L|La strada si sceglie da «Scegli la strada del trasporto» (o da Mezzi › Percorso del trasporto): «Disegna sulla mappa» (tocchi i punti dalla partenza all’arrivo e la linea segue le strade) oppure «Da indirizzo a indirizzo» (scrivi partenza e arrivo e l’app calcola la strada con le indicazioni).',
@@ -11496,7 +11830,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   async function bumpOre(boatId, ore) {
     var b = boatById(boatId);
     if (!b || ore == null || (num(b.oreMotore) != null && ore <= b.oreMotore)) return true;
-    var r = S.db.collection('barche').doc(boatId), u = { oreMotore: ore };
+    var r = S.db.collection('barche').doc(boatId), u = { oreMotore: ore, oreAgg: todayISO() };
     if (Array.isArray(b.motori) && b.motori.length) u.motori = b.motori.map(function (x) { return num(x.ore) == null || x.ore < ore ? Object.assign({}, x, { ore: ore }) : x; });
     return w(function () { return r.update(u); });
   }
@@ -11514,6 +11848,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       field(lab('f-barca', 'Barca'), boatSelect(l.barcaId)) +
       field(lab('f-titolo', 'Lavorazione'), inp('f-titolo', l.titolo, 'type="text" required placeholder="es. Tagliando 100 ore"')) +
       '<div class="grid2">' + '<div class="field" id="f-dataW"' + (l.stato === 'fatto' ? '' : ' hidden') + '>' + lab('f-data', 'Fatta il') + inp('f-data', l.stato === 'fatto' ? l.data : '', 'type="date"') + '</div>' + field(lab('f-statoL', 'Stato'), '<select id="f-statoL">' + opts([['da_fare', 'Da fare'], ['in_corso', 'In corso'], ['fatto', 'Fatto']], l.stato) + '</select>') + '</div>' +
+      '<div id="f-pianW"' + (l.stato === 'fatto' ? ' hidden' : '') + '><div class="grid2">' + field(lab('f-inizio', 'Inizio'), inp('f-inizio', l.inizio, 'type="date"')) + field(lab('f-entro', 'Entro il'), inp('f-entro', l.entro, 'type="date"')) + '</div>' +
+        '<span class="hint" style="margin-top:-8px">Facoltative: con le date il lavoro compare nel Programma lavori della barca, accanto al varo.</span></div>' +
       field(lab('f-categoria', 'Categoria'), '<select id="f-categoria">' + opts(CATEGORIE, l.categoria) + '</select>' + (isNew ? '<span class="hint" id="f-catHint">' + catHintTxt({ cat: '', src: '' }) + '</span>' : '')) +
       attrLinkBlock(l.attrId) + lfBlock(l.fuori) +
       field(lab('f-descr', 'Dettagli e ricambi'), '<textarea id="f-descr" placeholder="es. olio 15W-40, filtro olio, girante, anodi">' + esc(l.descr || '') + '</textarea>') +
@@ -11528,7 +11864,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       onOpen: function (f) {
         lfBind(f);
         var stL = f.querySelector('#f-statoL'), dW = f.querySelector('#f-dataW'); // la data serve solo a una lavorazione fatta
-        stL.addEventListener('change', function () { dW.hidden = stL.value !== 'fatto'; if (!dW.hidden && !val(f, 'f-data')) f.querySelector('#f-data').value = todayISO(); });
+        stL.addEventListener('change', function () { dW.hidden = stL.value !== 'fatto'; f.querySelector('#f-pianW').hidden = stL.value === 'fatto'; if (!dW.hidden && !val(f, 'f-data')) f.querySelector('#f-data').value = todayISO(); });
         var se = f.querySelector('#f-oreStima'), auto = null;
         function upd() {
           if (se.value.trim() && se.value !== auto) return;
@@ -11565,6 +11901,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         };
         if (!data.barcaId) { formErr('Scegli la barca.'); return false; }
         if (!data.titolo) { formErr('Scrivi che lavorazione è.'); return false; }
+        data.inizio = val(f, 'f-inizio'); data.entro = val(f, 'f-entro');
+        if (data.inizio && data.entro && data.entro < data.inizio) { formErr('«Entro il» viene prima dell’inizio: controlla le date.'); return false; }
         data.fuori = lfRead(f); if (data.fuori === undefined) return false;
         var aid = await attrLinkSave(f, data.barcaId); if (aid === null) return false; if (aid !== undefined) data.attrId = aid === '__nuova' ? '' : aid;
         var ok;
@@ -11668,27 +12006,36 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
 
   function oreSheet(b) {
-    var ml = motList(b), multi = ml.length > 1;
+    var ml = b.motoreTipo === 'Nessuno' ? [] : motList(b), multi = ml.length > 1, ms = sbMotori(b), gs = sbGen(b);
     openSheet({
       title: 'Ore motore',
       body: '<p class="context">' + esc(boatLabel(b)) + (num(b.oreMotore) != null ? ' · ora in scheda ' + esc(fmtOre(b.oreMotore)) : '') + '</p>' +
-        (multi ? ml.map(function (x, i) { return field(lab('f-oreN' + i, 'Motore ' + (i + 1) + (x.modello || x.matricola ? ' · ' + [x.modello, x.matricola].filter(Boolean).join(' ') : '')), inp('f-oreN' + i, x.ore, 'type="text" inputmode="numeric"')); }).join('') +
-          '<p class="cap">Per scadenze e tagliandi conta il motore con più ore.</p>'
-          : field(lab('f-oreN', 'Ore lette sul contaore'), inp('f-oreN', b.oreMotore, 'type="text" inputmode="numeric" required'))),
+        (multi ? ml.map(function (x, i) { return field(lab('f-oreN' + i, ms[i].nome + (x.modello || x.matricola ? ' · ' + [x.modello, x.matricola].filter(Boolean).join(' ') : '')), inp('f-oreN' + i, x.ore, 'type="text" inputmode="numeric"')); }).join('') +
+          '<p class="cap">Per scadenze e tagliandi dei motori conta quello con più ore.</p>'
+          : ml.length || !gs.length ? field(lab('f-oreN', 'Ore lette sul contaore'), inp('f-oreN', b.oreMotore, 'type="text" inputmode="numeric"' + (gs.length ? '' : ' required'))) : '') +
+        gs.map(function (g, i) { return field(lab('f-oreG' + i, 'Generatore' + (g.modello ? ' · ' + g.modello : '')), inp('f-oreG' + i, g.ore, 'type="text" inputmode="numeric"')); }).join(''),
       onSubmit: async function (f) {
-        var u = { modificato: new Date().toISOString() }, n;
+        var now = new Date().toISOString(), oggi = todayISO(), u = { modificato: now, oreAgg: oggi }, n, any = false, bad = false;
         if (multi) {
           var rows = ml.map(function (x, i) { return Object.assign({}, x, { ore: parseIntS(val(f, 'f-oreN' + i)) }); });
-          if (rows.every(function (x) { return x.ore == null; })) { formErr('Scrivi le ore lette su almeno un motore.'); return false; }
-          Object.assign(u, motSync(rows));
-        } else {
+          if (rows.some(function (x) { return x.ore != null; })) { Object.assign(u, motSync(rows)); any = true; }
+        } else if (f.querySelector('#f-oreN') && val(f, 'f-oreN')) {
           n = parseIntS(val(f, 'f-oreN'));
-          if (n == null) { formErr('Scrivi le ore lette sul contaore.'); return false; }
-          u.oreMotore = n;
-          if (ml.length === 1) u.motori = [Object.assign({}, ml[0], { ore: n })];
+          if (n == null) bad = true;
+          else { u.oreMotore = n; any = true; if (ml.length === 1) u.motori = [Object.assign({}, ml[0], { ore: n })]; }
         }
-        var r = S.db.collection('barche').doc(b.id);
-        var ok = await w(function () { return r.update(u); });
+        var gUp = [];
+        gs.forEach(function (g, i) { var t = val(f, 'f-oreG' + i); if (!t) return; var o = parseIntS(t); if (o == null) bad = true; else if (o !== num(g.ore)) gUp.push([g, o]); });
+        if (bad) { formErr('Le ore vanno scritte in numeri, per esempio 1250.'); return false; }
+        if (!any && !gUp.length) { formErr('Scrivi le ore lette su almeno un motore' + (gs.length ? ' o sul generatore' : '') + '.'); return false; }
+        var ok = true;
+        if (any) {
+          // lo storico delle letture (Motori › Storico delle ore): una per giorno, le ultime 120
+          var o1 = u.oreMotore != null ? u.oreMotore : num(b.oreMotore), log = (b.oreLog || []).filter(function (x) { return x && x.d !== oggi; });
+          if (o1 != null) { log.push({ d: oggi, o: o1 }); u.oreLog = log.slice(-120); }
+          var r = S.db.collection('barche').doc(b.id); ok = await w(function () { return r.update(u); });
+        }
+        for (var i = 0; ok && i < gUp.length; i++) { var rg = S.db.collection('componenti').doc(gUp[i][0].id), og = gUp[i][1]; ok = await w(function () { return rg.update({ ore: og, oreAgg: oggi, modificato: now }); }); }
         if (ok) toast('Ore aggiornate');
         return ok;
       }
@@ -12896,6 +13243,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'gq-go': gqGo(t.getAttribute('data-k'), id); break;
       case 'gq-cli': x = $('#gq'); if (x) { x.value = V.gq = t.getAttribute('data-q'); $('#gq-res').innerHTML = gqResults(V.gq); } break;
       case 'res-open': V.boatView = 'resoconto'; window.scrollTo(0, 0); render(); break;
+      case 'sb-tab': V.boatTab = t.getAttribute('data-t') || 'cr'; render(); var tsel = document.querySelector('.sb-tabs [aria-selected="true"]'); if (tsel) tsel.parentNode.scrollLeft += tsel.getBoundingClientRect().left - tsel.parentNode.getBoundingClientRect().left - 40; break;
+      case 'sb-sis': if (S.isOwner && S.canWrite) sbSistema(); break;
       case 'storia-open': V.boatView = 'storia'; V.stFiltro = 'tutto'; V.stTutto = false; window.scrollTo(0, 0); render(); break;
       case 'st-filtro': V.stFiltro = t.getAttribute('data-f'); V.stTutto = false; render(); break;
       case 'st-tutto': V.stTutto = true; render(); break;
@@ -13290,7 +13639,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     db.collection('impostazioni').onSnapshot(function (snap) {
       var m = null, b = null, ly = {}, asp = null;
       var pm0 = S.portoMio; S.portoMio = null; S.got.impostazioni = true;
-      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'ai') S.aiCfg = d.data(); else if (d.id === 'depositi') S.depCfg = d.data(); else if (d.id === 'emergenze') S.emCfg = d.data(); else if (d.id === 'reperibilita') S.repCfg = d.data(); else if (d.id === 'pacchetto') S.pacCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'schede') S.schCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'vernice') S.vnCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'porto') S.portoMio = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
+      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'ai') S.aiCfg = d.data(); else if (d.id === 'depositi') S.depCfg = d.data(); else if (d.id === 'emergenze') S.emCfg = d.data(); else if (d.id === 'reperibilita') S.repCfg = d.data(); else if (d.id === 'pacchetto') S.pacCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'schedaBarca') S.sbCfg = d.data(); else if (d.id === 'schede') S.schCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'vernice') S.vnCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'porto') S.portoMio = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
       var mc = m !== S.mapCfg; S.mapCfg = m; S.bkInfo = b; S.layouts = ly; S.aspetto = asp;
       if (NM_MARCA.dalDatabase(asp) && V.asp) NM_MARCA.prova(V.asp); // l'aspetto scelto vale subito per tutti
       if ((V.tab === 'mappa' && (mc || pm0 !== S.portoMio)) || V.tab === 'aspetto' || V.tab === 'backup' || V.tab === 'batterie' || V.tab === 'rifiuti' || V.tab === 'notifiche' || V.tab === 'categorie' || V.tab === 'home' || V.tab === 'barche' || V.tab === 'pannello' || V.tab === 'riepiloghi') { if (!LY.drag) render(); }

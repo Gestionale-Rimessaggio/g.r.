@@ -107,6 +107,11 @@
     '#nmrc{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:flex-end;justify-content:center}#nmrc .box{background:#14163a;color:#eef;width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:18px 16px 24px;font-family:inherit}' +
     '#nmrc h3{margin:0 0 12px}#nmrc label{display:block;margin:0 0 12px;font-size:.9rem}#nmrc input,#nmrc textarea{display:block;width:100%;box-sizing:border-box;margin-top:6px;padding:10px;border-radius:8px;border:1px solid #3a3d7a;background:#0d0f2a;color:inherit;font:inherit;font-size:16px}' +
     '#nmrc .row2{display:flex;justify-content:space-between;gap:10px}#nmrc .pri{padding:10px 18px;border-radius:10px;border:0;background:#2ec4a6;color:#062;font-weight:700;font:inherit}#nmrc .lnk{background:none;border:0;color:#9ab;font:inherit}#nmrc .err{color:#ff8a80}' +
+    '#nmfb .crt{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin:12px 0 4px;border-bottom:1px solid #2a2c5c}#nmfb .crt::-webkit-scrollbar{display:none}#nmfb .crt button{flex:none;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;color:#b9bccb;font:inherit;font-weight:600;font-size:.92rem;padding:9px 10px;cursor:pointer}#nmfb .crt button[aria-selected="true"]{color:#fff;border-color:#2ec4b6}' +
+    '#nmfb .crm{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}#nmfb .crm div{background:linear-gradient(160deg,#1a3e62,#12114a);border:1px solid #33355a;border-radius:12px;padding:9px 10px}#nmfb .crm .h{display:block;font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:#9a9dc0;font-weight:600;min-height:2.4em}#nmfb .crm b{display:block;font-size:1.4rem;margin-top:2px}#nmfb .crm small{color:#9a9dc0;font-size:.75rem}' +
+    '#nmfb .crv{display:flex;justify-content:space-between;align-items:center;margin-top:10px;background:linear-gradient(135deg,#4a3218,#2a2030);border:1px solid #6b4a20;border-radius:12px;padding:10px 12px}#nmfb .crv small{display:block;font-size:.72rem;color:#ffb547;text-transform:uppercase;letter-spacing:.05em;font-weight:600}#nmfb .crv .n{text-align:right}#nmfb .crv .n b{display:block;font-size:1.5rem;color:#ffb547;line-height:1}#nmfb .crv .n small{color:#9a9dc0;text-transform:none;letter-spacing:0;font-weight:500}' +
+    '#nmfb .crs{display:flex;gap:14px;align-items:center}#nmfb .crs .r{flex:none;width:76px;height:76px;border-radius:50%;border:7px solid;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center}#nmfb .crs .r b{font-size:1.4rem;line-height:1}#nmfb .crs .r small{font-size:.66rem;color:#9a9dc0}#nmfb .crs .l{flex:1;min-width:0}#nmfb .crs .l div,#nmfb .crg>div{display:flex;justify-content:space-between;gap:8px;font-size:.88rem;margin-top:6px}' +
+    '#nmfb i.bar{display:block;height:5px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden;margin-top:3px}#nmfb i.bar i{display:block;height:100%;border-radius:3px}#nmfb .crg{padding:4px 0}#nmfb .crf img{width:76px;height:76px}#nmfb .st.no{background:#4a1e22;color:#ff9c90}' +
     '#nmfb .avb{height:8px;border-radius:4px;background:rgba(255,255,255,.12);overflow:hidden}#nmfb .avb i{display:block;height:100%;background:#2ec4a6;border-radius:4px}' +
     '#nmfb h5{margin:14px 0 6px;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:#9a9dc0}#nmfb .lv{display:flex;gap:12px;padding:7px 0;border-top:1px solid #23245a;font-size:.95rem}#nmfb .lv .d{flex:none;width:58px;color:#9a9dc0;font-variant-numeric:tabular-nums}#nmfb .dfo{display:flex;gap:6px;flex:none}#nmfb .dfo img{width:52px;height:52px;object-fit:cover;border-radius:9px;background:#23245a;cursor:zoom-in}#nmfb .dfo img.big{position:fixed;inset:0;margin:auto;width:auto;height:auto;max-width:94vw;max-height:80vh;z-index:5;border-radius:12px;box-shadow:0 0 0 100vmax rgba(0,0,0,.7);cursor:zoom-out}' +
     '#nmfb .oy{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 8px}#nmfb .oy button{padding:5px 13px;border-radius:99px;border:1px solid #3a3d7a;background:none;color:#b9bccb;font:inherit;font-size:.85rem;cursor:pointer}#nmfb .oy button[aria-pressed="true"]{background:#2f8ff0;border-color:#2f8ff0;color:#fff}' +
@@ -265,7 +270,7 @@
   }
   function emit(L) {
     var s = snapOf(L); L.subs.slice().forEach(function (x) { try { x.next(s); } catch (e) { console.error(e); errScrivi(e); } });
-    if (L.name === 'barche' || L.name === 'lavori' || L.name === 'posti' || L.name === 'deposito' || L.name === 'impostazioni' || L.name === 'preventivi' || L.name === 'scadenze') schedulePortale();
+    if (/^(barche|lavori|posti|deposito|impostazioni|preventivi|scadenze|componenti|attrezzatura|verbali|vari|cariche)$/.test(L.name)) schedulePortale();
   }
   function docSnap(id, d) { return { id: id, exists: !!d, data: function () { return d ? clone(d) : undefined; } }; }
 
@@ -1494,7 +1499,7 @@
   }
 
   /* ---------- area cliente ---------- */
-  var CL = { unsubs: [], docs: {}, all: {}, req: [], oy: {}, oc: {}, tab: '' };
+  var CL = { unsubs: [], docs: {}, all: {}, req: [], oy: {}, oc: {}, tab: '', st: {} };
   var MESI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
   function dataCorta(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); if (!m) return ''; var y = +m[1], cy = new Date().getFullYear(); return (+m[3]) + ' ' + MESI[+m[2] - 1] + (y !== cy ? ' ’' + String(y).slice(2) : ''); }
   function dataLunga(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? (+m[3]) + ' ' + MESI[+m[2] - 1] + ' ' + m[1] : ''; }
@@ -1585,6 +1590,54 @@
     else { t = [d.doveNome, d.doveLuogo].filter(Boolean).join(' · ') || (k === 'porto' ? 'Altro porto' : 'Cantiere di altri'); sub = k === 'porto' ? 'In un altro porto' : 'In un altro cantiere'; }
     return '<div class="where ' + k + '">' + doveIcoCl(k) + '<div><b>' + esc(t) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</div></div>';
   }
+  /* Cruscotto della barca nel portale (6/11/2026): schede Cruscotto, Motori, Attrezzatura, Scadenze, Deposito,
+     Foto e storia, Lavori fatti, come nella scheda barca del gestionale ma senza le cose interne. */
+  var CR_TABS = [['cr', 'Cruscotto'], ['mo', 'Motori'], ['at', 'Attrezzatura'], ['sc', 'Scadenze'], ['de', 'Deposito'], ['fo', 'Foto e storia'], ['la', 'Lavori fatti']];
+  function crCol(lv) { return lv === 'late' ? '#ff6b5e' : lv === 'soon' ? '#ffb547' : '#2ec4b6'; }
+  function crPct(p) { return p >= 85 ? '#4ade9b' : p >= 60 ? '#ffb547' : '#ff6b5e'; }
+  function crBody(id, d, cs, img, x) {
+    var c = d.cr, scC = scCard(id, d), scL = (c.scad || []).filter(function (s) { return !(d.scadenze || []).some(function (y) { return y.tipo === s.t && (y.modello || '') === s.m; }); });
+    var foto = (c.foto || []).length || (c.verbali || []).length || (c.vari || []).length;
+    var tabs = CR_TABS.filter(function (t) { return t[0] === 'sc' ? c.scadOn && (scC || scL.length) : t[0] === 'de' ? c.deOn : t[0] === 'fo' ? foto : true; });
+    var cur = CL.st[id]; if (!tabs.some(function (t) { return t[0] === cur; })) cur = 'cr';
+    var h = '<div class="crt" role="tablist">' + tabs.map(function (t) { return '<button role="tab" data-cl="st" data-id="' + esc(id) + '" data-t="' + t[0] + '" aria-selected="' + (t[0] === cur) + '">' + t[1] + '</button>'; }).join('') + '</div>';
+    var nf = function (n) { return n == null ? '–' : String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
+    var tiles = (c.motori || []).map(function (m) { return [m.n, m.m, m.o]; }).concat((c.gen || []).map(function (g) { return ['Generatore', g.m, g.o]; }));
+    var cOre = tiles.length ? '<div class="crm">' + tiles.map(function (t) { return '<div><span class="h">' + esc(t[0]) + (t[1] ? '<br>' + esc(t[1]) : '') + '</span><b>' + nf(t[2]) + '</b><small>ore</small></div>'; }).join('') + '</div>' +
+      (c.oreAgg ? '<div class="upd" style="margin-top:6px">Ore lette il ' + esc(dataLunga(c.oreAgg)) + '</div>' : '') : '';
+    var cVaro = '';
+    if (c.varo) { var dv = Math.round((Date.parse(c.varo) - Date.parse(new Date().toISOString().slice(0, 10))) / 864e5); cVaro = '<div class="crv"><div><small>Varo</small><b>' + esc(dataLunga(c.varo)) + '</b></div><div class="n"><b>' + (dv < 0 ? '–' : dv) + '</b><small>' + (dv === 1 ? 'giorno' : 'giorni') + '</small></div></div>'; }
+    var cStato = c.stato ? '<h5>Stato della barca</h5><div class="crs"><div class="r" style="border-color:' + crPct(c.stato.tot) + '"><b>' + c.stato.tot + '</b><small>su 100</small></div><div class="l">' +
+      c.stato.voci.map(function (v) { return '<div><span>' + esc(v.t) + '</span><span>' + v.p + '%</span></div><i class="bar"><i style="width:' + v.p + '%;background:' + crPct(v.p) + '"></i></i>'; }).join('') + '</div></div>' : '';
+    var cTag = (c.tagliandi || []).length ? '<h5>Prossimi tagliandi</h5>' + c.tagliandi.map(function (t) { return '<div class="crg"><div><span>' + esc(t.t) + (t.m ? ' <small>(' + esc(t.m) + ')</small>' : '') + '</span><span style="color:' + crCol(t.lv) + '">' + esc(t.txt) + '</span></div><i class="bar"><i style="width:' + t.u + '%;background:' + crCol(t.lv) + '"></i></i></div>'; }).join('') : '';
+    var cMot = '<h5>Motori e generatore</h5>' + (tiles.length ? (c.motori || []).map(function (m) { return '<div class="lv"><span style="flex:1">' + esc(m.n) + '<br><small>' + esc([m.m, m.cv != null ? m.cv + ' cv' : ''].filter(Boolean).join(' · ')) + '</small></span><b>' + nf(m.o) + ' h</b></div>'; }).join('') +
+      (c.gen || []).map(function (g) { return '<div class="lv"><span style="flex:1">Generatore<br><small>' + esc(g.m) + '</small></span><b>' + nf(g.o) + ' h</b></div>'; }).join('') : '<p style="margin:4px 0 0">Nessun motore segnato.</p>');
+    var cSto = '';
+    var P = c.orePts || [];
+    if (P.length >= 2) {
+      var x0 = Date.parse(P[0].d), x1 = Date.parse(P[P.length - 1].d), ys = P.map(function (p) { return p.o; }), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+      var X = function (d0) { return x1 > x0 ? (Date.parse(d0) - x0) / (x1 - x0) * 290 + 5 : 150; }, Y = function (o) { return y1 > y0 ? 85 - (o - y0) / (y1 - y0) * 75 : 50; };
+      cSto = '<h5>Storico delle ore</h5><svg viewBox="0 0 300 92" style="width:100%;height:auto;display:block"><polyline fill="none" stroke="#2ec4b6" stroke-width="2.5" points="' + P.map(function (p) { return X(p.d).toFixed(1) + ',' + Y(p.o).toFixed(1); }).join(' ') + '"/>' +
+        P.map(function (p) { return '<circle cx="' + X(p.d).toFixed(1) + '" cy="' + Y(p.o).toFixed(1) + '" r="3" fill="#2ec4b6"/>'; }).join('') + '</svg><div class="upd" style="display:flex;justify-content:space-between;margin-top:2px"><span>' + esc(dataCorta(P[0].d)) + ' · ' + nf(P[0].o) + ' h</span><span>' + esc(dataCorta(P[P.length - 1].d)) + ' · ' + nf(P[P.length - 1].o) + ' h</span></div>';
+    }
+    var ST = { buono: ['Buono', 'acqua'], sistemare: ['Da sistemare', 'lav'], sostituire: ['Da sostituire', 'no'] };
+    var cAttr = (c.attr || []).length ? '<h5>Attrezzatura di bordo</h5>' + c.attr.map(function (a) { var s = ST[a.st]; return '<div class="lv" style="align-items:center"><span style="flex:1">' + esc(a.t) + (a.s ? '<br><small>' + esc(a.s) + '</small>' : '') + '</span>' + (s ? '<span class="st ' + s[1] + '">' + s[0] + '</span>' : '') + '</div>'; }).join('') : '';
+    var cComp = (c.comp || []).length ? '<h5>Componenti a bordo</h5>' + c.comp.map(function (a) { return '<div class="lv"><span style="flex:1">' + esc(a.t) + (a.s || a.g ? '<br><small>' + esc([a.s, a.g ? 'garanzia fino al ' + dataLunga(a.g) : ''].filter(Boolean).join(' · ')) + '</small>' : '') + '</span></div>'; }).join('') : '';
+    var cBatt = c.batt ? '<h5>Batterie</h5><div class="lv" style="align-items:center"><span style="flex:1">' + c.batt.n + (c.batt.n === 1 ? ' batteria' : ' batterie') + '<br><small>' + (c.batt.d == null ? 'carica non ancora segnata' : 'caricate ' + (c.batt.d === 0 ? 'oggi' : c.batt.d === 1 ? 'ieri' : c.batt.d + ' giorni fa')) + '</small></span>' + (c.batt.late ? '<span class="st lav">Da caricare</span>' : '<span class="st acqua">Cariche</span>') + '</div>' : '';
+    var cScL = scL.length ? '<h5>' + (scC ? 'Più avanti' : 'Scadenze della tua barca') + '</h5>' + scL.map(function (s) { return '<div class="lv"><span style="flex:1">' + esc(s.t) + (s.m ? ' <small>(' + esc(s.m) + ')</small>' : '') + '<br><small style="color:' + crCol(s.lv) + '">' + esc(s.txt) + '</small></span></div>'; }).join('') : '';
+    var cFoto = (c.foto || []).length ? '<h5>Foto della barca</h5><div class="dfo crf">' + c.foto.map(img).join('') + '</div>' : '';
+    var cVb = (c.verbali || []).length ? '<h5>Verbali di ingresso e uscita</h5>' + c.verbali.map(function (v) { return '<div class="lv" style="flex-wrap:wrap"><span class="d">' + esc(dataCorta(v.d)) + '</span><span style="flex:1">' + (v.t === 'uscita' ? 'Uscita (varo)' : 'Ingresso (alaggio)') + (v.o ? ' · ' + esc(v.o) + ' ore motore' : '') + '</span>' + ((v.foto || []).length ? '<span class="dfo" style="width:100%">' + v.foto.map(img).join('') + '</span>' : '') + '</div>'; }).join('') : '';
+    var cVa = (c.vari || []).length ? '<h5>Vari e alaggi</h5>' + c.vari.map(function (v) { return '<div class="lv"><span class="d">' + esc(dataCorta(v.d)) + '</span><span>' + esc(v.t) + '</span></div>'; }).join('') : '';
+    var g = '';
+    if (cur === 'cr') g = cs(cOre + cVaro + (cOre || cVaro ? '' : '<p style="margin:0">Le ore dei motori e il varo compaiono qui quando il cantiere li segna.</p>')) + cs(cStato) + cs(cTag) + cs(d.richieste ? rqCard(id) : '') + x.av;
+    else if (cur === 'mo') g = cs(cMot) + cs(cSto) + cs(cTag);
+    else if (cur === 'at') g = cs(cAttr) + cs(cComp) + cs(cBatt) + (cAttr || cComp || cBatt ? '' : cs('<p style="margin:0">Il cantiere non ha ancora segnato attrezzatura e componenti.</p>'));
+    else if (cur === 'sc') g = cs(scC) + cs(cScL);
+    else if (cur === 'de') g = cs(x.depo || '<h5>In deposito al cantiere</h5><p style="margin:4px 0 0">Niente in deposito.</p>');
+    else if (cur === 'fo') g = cs(cFoto) + cs(cVb) + cs(cVa);
+    else g = cs(oreCard(id, d), 'cso') + cs(x.lav);
+    return h + '<div class="cg">' + g + '</div>';
+  }
   function renderCliente() {
     if (!CLIENTE || !ME) return;
     var h = '<h2>Ciao ' + esc(String(ME.nome || '').split(' ')[0]) + '</h2><p>La tua barca al cantiere ' + esc(nomeAz()) + ', sempre aggiornata.</p>';
@@ -1605,30 +1658,32 @@
       if (!d) { h += '<div class="card bc' + on + '"><p style="margin:0">Stiamo preparando i dati di questa barca: tra poco li vedi qui.</p></div>'; return; }
       var st = d.stato || 'In rimessaggio', cls = st === 'In acqua' ? 'acqua' : st === 'In lavorazione' ? 'lav' : '';
       var lav = d.lavori || [], open = CL.all[id], show = open ? lav : lav.slice(0, 8);
-      h += '<div class="card bc full' + on + '"><div class="bt"><div class="bh"><div><div class="bn">' + esc(d.nome || 'Barca') + '</div><div class="bm">' + esc([d.modello, d.lunghezza ? String(d.lunghezza).replace('.', ',') + ' m' : ''].filter(Boolean).join(' · ')) + '</div></div>' +
-        '<span class="st ' + cls + '">' + esc(st) + '</span></div>' +
-        doveCl(d) + '</div><div class="cg">' +
-        cs((d.deposito || []).length ? '<h5>In deposito al cantiere</h5>' + d.deposito.map(function (x) {
+      var img = function (f) { if (!PH[f]) setTimeout(function () { loadPhoto(f); }, 0); return '<img alt="" data-blob="' + esc(f) + '" src="' + esc(PH[f] || 'data:image/gif;base64,R0lGODlhAQABAAAAACw=') + '">'; };
+      var cDepo = (d.deposito || []).length ? '<h5>In deposito al cantiere</h5>' + d.deposito.map(function (x) {
           return '<div class="lv" style="align-items:center"><span style="flex:1">' + esc(x.cosa) + (x.quanti > 1 ? ' ×' + x.quanti : '') + '</span>' +
-            ((x.foto || []).length ? '<span class="dfo">' + x.foto.map(function (f) { if (!PH[f]) setTimeout(function () { loadPhoto(f); }, 0); return '<img alt="" data-blob="' + esc(f) + '" src="' + esc(PH[f] || 'data:image/gif;base64,R0lGODlhAQABAAAAACw=') + '">'; }).join('') + '</span>' : '') + '</div>';
-        }).join('') : '') +
-        (d.avanzamento || []).map(function (a) {
+            ((x.foto || []).length ? '<span class="dfo">' + x.foto.map(img).join('') + '</span>' : '') + '</div>';
+        }).join('') : '';
+      var cAv = (d.avanzamento || []).map(function (a) {
           var f = a.voci.filter(function (v) { return v.s === 'fatto'; }).length, pc = Math.round(f / a.voci.length * 100);
           return cs('<h5>' + esc(a.fine ? 'Lavori finiti' : 'Lavori in corso') + ': ' + esc(a.titolo) + (a.numero ? ' (n. ' + esc(a.numero) + ')' : '') + '</h5>' +
             '<div class="avb" aria-label="' + pc + '% fatto"><i style="width:' + pc + '%"></i></div><div class="upd" style="margin:4px 0 6px">Fatti ' + f + ' su ' + a.voci.length + ' (' + pc + '%)</div>' +
             a.voci.map(function (v) { return '<div class="lv"><span class="d">' + (v.s === 'fatto' ? '✅' : v.s === 'in_corso' ? '🔧' : '⬜') + '</span><span>' + esc(v.t) + (v.s === 'in_corso' ? ' <small>(in corso)</small>' : '') + '</span></div>'; }).join(''));
-        }).join('') +
-        cs(scCard(id, d)) +
-        cs(d.richieste ? rqCard(id) : '') +
-        cs(oreCard(id, d), 'cso') +
-        cs('<h5>Lavori eseguiti</h5>' +
+        }).join('');
+      var cLav = '<h5>Lavori eseguiti</h5>' +
         (lav.length ? show.map(function (l) { return '<div class="lv"><span class="d">' + esc(dataCorta(l.data)) + '</span><span>' + esc(l.titolo) + '</span></div>'; }).join('') +
           (lav.length > 8 ? '<button class="more" data-cl="more" data-id="' + esc(id) + '">' + (open ? 'Mostra meno' : 'Mostra tutti (' + lav.length + ')') + '</button>' : '')
-          : '<p style="margin:4px 0 0">Ancora nessun lavoro registrato.</p>')) + '</div>' +
+          : '<p style="margin:4px 0 0">Ancora nessun lavoro registrato.</p>');
+      var body;
+      if (d.cr) body = crBody(id, d, cs, img, { depo: cDepo, av: cAv, lav: cLav });
+      else body = '<div class="cg">' + cs(cDepo) + cAv + cs(scCard(id, d)) + cs(d.richieste ? rqCard(id) : '') + cs(oreCard(id, d), 'cso') + cs(cLav) + '</div>';
+      h += '<div class="card bc full' + on + '"><div class="bt"><div class="bh"><div><div class="bn">' + esc(d.nome || 'Barca') + '</div><div class="bm">' + esc([d.modello, d.lunghezza ? String(d.lunghezza).replace('.', ',') + ' m' : ''].filter(Boolean).join(' · ')) + '</div></div>' +
+        '<span class="st ' + cls + '">' + esc(st) + '</span></div>' +
+        doveCl(d) + '</div>' + body +
         (d.aggiornato ? '<div class="upd">Aggiornato il ' + esc(quando(d.aggiornato)) + '</div>' : '') + '</div>';
     });
     h += '<details class="gd"><summary>? Come funziona questa pagina</summary><ul>' +
       '<li>Per ogni tua barca vedi lo stato (in rimessaggio, in lavorazione, in acqua, consegnata) e dove si trova: al cantiere o al suo posto in porto.</li>' +
+      (CL.ids.some(function (id) { return CL.docs[id] && CL.docs[id].cr; }) ? '<li>Sotto il nome della barca ci sono le schede: Cruscotto (ore dei motori, giorni al varo, stato della barca e prossimi tagliandi), Motori (ore, storico e tagliandi), Attrezzatura (dotazioni, componenti e batterie), Scadenze, Deposito, Foto e storia e Lavori fatti. Alcune compaiono solo se il cantiere le mostra.</li>' : '') +
       '<li>Sotto ci sono le cose tue che il cantiere tiene in deposito (tender, cuscini, tendalini…), con le foto, e i lavori eseguiti, con la data.</li>' +
       (CL.ids.some(function (id) { return CL.docs[id] && CL.docs[id].ore; }) ? '<li>In «Ore di lavoro» vedi quante ore ha lavorato il cantiere sulla tua barca, divise per tipo di lavoro: tocca un tipo per leggere giorno per giorno cosa è stato fatto, come l’ha scritto chi ci ha lavorato, con il suo nome. Ci sono le giornate già confermate dal dipendente. Sopra scegli l’anno.</li>' : '') +
       '<li>Se il cantiere sta facendo i lavori di un preventivo, vedi quali sono fatti e quali mancano.</li>' +
@@ -1676,6 +1731,7 @@
     if (k === 'out') logout();
     else if (k === 'pw') auth.sendPasswordResetEmail(ME.email).then(function () { toast('Ti ho mandato l’email per cambiare la password.'); }, function (er) { toast(authErr(er)); });
     else if (k === 'tab') { CL.tab = t.getAttribute('data-id'); renderCliente(); var b0 = $('#nmfb .btabs'); if (b0) b0.scrollIntoView({ block: 'nearest' }); }
+    else if (k === 'st') { CL.st[t.getAttribute('data-id')] = t.getAttribute('data-t'); renderCliente(); var cs0 = document.querySelector('#nmfb .bc.on .crt [aria-selected="true"]') || document.querySelector('#nmfb .crt [aria-selected="true"]'); if (cs0) cs0.parentNode.scrollLeft += cs0.getBoundingClientRect().left - cs0.parentNode.getBoundingClientRect().left - 40; }
     else if (k === 'more') { var id = t.getAttribute('data-id'); CL.all[id] = !CL.all[id]; renderCliente(); }
     else if (k === 'oy') { CL.oy[t.getAttribute('data-id')] = t.getAttribute('data-y'); CL.oc[t.getAttribute('data-id')] = null; renderCliente(); }
     else if (k === 'oc') { var oi = t.getAttribute('data-id'), oc = t.getAttribute('data-c'); CL.oc[oi] = CL.oc[oi] === oc ? null : oc; renderCliente(); }
@@ -1705,7 +1761,13 @@
     var pid = Object.keys(P).filter(function (k) { return P[k].barcaId === bid; })[0], p = pid ? P[pid] : null;
     return { nome: b.nome || '', modello: b.modello || '', lunghezza: b.lunghezza || null, stato: b.stato || '', posto: b.posto || '',
       dove: ['msv', 'nm', 'porto', 'terzi'].indexOf(b.dove) >= 0 ? b.dove : '', doveNome: b.doveNome || '', doveLuogo: b.doveLuogo || '',
-      porto: p ? { posto: pid, contratto: p.contratto || '', fino: p.fino || '' } : null, lavori: lav, ore: ore, deposito: depoPortale(bid), avanzamento: avPortale(bid), richieste: sezAccesa('richieste', false), scadenze: scadPortale(bid), reperibili: repPortale() };
+      porto: p ? { posto: pid, contratto: p.contratto || '', fino: p.fino || '' } : null, lavori: lav, ore: ore, deposito: depoPortale(bid), avanzamento: avPortale(bid), richieste: sezAccesa('richieste', false), scadenze: scadPortale(bid), reperibili: repPortale(), cr: crPortale(bid) };
+  }
+  // cruscotto della scheda barca (6/11/2026): lo prepara il gestionale (index.html, __sbPortale) con i dati già caricati;
+  // le scadenze solo con «Scadenze ricordate al cliente» acceso, il deposito solo con «Roba del cliente in deposito»
+  function crPortale(bid) {
+    var f = window.__sbPortale; if (typeof f !== 'function') return null;
+    try { var c = f(bid); if (!c) return null; c.scadOn = sezAccesa('scadcliente', false); if (!c.scadOn) c.scad = []; c.deOn = sezAccesa('deposito', false); return c; } catch (e) { return null; }
   }
   // ore di lavoro al cliente (sezione orecliente, spenta di base): le mansioni della scheda lavoro
   // con il testo come l'ha scritto il dipendente, la categoria, le ore e il nome di chi l'ha fatta.
@@ -1764,10 +1826,14 @@
       .sort(function (a, c) { return String(a.cosa || '').localeCompare(String(c.cosa || ''), 'it'); })
       .slice(0, 40).map(function (x) { return { cosa: x.cosa || '', quanti: x.quanti || null, foto: (x.foto || []).slice(0, 4) }; });
   }
-  function fotoDi(s) { var o = []; (s && s.deposito || []).forEach(function (x) { (x.foto || []).forEach(function (f) { o.push(f); }); }); return o; }
+  function fotoDi(s) {
+    var o = []; (s && s.deposito || []).forEach(function (x) { (x.foto || []).forEach(function (f) { o.push(f); }); });
+    var c = s && s.cr; if (c) { (c.foto || []).forEach(function (f) { o.push(f); }); (c.verbali || []).forEach(function (v) { (v.foto || []).forEach(function (f) { o.push(f); }); }); }
+    return o;
+  }
   async function syncPortale() {
     var ids = linkedBoats(); if (!ids.length) return;
-    var need = ['barche', 'lavori', 'posti', 'deposito', 'impostazioni', 'portale', 'preventivi', 'scadenze', 'conferme'];
+    var need = ['barche', 'lavori', 'posti', 'deposito', 'impostazioni', 'portale', 'preventivi', 'scadenze', 'conferme', 'componenti', 'attrezzatura', 'vari'];
     for (var i = 0; i < need.length; i++) { var L = live(need[i]); await L.start; await whenReady(L, 15000); }
     var cur = LIVE.portale.map;
     ids.forEach(function (bid) {
