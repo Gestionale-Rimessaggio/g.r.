@@ -2617,13 +2617,71 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (k === 'programma') return sbCard('Programma lavori', sbLink('la', 'Tutti'), sbProgramma(b));
     return '';
   }
+  /* ---------- Piano tagliandi pronto per tipo di motore (idea 1.27, da HullHub) ----------
+     Dal tipo di motore propone le manutenzioni tipiche «ogni X ore o Y mesi, quella che arriva prima»: si spuntano,
+     si correggono gli intervalli e diventano scadenze che si ripetono (quelle del generatore hanno «Generatore» nel
+     nome, così vanno con le sue ore). Intervalli generici: vanno controllati sul manuale del motore. */
+  var TG_PIANI = {
+    fb: ['Fuoribordo', [['Olio motore e filtro', 100, 12], ['Olio del piede', 100, 12], ['Girante della pompa acqua', 200, 24], ['Candele', 200, 24], ['Filtro carburante', 100, 12], ['Anodi del motore', null, 12]]],
+    ea: ['Entrobordo diesel, linea d’asse', [['Olio motore e filtro', 250, 12], ['Filtro gasolio e prefiltro', 500, 12], ['Girante della pompa acqua mare', 500, 24], ['Cinghie', 500, 24], ['Filtro aria', 500, 24], ['Olio dell’invertitore', 500, 24], ['Liquido di raffreddamento', 1000, 48], ['Anodi e pulizia dello scambiatore', null, 12]]],
+    ep: ['Entrofuoribordo, piede poppiero', [['Olio motore e filtro', 100, 12], ['Filtro carburante', 200, 12], ['Girante della pompa acqua', 200, 24], ['Cinghie', 300, 24], ['Olio del piede', 100, 12], ['Soffietti del piede', null, 24], ['Anodi del piede', null, 12], ['Liquido di raffreddamento', 1000, 48]]],
+    ip: ['Entrobordo con IPS o pod', [['Olio motore e filtro', 250, 12], ['Filtro gasolio e prefiltro', 500, 12], ['Girante della pompa acqua mare', 500, 24], ['Cinghie', 500, 24], ['Filtro aria', 500, 24], ['Olio e filtro del pod', 500, 24], ['Anodi del pod', null, 12], ['Liquido di raffreddamento', 1000, 48]]],
+    ge: ['Generatore', [['Generatore: olio e filtro', 200, 12], ['Generatore: girante', 500, 12], ['Generatore: filtro gasolio', 500, 12], ['Generatore: anodo', null, 12]]]
+  };
+  function tgNorm(t) { return String(t || '').toLowerCase().replace(/[^a-zà-ù0-9]+/g, ' ').trim(); }
+  function tgSheet(b) {
+    var mt = b.motoreTipo, k0 = mt === 'Fuoribordo' ? 'fb' : mt === 'Entrofuoribordo' ? 'ep' : 'ea', ms = sbMotori(b), gs = sbGen(b);
+    var gia = openScad(b.id).map(function (x) { return tgNorm(x.s.tipo); }), oggi = todayISO();
+    function righe(k) {
+      return TG_PIANI[k][1].map(function (r, i) {
+        var c = gia.indexOf(tgNorm(r[0])) >= 0;
+        return '<div class="tg-r" style="display:grid;grid-template-columns:1fr 64px 64px;gap:8px;align-items:center;margin-bottom:8px">' +
+          '<label class="check" style="margin:0"><input type="checkbox" class="tg-c" data-k="' + k + '" data-i="' + i + '"' + (c ? '' : ' checked') + '> ' + esc(r[0]) + (c ? ' <span class="cap">(c’è già)</span>' : '') + '</label>' +
+          '<div class="field" style="margin:0"><input type="text" inputmode="numeric" class="tg-o" data-k="' + k + '" data-i="' + i + '" value="' + (r[1] != null ? r[1] : '') + '" placeholder="–" aria-label="Ore" style="padding:8px 10px"></div>' +
+          '<div class="field" style="margin:0"><input type="text" inputmode="numeric" class="tg-m" data-k="' + k + '" data-i="' + i + '" value="' + (r[2] != null ? r[2] : '') + '" placeholder="–" aria-label="Mesi" style="padding:8px 10px"></div></div>';
+      }).join('');
+    }
+    var testa = '<div style="display:grid;grid-template-columns:1fr 64px 64px;gap:8px;margin:4px 0 6px" class="cap"><span>Cosa fare</span><span>ogni ore</span><span>ogni mesi</span></div>';
+    var body = '<p class="context">' + esc(boatLabel(b)) + '. Scegli il tipo di motore: ti propongo le manutenzioni tipiche, «ogni tot ore o tot mesi, quella che arriva prima». Togli la spunta a quelle che non servono e correggi gli intervalli col manuale del motore.</p>' +
+      field(lab('f-tgk', 'Tipo di motore'), '<select id="f-tgk">' + opts(['fb', 'ea', 'ep', 'ip'].map(function (k) { return [k, TG_PIANI[k][0]]; }), k0) + '</select>') +
+      '<div class="grid2">' + field(lab('f-tgo', 'Ultima volta: ore motore'), inp('f-tgo', ms.length ? Math.max.apply(null, ms.map(function (m) { return m.ore || 0; })) || '' : num(b.oreMotore) != null ? b.oreMotore : '', 'type="text" inputmode="numeric" placeholder="es. 420"')) +
+      field(lab('f-tgd', 'Il giorno'), inp('f-tgd', oggi, 'type="date"')) + '</div>' +
+      '<p class="cap" style="margin:-4px 0 10px">Da qui contano le prossime: se non sai quando è stato fatto l’ultimo tagliando lascia le ore di oggi.</p>' +
+      '<div id="f-tgL">' + testa + righe(k0) + '</div>' +
+      (gs.length ? '<div class="lbl">Generatore' + (gs[0].modello ? ' · ' + esc(gs[0].modello) : '') + '</div>' +
+        field(lab('f-tgg', 'Ultima volta: ore del generatore'), inp('f-tgg', num(gs[0].ore) != null ? gs[0].ore : '', 'type="text" inputmode="numeric"')) + testa + righe('ge') : '') +
+      '<p class="cap">Diventano scadenze che si ripetono: le trovi in Scadenze e nel Cruscotto, e quando le segni fatte ripartono da sole. Con due motori conta quello con più ore.</p>';
+    openSheet({ title: 'Piano tagliandi', submitLabel: 'Crea le scadenze', body: body,
+      onOpen: function (f) { f.querySelector('#f-tgk').addEventListener('change', function () { f.querySelector('#f-tgL').innerHTML = testa + righe(this.value); }); },
+      onSubmit: async function (f) {
+        var d0 = val(f, 'f-tgd') || oggi, o0 = parseIntS(val(f, 'f-tgo')), g0 = f.querySelector('#f-tgg') ? parseIntS(val(f, 'f-tgg')) : null, now = new Date().toISOString(), out = [], bad = false;
+        var mod = ms.map(function (m) { return m.mod; }).filter(function (x, i, a) { return x && a.indexOf(x) === i; }).join(' + ');
+        Array.prototype.forEach.call(f.querySelectorAll('.tg-c'), function (c) {
+          if (!c.checked) return;
+          var k = c.getAttribute('data-k'), i = c.getAttribute('data-i'), r = TG_PIANI[k][1][+i], gen = k === 'ge', base = gen ? g0 : o0;
+          var to = f.querySelector('.tg-o[data-k="' + k + '"][data-i="' + i + '"]').value.trim(), tm = f.querySelector('.tg-m[data-k="' + k + '"][data-i="' + i + '"]').value.trim();
+          var ro = to ? parseIntS(to) : null, rm = tm ? parseIntS(tm) : null;
+          if ((to && !ro) || (tm && !rm)) { bad = true; return; }
+          if (ro && base == null) ro = null; // senza le ore di partenza resta solo a mesi
+          if (!ro && !rm) return;
+          out.push({ barcaId: b.id, tipo: r[0], modello: gen ? (gs[0].modello || '') : mod, data: rm ? addMonths(d0, rm) : null, oreScadenza: ro ? base + ro : null, ricorrenzaMesi: rm, ricorrenzaOre: ro,
+            note: 'Dal piano tagliandi pronto: intervallo tipico, da controllare sul manuale.', preavviso: null, fatta: false, ultimaEsecuzione: d0, creato: now, modificato: now });
+        });
+        if (bad) { formErr('Ore e mesi vanno scritti in numeri, per esempio 250 o 12.'); return false; }
+        if (!out.length) { formErr('Spunta almeno una manutenzione, con le ore o i mesi.'); return false; }
+        for (var i = 0; i < out.length; i++) { var rf = S.db.collection('scadenze').doc(), d = out[i]; if (!(await w(function () { return rf.set(d); }))) return false; }
+        toast(out.length === 1 ? 'Creata 1 scadenza' : 'Create ' + out.length + ' scadenze');
+        return true;
+      } });
+  }
+
   function sbTagBody(b) {
     var tg = sbTagliandi(b);
     return tg.length ? tg.slice(0, 6).map(function (x) {
       var c = x.i.level === 'late' ? 'var(--late)' : x.i.level === 'soon' ? 'var(--soon)' : 'var(--accent)';
       return '<div class="sb-tg"><span class="r"><span>' + esc(x.s.tipo || 'Tagliando') + (x.s.modello ? ' <em>· ' + esc(x.s.modello) + '</em>' : '') + '</span><span class="n" style="color:' + c + '">' + esc(x.txt) + '</span></span><span class="sb-bar"><i style="width:' + Math.round(x.used * 100) + '%;background:' + c + '"></i></span></div>';
     }).join('') + '<p class="cap" style="margin:8px 0 0">La barra è la parte dell’intervallo già passata, in ore o in mesi (vale la più avanti).</p>'
-      : '<p class="cap" style="margin:0">Nessun tagliando che si ripete. Aggiungi una scadenza con «ogni … ore» o «ogni … mesi» e la vedi qui.</p>';
+      : '<p class="cap" style="margin:0">Nessun tagliando che si ripete. Aggiungi una scadenza con «ogni … ore» o «ogni … mesi»' + (S.canWrite ? ', oppure parti dal <button type="button" class="link" data-act="tg-piano" data-id="' + esc(b.id) + '" style="padding:0">piano tagliandi pronto</button>' : '') + '.</p>';
   }
   function sbOrePts(b) { // le letture delle ore: dalla scheda (oreLog), dai lavori e dai verbali; per i motori conta quello con più ore
     var pts = {};
@@ -2652,7 +2710,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (rows.length && S.canWrite) h += '<button type="button" class="btn" data-act="ore" data-id="' + esc(b.id) + '" style="width:100%;margin-top:10px">' + I.hours + 'Aggiorna le ore</button>';
     if (b.motoreTipo && b.motoreTipo !== 'Nessuno') h += '<p class="cap" style="margin:8px 4px 0">Installazione: ' + esc(b.motoreTipo.toLowerCase()) + '.</p>';
     h += secH('Storico delle ore') + '<div class="sb-card">' + sbStorico(b) + '</div>';
-    h += secH('Prossimi tagliandi') + '<div class="sb-card">' + sbTagBody(b) + '</div>';
+    h += secH('Prossimi tagliandi', S.canWrite ? 'tg-piano' : '', 'Piano tagliandi pronto', ' data-id="' + esc(b.id) + '"') + '<div class="sb-card">' + sbTagBody(b) + '</div>';
     return h;
   }
   function sbHtml(b, P) {
@@ -10921,6 +10979,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     barca: { t: 'Scheda della barca', p: 'Qui c’è tutta la storia della barca.', li: [
       '«Dove si trova» nella matita: al porto, al cantiere o fuori (altro porto o cantiere di altri, con nome e paese). Quando segni fatto l’alaggio la barca passa da sola al cantiere, col varo al porto. Il cliente lo vede nella sua pagina con la stessa icona.',
       'La matita in alto modifica i dati: modello, misure, motori, stato, ore motore, proprietario con telefono ed email.',
+      '«Piano tagliandi pronto» (in Motori, accanto a Prossimi tagliandi): scegli il tipo di motore (fuoribordo, entrobordo con linea d’asse, piede poppiero, IPS) e l’app propone le manutenzioni tipiche «ogni tot ore o tot mesi»; correggi gli intervalli col manuale e diventano scadenze che si ripetono. Se c’è il generatore propone anche le sue.',
       '«Campi in più» (in Dati): l’amministratore con «Gestisci» aggiunge i vostri campi, per esempio «Codice Poseidon» o «Numero del carrello», nella scheda della barca o nella parte del cliente; poi si compilano con la matita, si cercano e finiscono in «Elenco delle barche in Excel». Il cliente nel portale non li vede.',
       'Nella matita ogni motore è una riga con marca e modello, matricola, cv e ore: «Aggiungi riga» per un altro motore (copia marca e cv del primo), × per toglierlo. Il numero dei motori si conta da solo.',
       'In alto ci sono le ore di ogni motore e del generatore: toccandole si aggiornano. Per i tagliandi dei motori conta quello con più ore; una scadenza con «generatore» nel nome va con le ore del generatore. Il generatore si aggiunge tra i componenti (tipo «Generatore»), con le sue ore.',
@@ -13369,6 +13428,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'sds-list': sdsLista(); break;
       case 'xl-import': xlSheet(); break;
       case 'xl-export': cpExcel(); break;
+      case 'tg-piano': var bt = boatById(id); if (bt) tgSheet(bt); break;
       case 'cp-gest': cpGestisci(); break;
       case 'cp-edit': cpModifica(id); break;
       case 'vb-list': var bvl = boatById(id); if (bvl) vbLista(bvl); break;
