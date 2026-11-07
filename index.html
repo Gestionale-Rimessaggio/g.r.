@@ -2574,26 +2574,59 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   /* ---------- Dotazioni e documenti obbligatori a bordo (idea 3.23, da HullHub) ----------
      Si sceglie fino a che distanza dalla costa naviga la barca e l'app elenca cosa serve a bordo, con lo stato di ognuno
      (a bordo, manca, non serve) e la data di scadenza dove c'è. Sta sulla barca in dotazioni {zona, voci: {k: {st, sc}}}.
-     L'elenco è indicativo (regolamento della nautica da diporto): va controllato con le norme in vigore. */
-  var DO_ZONE = [['z0', 'Entro 300 metri dalla costa'], ['z1', 'Entro 1 miglio'], ['z2', 'Entro 3 miglia'], ['z3', 'Entro 6 miglia'], ['z4', 'Entro 12 miglia'], ['z5', 'Entro 50 miglia'], ['z6', 'Oltre 50 miglia, senza limiti']];
-  // [chiave, nome, da quale zona serve (0-6), ha una scadenza, gruppo]
+     Voci e quantità dalla tabella delle dotazioni minime per distanza dalla costa (sotto). */
+  /* Zone e voci dalla tabella «Mezzi di salvataggio e dotazioni di sicurezza minime da tenere a bordo di imbarcazioni e natanti
+     da diporto in relazione alla distanza dalla costa» (Forniture Nautiche Italiane, adeguamento al D.M. del 2024). */
+  var DO_ZONE = [['z6', 'Senza alcun limite'], ['z5', 'Entro 50 miglia'], ['z4', 'Entro 12 miglia'], ['z3', 'Entro 6 miglia'], ['z2', 'Entro 3 miglia'], ['z1', 'Entro 1 miglio'], ['z0', 'Entro 300 metri'], ['ai', 'Acque interne']];
+  // [chiave, nome, { zona: quantità (1 = presente) }, ha una scadenza, gruppo, condizione]
+  var DO_TUTTE = { z6: 1, z5: 1, z4: 1 }, DO_LARGO = { z6: 1, z5: 1 };
   var DO_VOCI = [
-    ['estintori', 'Estintori (secondo la potenza del motore)', 0, true, 'd'], ['tromba', 'Segnale sonoro (tromba o fischio)', 0, false, 'd'], ['fanali', 'Fanali di navigazione', 0, false, 'd'],
-    ['sentina', 'Pompa di sentina o sassola', 0, false, 'd'], ['giubbotti', 'Giubbotti di salvataggio, uno per persona', 1, false, 'd'], ['ancora', 'Ancora con cima o catena', 1, false, 'd'],
-    ['fuochi', 'Fuochi a mano a luce rossa', 2, true, 'd'], ['salvagente', 'Salvagente anulare con cima', 3, false, 'd'], ['razzi', 'Razzi a paracadute a luce rossa', 3, true, 'd'],
-    ['bussola', 'Bussola', 3, false, 'd'], ['carte', 'Carte nautiche della zona', 3, false, 'd'], ['boetta', 'Boetta luminosa per il salvagente', 4, true, 'd'],
-    ['fumogeni', 'Boette fumogene', 4, true, 'd'], ['vhf', 'Radio VHF', 4, false, 'd'], ['cassetta', 'Cassetta di pronto soccorso', 4, true, 'd'],
-    ['zattera', 'Zattera autogonfiabile', 5, true, 'd'], ['binocolo', 'Binocolo', 5, false, 'd'], ['barometro', 'Barometro', 5, false, 'd'], ['carteggio', 'Strumenti da carteggio', 5, false, 'd'],
-    ['riflettore', 'Riflettore radar', 5, false, 'd'], ['fari', 'Elenco dei fari e segnali', 5, false, 'd'], ['epirb', 'EPIRB (radioboa di soccorso)', 6, true, 'd'],
-    ['assicurazione', 'Assicurazione RC', 0, true, 'c'], ['licenza', 'Licenza di navigazione (se immatricolata)', 0, false, 'c'], ['certsic', 'Certificato di sicurezza (se immatricolata)', 0, true, 'c'],
-    ['potenza', 'Certificato d’uso del motore o dichiarazione di potenza', 0, false, 'c'], ['radio', 'Licenza della stazione radio', 4, false, 'c']];
+    ['zattera', 'Zattera di salvataggio per tutte le persone a bordo', DO_LARGO, true, 'd'],
+    ['zatcost', 'Zattera di salvataggio costiera per tutte le persone a bordo', { z4: 1 }, true, 'd'],
+    ['g150', 'Giubbotto di salvataggio almeno 150N, uno per persona', DO_TUTTE, false, 'd'],
+    ['g100', 'Giubbotto di salvataggio almeno 100N, uno per persona', { z3: 1, z2: 1, z1: 1, ai: 1 }, false, 'd'],
+    ['luce', 'Luce ad attivazione automatica sui giubbotti', DO_TUTTE, true, 'd'],
+    ['salvagente', 'Salvagente anulare con cima', { z6: 1, z5: 1, z4: 1, z3: 1, z2: 1, ai: 1 }, false, 'd'],
+    ['boetta', 'Boetta luminosa per salvagente', { z6: 1, z5: 1, z4: 1, z3: 1 }, true, 'd'],
+    ['fumogeni', 'Boette fumogene', { z6: 2, z5: 2, z4: 2, z3: 2, z2: 1 }, true, 'd'],
+    ['fuochi', 'Fuochi a mano a luce rossa', { z6: 3, z5: 2, z4: 2, z3: 2, z2: 2 }, true, 'd'],
+    ['razzi', 'Razzi a paracadute a luce rossa', { z6: 3, z5: 2, z4: 2, z3: 2 }, true, 'd'],
+    ['bussola', 'Bussola e tabella di deviazioni', DO_TUTTE, false, 'd'], ['orologio', 'Orologio', DO_TUTTE, false, 'd'],
+    ['barometro', 'Barometro', DO_LARGO, false, 'd'], ['binocolo', 'Binocolo', DO_LARGO, false, 'd'],
+    ['scandaglio', 'Scandaglio elettronico o manuale fino a 20 m', DO_LARGO, false, 'd'],
+    ['colreg', 'Tabella dei segnali visivi diurni e notturni (Colreg)', DO_LARGO, false, 'd'],
+    ['carte', 'Carte nautiche della zona di navigazione', DO_LARGO, false, 'd'], ['carteggio', 'Strumento di carteggio', DO_LARGO, false, 'd'],
+    ['cassetta', 'Valigetta pronto soccorso', DO_LARGO, true, 'd'],
+    ['fanali', 'Fanali regolamentari', { z6: 1, z5: 1, z4: 1, z3: 1, z2: 1 }, false, 'd'],
+    ['pallone', 'Pallone nero di fonda (barche oltre 7 m)', { z6: 1, z5: 1, z4: 1, z3: 1, z2: 1, z1: 1 }, false, 'd', 'l7'],
+    ['fischio', 'Fischio e campana (barche oltre 12 m)', { z6: 1, z5: 1, z4: 1, z3: 1, z2: 1 }, false, 'd', 'l12'],
+    ['gps', 'Strumento di radioposizionamento (GPS)', DO_LARGO, false, 'd'], ['vhf', 'Apparato VHF', DO_TUTTE, false, 'd'],
+    ['epirb', 'EPIRB 406 MHz e 121,5 MHz', { z6: 1 }, true, 'd'],
+    ['riflettore', 'Riflettore radar', DO_LARGO, false, 'd'],
+    ['pompa', 'Pompa o altro attrezzo di esaurimento', { z6: 1, z5: 1, z4: 1, z3: 1, z2: 1, z1: 1 }, false, 'd'],
+    ['imbracatura', 'Imbracatura di sicurezza con nastro (safety line), barche a vela', { z6: 2, z5: 2, z4: 1 }, false, 'd', 'vela'],
+    ['estintori', 'Estintori (secondo motore e carburante, non sono in questa tabella)', { z6: 1, z5: 1, z4: 1, z3: 1, z2: 1, z1: 1, z0: 1, ai: 1 }, true, 'e'],
+    ['assicurazione', 'Assicurazione RC', { z6: 1, z5: 1, z4: 1, z3: 1, z2: 1, z1: 1, z0: 1, ai: 1 }, true, 'c'],
+    ['licenza', 'Licenza di navigazione (se immatricolata)', { z6: 1, z5: 1, z4: 1, z3: 1, z2: 1, z1: 1, z0: 1, ai: 1 }, false, 'c'],
+    ['certsic', 'Certificato di sicurezza (se immatricolata)', { z6: 1, z5: 1, z4: 1, z3: 1, z2: 1, z1: 1, z0: 1, ai: 1 }, true, 'c'],
+    ['potenza', 'Certificato d’uso del motore o dichiarazione di potenza', { z6: 1, z5: 1, z4: 1, z3: 1, z2: 1, z1: 1, z0: 1, ai: 1 }, false, 'c'],
+    ['radio', 'Licenza della stazione radio (se c’è il VHF)', DO_TUTTE, false, 'c']];
   function doCfg(b) { return b && b.dotazioni && typeof b.dotazioni === 'object' ? b.dotazioni : {}; }
   function doZona(b) { var z = doCfg(b).zona; return DO_ZONE.some(function (x) { return x[0] === z; }) ? z : ''; }
-  function doServono(z) { var n = +String(z).slice(1); return DO_VOCI.filter(function (v) { return v[2] <= n; }); }
+  function doServono(z, b) { // le voci per quella zona, tolte quelle che per la barca non contano (lunghezza nota, non a vela)
+    var L = b ? num(b.lunghezza) : null;
+    return DO_VOCI.filter(function (v) {
+      if (!v[2][z]) return false;
+      if (v[5] === 'l7' && L != null && L > 0 && L <= 7) return false;
+      if (v[5] === 'l12' && L != null && L > 0 && L <= 12) return false;
+      if (v[5] === 'vela' && b && b.tipo && b.tipo !== 'Vela') return false;
+      return true;
+    }).map(function (v) { var q = v[2][z]; return [v[0], q > 1 ? v[1] + ' · ' + q + ' pezzi' : v[1], v[2], v[3], v[4], v[5]]; });
+  }
   function doStato(b) { // cosa c'è, cosa manca, cosa scade (entro 30 giorni)
     var z = doZona(b), voci = doCfg(b).voci || {}, r = { z: z, bordo: 0, manca: [], scade: [], scaduto: [], vuote: 0, tot: 0 }; if (!z) return r;
-    doServono(z).forEach(function (v) {
-      var x = voci[v[0]] || {}, nm = v[1].replace(/ \(.*\)$/, ''); if (x.st === 'no') return; r.tot++;
+    doServono(z, b).forEach(function (v) {
+      var x = voci[v[0]] || {}, nm = v[1].replace(/ \([^)]*\)/, '').replace(/ · \d+ pezzi$/, ''); if (x.st === 'no') return; r.tot++;
       if (x.st === 'manca') r.manca.push(nm); else if (x.st === 'bordo') r.bordo++; else r.vuote++;
       if (x.st !== 'manca' && v[3] && x.sc) { var d = daysUntil(x.sc); if (d < 0) r.scaduto.push([nm, x.sc]); else if (d <= 30) r.scade.push([nm, x.sc]); }
     });
@@ -2608,13 +2641,13 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       '<div style="padding:10px 14px 4px;display:flex;flex-wrap:wrap">' + pill('ok', st.bordo + ' di ' + st.tot + ' a bordo') + (st.manca.length ? pill('late', st.manca.length + (st.manca.length === 1 ? ' manca' : ' mancano')) : '') +
       (st.scaduto.length ? pill('late', st.scaduto.length + ' scadut' + (st.scaduto.length === 1 ? 'a' : 'e')) : '') + (st.scade.length ? pill('soon', st.scade.length + ' in scadenza') : '') + (st.vuote ? pill('', st.vuote + ' da controllare') : '') + '</div>' +
       st.manca.map(function (x) { return riga(x, 'manca', 'late'); }).join('') + st.scaduto.map(function (x) { return riga(x[0], 'scaduta il ' + fmtDate(x[1]), 'late'); }).join('') + st.scade.map(function (x) { return riga(x[0], 'scade il ' + fmtDate(x[1]), 'soon'); }).join('') + '</div>' +
-      '<p class="cap" style="margin:6px 4px 0">Elenco indicativo secondo il regolamento della nautica da diporto: controllalo con le norme in vigore e con la potenza del motore.</p>';
+      '<p class="cap" style="margin:6px 4px 0">Dalla tabella delle dotazioni minime per distanza dalla costa (adeguamento del 2024). Le quantità sono per barca; giubbotti e zattera per tutte le persone a bordo.</p>';
   }
   function doSheet(b) {
     var c = doCfg(b), voci = Object.assign({}, c.voci || {}), z0 = doZona(b) || 'z3';
     function righe(z) {
       var gr = function (g, t) {
-        var l = doServono(z).filter(function (v) { return v[4] === g; }); if (!l.length) return '';
+        var l = doServono(z, b).filter(function (v) { return v[4] === g; }); if (!l.length) return '';
         return '<div class="lbl">' + t + '</div>' + l.map(function (v) {
           var x = voci[v[0]] || {};
           return '<div style="display:grid;grid-template-columns:1fr 150px;gap:8px;align-items:center;margin-bottom:10px"><span>' + esc(v[1]) + '</span>' +
@@ -2622,7 +2655,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
             (v[3] ? '<span class="cap" style="text-align:right">scade il</span><div class="field" style="margin:0"><input type="date" class="do-sc" data-k="' + v[0] + '" value="' + esc(x.sc || '') + '" style="padding:8px 10px" aria-label="' + esc(v[1]) + ': scade il"></div>' : '') + '</div>';
         }).join('');
       };
-      return gr('d', 'Dotazioni di sicurezza') + gr('c', 'Documenti di bordo');
+      return (doServono(z, b).some(function (v) { return v[4] === 'd'; }) ? '' : '<div class="notice" style="margin-bottom:12px">Per questa distanza la tabella non chiede dotazioni di sicurezza.</div>') +
+        gr('d', 'Dotazioni di sicurezza') + gr('e', 'Altro obbligatorio') + gr('c', 'Documenti di bordo');
     }
     function leggi(f) {
       Array.prototype.forEach.call(f.querySelectorAll('.do-st'), function (e) { var k = e.getAttribute('data-k'); voci[k] = Object.assign({}, voci[k] || {}, { st: e.value }); });
@@ -2631,7 +2665,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     openSheet({ title: 'Dotazioni e documenti', submitLabel: 'Salva',
       body: '<p class="context">' + esc(boatLabel(b)) + '. Scegli fino a che distanza dalla costa naviga: compare quello che serve a bordo. Per ognuno segna se c’è, se manca o se per questa barca non serve, e la scadenza dove c’è (zattera, estintori, razzi…).</p>' +
         field(lab('f-doz', 'Naviga'), '<select id="f-doz">' + opts(DO_ZONE, z0) + '</select>') + '<div id="f-doL">' + righe(z0) + '</div>' +
-        '<p class="cap">Elenco indicativo secondo il regolamento della nautica da diporto: va controllato con le norme in vigore, con il numero di persone e la potenza del motore.</p>',
+        '<p class="cap">Dalla tabella delle dotazioni minime per distanza dalla costa (adeguamento del 2024). Pallone di fonda, fischio e campana, imbracatura compaiono solo se servono per lunghezza e tipo della barca.</p>',
       onOpen: function (f) { f.querySelector('#f-doz').addEventListener('change', function () { leggi(f); f.querySelector('#f-doL').innerHTML = righe(this.value); }); },
       onSubmit: async function (f) {
         leggi(f);
@@ -11237,7 +11271,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     barca: { t: 'Scheda della barca', p: 'Qui c’è tutta la storia della barca.', li: [
       '«Dove si trova» nella matita: al porto, al cantiere o fuori (altro porto o cantiere di altri, con nome e paese). Quando segni fatto l’alaggio la barca passa da sola al cantiere, col varo al porto. Il cliente lo vede nella sua pagina con la stessa icona.',
       'La matita in alto modifica i dati: modello, misure, motori, stato, ore motore, proprietario con telefono ed email.',
-      '«Dotazioni e documenti obbligatori» (in Attrezzatura): scegli fino a che distanza dalla costa naviga la barca e compare quello che serve a bordo (estintori, giubbotti, razzi, zattera…) e i documenti; per ognuno segni a bordo, manca o non serve, e la scadenza. Quello che manca o scade finisce in «Da gestire» nel Cruscotto. L’elenco è indicativo: va controllato con le norme in vigore.',
+      '«Dotazioni e documenti obbligatori» (in Attrezzatura): scegli fino a che distanza dalla costa naviga la barca e compare quello che serve a bordo (giubbotti, razzi, zattera… con le quantità) e i documenti, secondo la tabella delle dotazioni minime per distanza dalla costa, anche per le acque interne; per ognuno segni a bordo, manca o non serve, e la scadenza. Quello che manca o scade finisce in «Da gestire» nel Cruscotto.',
       '«Piano tagliandi pronto» (in Motori, accanto a Prossimi tagliandi): scegli il tipo di motore (fuoribordo, entrobordo con linea d’asse, piede poppiero, IPS) e l’app propone le manutenzioni tipiche «ogni tot ore o tot mesi»; correggi gli intervalli col manuale e diventano scadenze che si ripetono. Se c’è il generatore propone anche le sue.',
       '«Campi in più» (in Dati): l’amministratore con «Gestisci» aggiunge i vostri campi, per esempio «Codice Poseidon» o «Numero del carrello», nella scheda della barca o nella parte del cliente; poi si compilano con la matita, si cercano e finiscono in «Elenco delle barche in Excel». Il cliente nel portale non li vede.',
       'Nella matita ogni motore è una riga con marca e modello, matricola, cv e ore: «Aggiungi riga» per un altro motore (copia marca e cv del primo), × per toglierlo. Il numero dei motori si conta da solo.',
