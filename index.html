@@ -10354,6 +10354,70 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     });
     return h;
   }
+  /* ---------- Consumabili scalati in automatico (idea 4.17) ----------
+     Regole come «carteggiatura: 2 dischi abrasivi ogni ora». Quando si salva una mansione NUOVA nella scheda lavoro
+     con quelle parole, l'articolo finisce tra i ricambi della mansione (ore × quantità) e quindi si scala dal magazzino
+     come tutti i ricambi. Se il ricambio è già scritto nella mansione non si aggiunge; si può sempre togliere modificando
+     la mansione. Le regole le scrive l'admin, in impostazioni/consumabili. */
+  function csList() { var c = S.csCfg; return c && !c._del && Array.isArray(c.lista) ? c.lista : []; }
+  function csQta(m, x) { var pz = !m || ['pz', 'paia', 'conf.', 'latta', 'tanica', 'rotolo'].indexOf(m.um || 'pz') >= 0; return pz ? Math.max(1, Math.round(x)) : Math.round(x * 100) / 100; }
+  function csApplica(titolo, ore, ric) { // torna i ricambi da aggiungere
+    var w = moParole(titolo), out = [];
+    if (!w.length || !(num(ore) > 0)) return out;
+    csList().forEach(function (r) {
+      var k = moParole(r.p), m = S.mag.find(function (a) { return a.id === r.a; }); if (!k.length || !m || !(num(r.q) > 0)) return;
+      var hit = k.filter(function (x) { return w.indexOf(x) >= 0; }).length; if (hit < Math.max(1, Math.ceil(k.length * 0.6))) return;
+      if ((ric || []).concat(out).some(function (x) { return x.articoloId === m.id; })) return;
+      out.push({ nome: m.nome, qta: csQta(m, num(ore) * num(r.q)), articoloId: m.id, um: m.um || '', auto: true });
+    });
+    return out;
+  }
+  function csTxt(l) { return l.map(function (x) { return fmtNum(x.qta, 2) + ' ' + (x.um ? x.um + ' ' : '') + x.nome; }).join(', '); }
+  function csRiga(r, arts) {
+    r = r || {};
+    return '<div class="cs-r" style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)">' +
+      '<div style="display:grid;grid-template-columns:1fr 36px;gap:8px;align-items:center"><div class="field" style="margin:0"><input type="text" class="cs-p" value="' + esc(r.p || '') + '" placeholder="Parole della mansione, es. carteggiatura" aria-label="Parole della mansione" style="padding:8px 10px"></div>' +
+      '<button type="button" class="link cs-x" aria-label="Togli" style="font-size:20px">×</button></div>' +
+      '<div style="display:grid;grid-template-columns:1fr 76px;gap:8px;align-items:center;margin-top:8px"><div class="field" style="margin:0"><select class="cs-a" aria-label="Articolo del magazzino"><option value="">— articolo —</option>' +
+      arts.map(function (m) { return '<option value="' + esc(m.id) + '"' + (m.id === r.a ? ' selected' : '') + '>' + esc(m.nome) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field" style="margin:0"><input type="text" inputmode="decimal" class="cs-q" value="' + (num(r.q) != null ? String(r.q).replace('.', ',') : '') + '" placeholder="ogni ora" aria-label="Quantità ogni ora" style="padding:8px 10px"></div></div>' +
+      '<span class="cap cs-h" style="display:block;margin:4px 2px 0"></span></div>';
+  }
+  function csHint(row) {
+    var m = S.mag.find(function (a) { return a.id === row.querySelector('.cs-a').value; }), q = parseDec(row.querySelector('.cs-q').value), p = row.querySelector('.cs-p').value.trim();
+    row.querySelector('.cs-h').textContent = m && q > 0 && p ? 'Es. «' + p + '» per 4 ore → ' + fmtNum(csQta(m, 4 * q), 2) + ' ' + (m.um || 'pz') + ' scalati' : m && !(q > 0) ? 'Scrivi quanti ' + (m.um || 'pz') + ' ogni ora' : '';
+  }
+  function csSheet() {
+    var arts = S.mag.slice().sort(byName), l = csList(), ed = S.isOwner && S.canWrite;
+    if (!ed) {
+      openSheet({ title: 'Consumabili automatici', menu: true, body: l.length ? '<div class="group">' + l.map(function (r) { var m = S.mag.find(function (a) { return a.id === r.a; }); return '<div class="row"><span class="main"><span class="title">' + esc(r.p) + '</span><span class="sub">' + esc(fmtNum(num(r.q), 2) + ' ' + (m ? (m.um || 'pz') + ' ' + m.nome : 'articolo tolto') + ' ogni ora') + '</span></span></div>'; }).join('') + '</div>' : '<div class="notice">Nessuna regola.</div>' });
+      return;
+    }
+    openSheet({ title: 'Consumabili automatici', submitLabel: 'Salva',
+      body: '<p class="context">Quando nella scheda lavoro si salva una mansione con queste parole, il materiale si scala da solo dal magazzino: ore della mansione × quantità ogni ora. Finisce tra i ricambi della mansione, dove si può correggere.</p>' +
+        '<div id="f-csR">' + (l.length ? l : [{}]).map(function (r) { return csRiga(r, arts); }).join('') + '</div>' +
+        '<button type="button" class="link self-start" id="f-csA" style="margin:0 0 12px">＋ Aggiungi una regola</button>' +
+        '<p class="cap" style="margin:0">Vale per le mansioni nuove. Se nella mansione il pezzo è già scritto non lo aggiungo una seconda volta.</p>',
+      onOpen: function (f) {
+        var box = f.querySelector('#f-csR');
+        Array.prototype.forEach.call(box.querySelectorAll('.cs-r'), csHint);
+        f.querySelector('#f-csA').addEventListener('click', function () { box.insertAdjacentHTML('beforeend', csRiga({}, arts)); var x = box.querySelectorAll('.cs-p'); x[x.length - 1].focus(); });
+        box.addEventListener('click', function (e) { var x = e.target.closest('.cs-x'); if (x) x.closest('.cs-r').remove(); });
+        box.addEventListener('input', function (e) { var r = e.target.closest('.cs-r'); if (r) csHint(r); });
+        box.addEventListener('change', function (e) { var r = e.target.closest('.cs-r'); if (r) csHint(r); });
+      },
+      onSubmit: async function (f) {
+        var out = [], bad = false;
+        Array.prototype.forEach.call(f.querySelectorAll('.cs-r'), function (r) {
+          var pp = r.querySelector('.cs-p').value.trim(), a = r.querySelector('.cs-a').value, q = parseDec(r.querySelector('.cs-q').value);
+          if (!pp && !a) return; if (!pp || !a || !(q > 0) || !moParole(pp).length) { bad = true; return; } out.push({ p: pp, a: a, q: q });
+        });
+        if (bad) { formErr('Ogni regola vuole le parole della mansione, l’articolo e quanti ogni ora.'); return false; }
+        var ref = S.db.collection('impostazioni').doc('consumabili'), d = { lista: out, modificato: new Date().toISOString() };
+        var ok = await w(function () { return ref.set(d); }); if (ok) { S.csCfg = d; toast('Regole salvate'); render(); } return ok;
+      } });
+  }
+
   function viewMagazzino() {
     return exampleBanner() + '<div class="search">' + I.search + '<input id="mq" type="search" placeholder="Cerca articolo, marca, codice o fornitore" value="' + esc(V.magQ) + '" autocomplete="off" aria-label="Cerca nel magazzino"></div>' +
       (S.canWrite ? '<button type="button" class="btn" data-act="mag-carico" style="width:100%;margin-top:10px">' + I.plus + 'Carico di più articoli (bolla)</button>' : '') +
@@ -10361,6 +10425,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       (S.isOwner && S.canWrite && marcheDaSistemare().length ? '<button type="button" class="btn sec" data-act="mag-marche" style="width:100%;margin-top:10px">' + I.pencil + 'Sistema le marche · ' + marcheDaSistemare().length + '</button>' : '') +
       (S.mag.length ? '<button type="button" class="btn sec" data-act="' + (S.canWrite ? 'mag-move' : 'mag-find') + '" style="width:100%;margin-top:10px">' + I.camera + (S.canWrite ? (aiOn() ? 'Carico o scarico dalla foto' : 'Carico o scarico col codice a barre') : aiOn() ? 'Trova dalla foto' : 'Trova col codice a barre') + '</button>' + (aiOn() ? '<p class="cap" style="margin:4px 2px 0">Codice a barre o, se non c’è, l’etichetta o la scatola.</p>' : '') : '') +
       (S.mag.length ? '<div class="grid2" style="margin-top:10px"><button type="button" class="btn sec" data-act="kit-list">' + I.list + 'Kit ricambi' + ((S.kit || []).length ? ' · ' + S.kit.length : '') + '</button><button type="button" class="btn sec" data-act="tab" data-tab="inventario">' + I.check + 'Inventario' + (invOpen() ? ' · in corso' : '') + '</button></div>' : '') +
+      (S.mag.length && (csList().length || (S.isOwner && S.canWrite)) ? '<button type="button" class="btn sec" data-act="cs-open" style="width:100%;margin-top:10px">' + I.updown + 'Consumabili automatici' + (csList().length ? ' · ' + csList().length + (csList().length === 1 ? ' regola' : ' regole') : '') + '</button>' : '') +
       (S.mag.length ? '<button type="button" class="btn sec" data-act="mag-shop" style="width:100%;margin-top:10px">' + I.cart + 'Lista della spesa' + (shopList().length ? ' · ' + shopList().length + (shopList().length === 1 ? ' articolo' : ' articoli') : '') + '</button>' : '') +
       (S.mag.length ? '<div class="chips" role="group" aria-label="Raggruppa gli articoli" style="margin-top:10px"><button type="button" data-act="mag-group" data-g="tipo" aria-pressed="' + (V.magGroup !== 'cat') + '">Per tipo</button><button type="button" data-act="mag-group" data-g="cat" aria-pressed="' + (V.magGroup === 'cat') + '">Per categoria</button><button type="button" data-act="mag-group" data-g="forn" aria-pressed="' + (V.magGroup === 'forn') + '">Per fornitore</button></div>' : '') +
       (S.mag.length && sdsOn() ? '<button type="button" class="btn sec" data-act="sds-list" style="width:100%;margin-top:10px">' + I.doc + 'Schede di sicurezza · ' + S.mag.filter(sdsHa).length + ' di ' + S.mag.filter(function (m) { return sdsHa(m) || sdsServe(m); }).length + '</button>' : '') +
@@ -11265,6 +11330,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       '«Carico di più articoli (bolla)» carica in una volta sola tutto quello che è arrivato; se un articolo non esiste lo crea.',
       'Il codice a barre si legge con la fotocamera per caricare, scaricare o trovare un articolo.',
       '«Riconosci dalla foto» compila nome e tipo di un ricambio. I kit sono gruppi di pezzi da usare insieme.',
+      '«Consumabili automatici» (lo imposta l’admin): regole come «carteggiatura: 2 dischi abrasivi ogni ora». Quando nella scheda lavoro salvate una mansione con quelle parole, il materiale si scala da solo e compare tra i ricambi della mansione.',
       '«Carico o scarico dalla foto»: se il pezzo non ha il codice a barre, fotografa l’etichetta o la scatola. L’AI legge codice e descrizione e l’app ti propone gli articoli simili già in magazzino; se non c’è, lo aggiungi già compilato.',
       'Inventario: si contano gli articoli un posto alla volta, anche in più persone dal proprio telefono.',
       'A|Alla fine dell’inventario vedi le differenze e lo chiudi: le giacenze si correggono lasciando traccia.'] },
@@ -12557,16 +12623,18 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         var ok;
         if (isNew) {
           data.stato = 'fatto'; data.descr = ''; data.importo = null; data.oreMotore = null; data.utente = S.myId; data.fonte = 'scheda'; data.creato = now;
+          var csAgg = csApplica(data.titolo, data.oreLavoro, data.ricambi); if (csAgg.length) data.ricambi = data.ricambi.concat(csAgg);
           if (isConfirmed(S.myId, giorno)) data.aggiuntaDopoConferma = true;
           var ref = S.db.collection('lavori').doc(); ok = await w(function () { return ref.set(data); });
           for (var ri = 0; ok && ri < righe.length; ri++) {
             var rd = Object.assign({}, data, { titolo: righe[ri].titolo, oreLavoro: righe[ri].ore, categoria: guessCatInfo(righe[ri].titolo, '', bv === '__cantiere', bv).cat || 'Altro', ricambi: [], foto: [], attrId: '', opId: '' });
+            rd.ricambi = csApplica(rd.titolo, rd.oreLavoro, []); csAgg = csAgg.concat(rd.ricambi);
             var rr = S.db.collection('lavori').doc(); ok = await w(function () { return rr.set(rd); });
           }
         } else { var r2 = S.db.collection('lavori').doc(l.id); ok = await w(function () { return r2.update(data); }); }
         if (ok && opt && opt.after) await opt.after();
         if (ok) sospAvvisa(Object.assign({ id: isNew ? ref.id : l.id, utente: isNew ? S.myId : l.utente }, data));
-        if (ok) { V.schedaDay = giorno; toast(isNew ? (righe.length ? 'Salvate ' + (righe.length + 1) + ' righe' : 'Mansione salvata') : 'Mansione aggiornata'); render(); rifSuggest(data, isNew ? ref.id : l.id, isNew ? [] : l.ricambi, isNew || !!l.daSegnare); }
+        if (ok) { V.schedaDay = giorno; toast((isNew ? (righe.length ? 'Salvate ' + (righe.length + 1) + ' righe' : 'Mansione salvata') : 'Mansione aggiornata') + (isNew && csAgg.length ? ' · scalati in automatico: ' + csTxt(csAgg) : '')); render(); rifSuggest(data, isNew ? ref.id : l.id, isNew ? [] : l.ricambi, isNew || !!l.daSegnare); }
         return ok;
       }
     });
@@ -13688,6 +13756,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'xl-import': xlSheet(); break;
       case 'xl-export': cpExcel(); break;
       case 'mo-lista': moLista(); break;
+      case 'cs-open': csSheet(); break;
       case 'mo-edit': moEdit(id); break;
       case 'mo-applica': var bm = boatById(id); if (bm) moApplica(bm); break;
       case 'do-open': var bd = boatById(id); if (bd) doSheet(bd); break;
@@ -14113,7 +14182,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     db.collection('impostazioni').onSnapshot(function (snap) {
       var m = null, b = null, ly = {}, asp = null;
       var pm0 = S.portoMio; S.portoMio = null; S.got.impostazioni = true;
-      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'ai') S.aiCfg = d.data(); else if (d.id === 'campi') S.campiCfg = d.data(); else if (d.id === 'modelliLavoro') S.moCfg = d.data(); else if (d.id === 'depositi') S.depCfg = d.data(); else if (d.id === 'emergenze') S.emCfg = d.data(); else if (d.id === 'reperibilita') S.repCfg = d.data(); else if (d.id === 'pacchetto') S.pacCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'schedaBarca') S.sbCfg = d.data(); else if (d.id === 'schede') S.schCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'vernice') S.vnCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'porto') S.portoMio = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
+      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'ai') S.aiCfg = d.data(); else if (d.id === 'campi') S.campiCfg = d.data(); else if (d.id === 'modelliLavoro') S.moCfg = d.data(); else if (d.id === 'consumabili') S.csCfg = d.data(); else if (d.id === 'depositi') S.depCfg = d.data(); else if (d.id === 'emergenze') S.emCfg = d.data(); else if (d.id === 'reperibilita') S.repCfg = d.data(); else if (d.id === 'pacchetto') S.pacCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'schedaBarca') S.sbCfg = d.data(); else if (d.id === 'schede') S.schCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'vernice') S.vnCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'porto') S.portoMio = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
       var mc = m !== S.mapCfg; S.mapCfg = m; S.bkInfo = b; S.layouts = ly; S.aspetto = asp;
       if (NM_MARCA.dalDatabase(asp) && V.asp) NM_MARCA.prova(V.asp); // l'aspetto scelto vale subito per tutti
       if ((V.tab === 'mappa' && (mc || pm0 !== S.portoMio)) || V.tab === 'aspetto' || V.tab === 'backup' || V.tab === 'batterie' || V.tab === 'rifiuti' || V.tab === 'notifiche' || V.tab === 'categorie' || V.tab === 'home' || V.tab === 'barche' || V.tab === 'pannello' || V.tab === 'riepiloghi') { if (!LY.drag) render(); }
