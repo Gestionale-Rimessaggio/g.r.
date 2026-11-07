@@ -10359,7 +10359,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       (S.canWrite ? '<button type="button" class="btn" data-act="mag-carico" style="width:100%;margin-top:10px">' + I.plus + 'Carico di più articoli (bolla)</button>' : '') +
       (S.isOwner && S.canWrite ? '<button type="button" class="btn sec" data-act="mag-xl" style="width:100%;margin-top:10px">' + I.doc + 'Articoli da Excel</button>' : '') +
       (S.isOwner && S.canWrite && marcheDaSistemare().length ? '<button type="button" class="btn sec" data-act="mag-marche" style="width:100%;margin-top:10px">' + I.pencil + 'Sistema le marche · ' + marcheDaSistemare().length + '</button>' : '') +
-      (S.mag.length ? '<button type="button" class="btn sec" data-act="' + (S.canWrite ? 'mag-move' : 'mag-find') + '" style="width:100%;margin-top:10px">' + I.camera + (S.canWrite ? 'Carico o scarico col codice a barre' : 'Trova col codice a barre') + '</button>' : '') +
+      (S.mag.length ? '<button type="button" class="btn sec" data-act="' + (S.canWrite ? 'mag-move' : 'mag-find') + '" style="width:100%;margin-top:10px">' + I.camera + (S.canWrite ? (aiOn() ? 'Carico o scarico dalla foto' : 'Carico o scarico col codice a barre') : aiOn() ? 'Trova dalla foto' : 'Trova col codice a barre') + '</button>' + (aiOn() ? '<p class="cap" style="margin:4px 2px 0">Codice a barre o, se non c’è, l’etichetta o la scatola.</p>' : '') : '') +
       (S.mag.length ? '<div class="grid2" style="margin-top:10px"><button type="button" class="btn sec" data-act="kit-list">' + I.list + 'Kit ricambi' + ((S.kit || []).length ? ' · ' + S.kit.length : '') + '</button><button type="button" class="btn sec" data-act="tab" data-tab="inventario">' + I.check + 'Inventario' + (invOpen() ? ' · in corso' : '') + '</button></div>' : '') +
       (S.mag.length ? '<button type="button" class="btn sec" data-act="mag-shop" style="width:100%;margin-top:10px">' + I.cart + 'Lista della spesa' + (shopList().length ? ' · ' + shopList().length + (shopList().length === 1 ? ' articolo' : ' articoli') : '') + '</button>' : '') +
       (S.mag.length ? '<div class="chips" role="group" aria-label="Raggruppa gli articoli" style="margin-top:10px"><button type="button" data-act="mag-group" data-g="tipo" aria-pressed="' + (V.magGroup !== 'cat') + '">Per tipo</button><button type="button" data-act="mag-group" data-g="cat" aria-pressed="' + (V.magGroup === 'cat') + '">Per categoria</button><button type="button" data-act="mag-group" data-g="forn" aria-pressed="' + (V.magGroup === 'forn') + '">Per fornitore</button></div>' : '') +
@@ -11265,6 +11265,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       '«Carico di più articoli (bolla)» carica in una volta sola tutto quello che è arrivato; se un articolo non esiste lo crea.',
       'Il codice a barre si legge con la fotocamera per caricare, scaricare o trovare un articolo.',
       '«Riconosci dalla foto» compila nome e tipo di un ricambio. I kit sono gruppi di pezzi da usare insieme.',
+      '«Carico o scarico dalla foto»: se il pezzo non ha il codice a barre, fotografa l’etichetta o la scatola. L’AI legge codice e descrizione e l’app ti propone gli articoli simili già in magazzino; se non c’è, lo aggiungi già compilato.',
       'Inventario: si contano gli articoli un posto alla volta, anche in più persone dal proprio telefono.',
       'A|Alla fine dell’inventario vedi le differenze e lo chiudi: le giacenze si correggono lasciando traccia.'] },
     preventivi: { t: 'Preventivi', p: 'I preventivi in ore e ricambi, anche dalla foto di quello dell’ufficio.', li: [
@@ -12747,11 +12748,75 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function ricDueCount(b) { return ricOfBoat(b).filter(function (r) { return r.lvl === 'late' || r.lvl === 'soon'; }).length; }
 
   /* ---------- Carico e scarico col codice a barre ---------- */
-  async function scanMove(pp) {
+  /* ---------- Articolo dalla foto dell'etichetta (idea 4.16) ----------
+     Per i ricambi senza codice a barre (o con un codice non in magazzino): l'AI legge l'etichetta o la scatola
+     (codice, marca, descrizione) e l'app cerca gli articoli già in magazzino più simili, prima per codice e poi per parole.
+     Si sceglie quello giusto (carico o scarico) oppure si crea un articolo nuovo già compilato. */
+  var AI_ETICH = 'Sei in un cantiere nautico italiano. Nella foto c’è l’etichetta, la scatola o la confezione di un ricambio, di un prodotto o di un materiale. Leggi quello che c’è scritto. ' +
+    'Rispondi SOLO con un JSON: {"codice": codice articolo o part number (P/N, Art., Cod., Ref.) se leggibile, altrimenti "", "altriCodici": altri codici leggibili (EAN escluso) separati da virgola o "", ' +
+    '"marca": marca, "descrizione": descrizione scritta sull’etichetta, "nome": nome breve in italiano come lo scriverebbe un meccanico (es. "Filtro olio Yamaha F200"), ' +
+    '"tipo": uno tra "ricambio","consumo","prodotto","accessorio","utensile" o "", "unita": uno tra "pz","l","kg","m","conf.","latta","tanica","rotolo","paia" o ""}. Non inventare: se non leggi un dato metti "".';
+  function etCod(x) { return String(x || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+  function etParole(t) { return xlNorm(t).split(/[^a-z0-9]+/).filter(function (x) { return x.length >= 3 && MO_VUOTE.indexOf(x) < 0; }).map(function (x) { return x.slice(0, 5); }); }
+  function etCerca(r) { // gli articoli più simili a quello letto: [{ m, p (punti), perche }]
+    var codici = [r.codice].concat(String(r.altriCodici || '').split(/[,;]/)).map(etCod).filter(function (c) { return c.length >= 4; });
+    var w = etParole([r.nome, r.descrizione].join(' ')), mar = xlNorm(r.marca || '');
+    var out = S.mag.map(function (m) {
+      var mc = etCod(m.codice), mn = etCod(m.nome), p = 0, perche = '';
+      codici.forEach(function (c) {
+        if (mc && mc === c) { p = Math.max(p, 100); perche = 'stesso codice'; }
+        else if ((mc && mc.length >= 4 && (mc.indexOf(c) >= 0 || c.indexOf(mc) >= 0)) || mn.indexOf(c) >= 0) { if (p < 80) { p = 80; perche = 'codice simile'; } }
+      });
+      if (p < 80 && w.length) {
+        var aw = etParole([m.nome, m.marca].join(' ')), hit = w.filter(function (x) { return aw.indexOf(x) >= 0; }).length;
+        var q = aw.length ? Math.round(60 * hit / Math.max(aw.length, Math.min(w.length, 4))) : 0;
+        if (mar && m.marca && xlNorm(m.marca) === mar) q += 10;
+        if (q > p) { p = q; perche = 'nome simile'; }
+      }
+      return { m: m, p: p, perche: perche };
+    }).filter(function (x) { return x.p >= 30; }).sort(function (a, b) { return b.p - a.p; });
+    return out.slice(0, 4);
+  }
+  async function etFoto(file, modo) { // modo: 'move' (carico o scarico), 'find' (solo trova), 'rc' (ricambio della mansione) — torna l'articolo o null
+    toast('Leggo l’etichetta…');
+    var r; try { r = await aiAsk(await fileToDataUrl(file, 1600), AI_ETICH) || {}; } catch (e) { toast(aiErrMsg(e), true); return null; }
+    var letto = [aiStr(r.marca), aiStr(r.nome) || aiStr(r.descrizione), aiStr(r.codice) ? 'cod. ' + aiStr(r.codice) : ''].filter(Boolean).join(' · ');
+    if (!letto) { toast('Non sono riuscito a leggere l’etichetta: prova più vicino e senza riflessi.', true); return null; }
+    var c = etCerca(r);
+    if (modo === 'rc') return { r: r, c: c, letto: letto };
+    if (c.length && c[0].p >= 100 && (c.length === 1 || c[1].p < 100)) { toast('Dall’etichetta: ' + c[0].m.nome); if (modo === 'find') magSheet(c[0].m); else movSheet(c[0].m); return c[0].m; }
+    var st = stockMap();
+    openSheet({ title: 'Dalla foto dell’etichetta', menu: true,
+      body: '<div class="preview">Ho letto: <b>' + esc(letto) + '</b></div>' +
+        (c.length ? '<div class="lbl" style="margin-top:14px">' + (c.length === 1 ? 'È questo?' : 'È uno di questi?') + '</div><div class="group">' + c.map(function (x) {
+          return '<button type="button" class="row" data-act="et-sce" data-id="' + esc(x.m.id) + '" data-modo="' + modo + '"><span class="main"><span class="title">' + esc(x.m.nome) + '</span><span class="sub">' +
+            esc([x.m.codice ? 'cod. ' + x.m.codice : '', 'in magazzino ' + fmtQ(st[x.m.id] || 0, x.m.um), x.perche].filter(Boolean).join(' · ')) + '</span></span></button>'; }).join('') + '</div>'
+          : '<div class="notice" style="margin-top:12px">Non ho trovato niente di simile in magazzino.</div>') +
+        (S.canWrite ? '<button type="button" class="btn ' + (c.length ? 'sec' : '') + '" data-act="et-nuovo" style="width:100%;margin-top:12px">' + I.plus + (c.length ? 'Nessuno: è un articolo nuovo' : 'Aggiungilo come articolo nuovo') + '</button>' : '') +
+        '<p class="cap" style="margin-top:10px">L’AI legge l’etichetta e io cerco per codice e per nome: controlla che sia proprio quello.</p>' });
+    SHEET.et = r;
+    return null;
+  }
+  function etNuovo(r) {
+    closeSheet();
+    setTimeout(function () {
+      magSheet(null);
+      setTimeout(function () {
+        function set(id, v) { var el = $('#' + id); if (el && v) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); } }
+        set('f-mn', aiStr(r.nome) || aiStr(r.descrizione)); set('f-mcod', aiStr(r.codice)); if (r.marca) set('f-mmar', guessMarca(r.marca) || aiStr(r.marca));
+        if (r.tipo && TIPI_ART.some(function (x) { return x[0] === r.tipo; })) set('f-mt', r.tipo);
+        if (r.unita && UM.indexOf(r.unita) >= 0) set('f-mu', r.unita);
+        var nt = $('#f-mnote'); if (nt && !nt.value && aiStr(r.descrizione) && aiStr(r.descrizione) !== aiStr(r.nome)) nt.value = aiStr(r.descrizione);
+      }, 80);
+    }, 30);
+  }
+  async function scanMove(pp, modo) {
+    modo = modo || 'move';
     var file = await (pp || pickPhoto()); if (!file) return;
     var code = await readBarcode(file), m = magByCode(code);
-    if (m) movSheet(m);
-    else if (code) { toast('Codice ' + code + ' non in magazzino: lo aggiungo come nuovo articolo'); magSheet(null); setTimeout(function () { var c = $('#f-mcod'); if (c) c.value = code; }, 80); }
+    if (m) { if (modo === 'find') magSheet(m); else movSheet(m); return; }
+    if (aiOn()) { await etFoto(file, modo); return; }
+    if (code) { toast('Codice ' + code + ' non in magazzino: lo aggiungo come nuovo articolo'); magSheet(null); setTimeout(function () { var c = $('#f-mcod'); if (c) c.value = code; }, 80); }
     else toast('Codice a barre non trovato nella foto: prova più vicino e dritto.', true);
   }
   function movSheet(m) {
@@ -13257,7 +13322,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var file = await pickPhoto(); if (!file) return;
     toast('Riconosco il ricambio…');
     var code = await readBarcode(file), m = magByCode(code), nome = m ? m.nome : null;
-    if (!nome && aiOn()) { try { var r = await aiAsk(await fileToDataUrl(file, 1280), AI_PEZZO); nome = r.nome ? r.nome + (r.codice ? ' ' + r.codice : '') : null; var m2 = r.codice && magByCode(r.codice); if (m2) nome = m2.nome; } catch (e) { toast(aiErrMsg(e), true); return; } }
+    if (!nome && aiOn()) { var et = await etFoto(file, 'rc'); if (!et) return; var c0 = et.c[0]; if (c0 && c0.p >= 80 && (!et.c[1] || et.c[1].p < c0.p)) { m = c0.m; nome = m.nome; } else nome = aiStr(et.r.nome) ? aiStr(et.r.nome) + (aiStr(et.r.codice) ? ' ' + aiStr(et.r.codice) : '') : null; }
     if (!nome) { toast(code ? 'Codice ' + code + ' non presente in magazzino: scrivi il nome.' : 'Non riconosciuto: scrivilo a mano.', true); if (!code) return; nome = code; }
     var box = $('#rc-box'); if (!box) return;
     var empty = Array.prototype.find.call(box.querySelectorAll('.rc-row'), function (r) { return !r.querySelector('.rc-n').value; });
@@ -13900,7 +13965,9 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'boat-ai-off': V.boatAi = null; var bl0 = $('#boat-list'); if (bl0) bl0.innerHTML = boatListHtml(); break;
       case 'rc-photo': rcFromPhoto(); break;
       case 'prev-ai': prevFromPhoto(); break;
-      case 'mag-find': (async function () { var file = await pickPhoto(); if (!file) return; var code = await readBarcode(file), m = magByCode(code); if (m) magSheet(m); else if (code) { toast('Codice ' + code + ' non in magazzino: lo aggiungo come nuovo articolo'); magSheet(null); setTimeout(function () { var c = $('#f-mcod'); if (c) c.value = code; }, 80); } else toast('Codice a barre non trovato nella foto: prova più vicino e dritto.', true); })(); break;
+      case 'mag-find': scanMove(null, 'find'); break;
+      case 'et-sce': x = S.mag.find(function (a) { return a.id === id; }); if (x) { var etm = t.getAttribute('data-modo'); closeSheet(); setTimeout(function () { if (etm === 'find' || !S.canWrite) magSheet(x); else movSheet(x); }, 30); } break;
+      case 'et-nuovo': if (SHEET.et) etNuovo(SHEET.et); break;
       case 'mz-seed': if (S.db && S.canWrite) mezziSeedSheet(); break;
       case 'prev-new': if (S.db && S.canWrite) { if (!S.boats.length) toast('Prima aggiungi una barca', true); else prevSheet(null, t.getAttribute('data-boat') || (V.boatId || '')); } break;
       case 'prev-edit': x = (S.prev || []).find(function (q) { return q.id === id; }); if (x && S.canWrite) prevSheet(x); break;
