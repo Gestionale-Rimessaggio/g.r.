@@ -86,7 +86,7 @@ service cloud.firestore {
     function raccolteCantiere() {
       return ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
         'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'deposito', 'programma', 'cariche', 'posti', 'richieste',
-        'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente', 'verbali', 'componenti', 'barattoli', 'noteColleghi'];
+        'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente', 'verbali', 'componenti', 'barattoli', 'noteColleghi', 'telefonate', 'prese'];
     }
 
     match /aziende/{a} {
@@ -196,7 +196,7 @@ service cloud.firestore {
         function autoreUguale() { return cancellato(resource.data) || nuovo().get('creatoDa', '') == resource.data.get('creatoDa', ''); }
         function datiCantiere() { return !(coll in ['portale', 'cestino', 'attivita', 'aiUso']); }
         // l'aspetto dell'app (nome dell'azienda, colori, loghi, luogo), le sezioni accese e il disegno del porto li cambia solo l'amministratore
-        function soloAdmin() { return coll == 'impostazioni' && id in ['aspetto', 'sezioni', 'porto', 'vernice', 'emergenze', 'reperibilita', 'campi', 'consumabili']; }
+        function soloAdmin() { return coll == 'impostazioni' && id in ['aspetto', 'sezioni', 'porto', 'vernice', 'emergenze', 'reperibilita', 'campi', 'consumabili', 'chiusure', 'primipassi']; }
 
         // i PIN del tablet (impronte di 4 cifre, facili da ricavare): ognuno legge solo il suo; tutti solo amministratori, gestore in assistenza e tablet
         allow read: if (staffA(a) && datiCantiere() && (coll != 'pin' || adminA(a) || tablet(a) || resource.data.get('utente', '') == request.auth.uid))

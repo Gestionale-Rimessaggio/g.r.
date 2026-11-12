@@ -6,7 +6,7 @@
   'use strict';
   var CFG = window.NM_FIREBASE_CONFIG || null;
   var COLLS = ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
-    'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'deposito', 'programma', 'cariche', 'posti', 'richieste', 'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente', 'verbali', 'componenti', 'barattoli', 'noteColleghi'];
+    'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'deposito', 'programma', 'cariche', 'posti', 'richieste', 'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente', 'verbali', 'componenti', 'barattoli', 'noteColleghi', 'telefonate', 'prese'];
   var RUOLI = { base: 'Dipendente', editor: 'Dipendente', admin: 'Amministratore', cliente: 'Cliente' }; // «editor» era «Può cancellare»: ora vale come Dipendente
   var FULL_EVERY = 7 * 864e5;            // una rilettura completa a settimana per sicurezza
   var GIF0 = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
@@ -752,7 +752,7 @@
   var CEST_NOMI = { barche: 'Barca', lavori: 'Lavoro o mansione', scadenze: 'Scadenza', vari: 'Varo o alaggio', magazzino: 'Ricambio', movimenti: 'Movimento di magazzino',
     operazioni: 'Servizio', opModelli: 'Gruppo di servizi', mezzi: 'Mezzo', conferme: 'Giornata confermata', posti: 'Posto al porto', attrezzatura: 'Attrezzatura', deposito: 'Roba in deposito', componenti: 'Componente a bordo', barattoli: 'Barattolo aperto', noteColleghi: 'Nota a un collega', programma: 'Programma',
     cariche: 'Carica batterie', richieste: 'Richiesta', richiesteCliente: 'Richiesta del cliente', verbali: 'Verbale', rifiuti: 'Rifiuto', ritiri: 'Ritiro rifiuti', scadCantiere: 'Scadenza del cantiere', preventivi: 'Preventivo', assenze: 'Ferie o permesso', kit: 'Kit ricambi', inventari: 'Inventario', giri: 'Giro di controllo', cronometri: 'Cronometro', ditte: 'Ditta esterna',
-    checklist: 'Checklist', modelli: 'Modello di checklist', checkBarca: 'Lista della barca', dipendenti: 'Dipendente', impostazioni: 'Impostazione' };
+    telefonate: 'Telefonata', prese: 'Chiavi o attrezzo preso', checklist: 'Checklist', modelli: 'Modello di checklist', checkBarca: 'Lista della barca', dipendenti: 'Dipendente', impostazioni: 'Impostazione' };
   function cestCutoff() { return new Date(Date.now() - CEST_DAYS * 864e5).toISOString(); }
   function purgeCestino() { // toglie per sempre ciò che è nel cestino da più di 60 giorni
     return AC('cestino').where('il', '<', cestCutoff()).limit(200).get().then(function (s) {
@@ -1860,7 +1860,7 @@
     dipendenti: ['nome dei dipendenti', 'nomi dei dipendenti'], impostazioni: ['misure della mappa', 'misure della mappa'], posti: ['posto al porto', 'posti al porto'],
     attrezzatura: ['attrezzatura di bordo', 'attrezzature di bordo'], deposito: ['cosa in deposito', 'cose in deposito'], componenti: ['componente a bordo', 'componenti a bordo'], barattoli: ['barattolo aperto', 'barattoli aperti'], noteColleghi: ['nota a un collega', 'note ai colleghi'], programma: ['voce del programma', 'voci del programma'], cariche: ['carica delle batterie', 'cariche delle batterie'],
     richieste: ['richiesta', 'richieste'], checklist: ['checklist', 'checklist'], checkBarca: ['lista per barca', 'liste per barca'], modelli: ['modello di checklist', 'modelli di checklist'],
-    giri: ['giro di controllo', 'giri di controllo'], cronometri: ['cronometro', 'cronometri'], ditte: ['ditta esterna', 'ditte esterne'] };
+    giri: ['giro di controllo', 'giri di controllo'], telefonate: ['telefonata', 'telefonate'], prese: ['chiave o attrezzo preso', 'chiavi e attrezzi presi'], cronometri: ['cronometro', 'cronometri'], ditte: ['ditta esterna', 'ditte esterne'] };
   var IMP_KEY = null, IMP = null;
   function impHash() {
     var m = /[#&]importa=([A-Za-z0-9_-]{40,})/.exec(location.hash || '');
