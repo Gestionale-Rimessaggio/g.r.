@@ -7316,6 +7316,66 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       rows.map(function (r) { return '<div class="kv-row"><span class="k">' + esc(r[0]) + '</span><span class="v">' + esc(fmtNum(r[1], 1)) + ' h</span><span class="v">' + esc(fmtNum(r[2], 1)) + ' h</span><span class="v">' + diff(r[1], r[2]) + '</span></div>'; }).join('') +
       '<div class="kv-row"><span class="k"><b>Totale</b></span><span class="v"><b>' + esc(fmtNum(ta, 1)) + ' h</b></span><span class="v"><b>' + esc(fmtNum(tp, 1)) + ' h</b></span><span class="v">' + diff(ta, tp) + '</span></div></div>';
   }
+  /* ---------- Uso delle sezioni (solo per chi gestisce) ----------
+     Conta quante volte viene aperta ogni sezione del menù, mese per mese, per capire cosa serve davvero e cosa si può spegnere.
+     Solo totali: non si salva chi ha aperto cosa. Il telefono tiene il conto e lo scrive ogni qualche minuto in
+     impostazioni/uso_AAAA-MM { sez: { chiave: quante volte }, dal }. È un conto indicativo (due telefoni che scrivono
+     nello stesso istante possono perdere qualche tocco). */
+  var USO = { k: '', t: 0 };
+  function usoLoc() { try { var x = JSON.parse(localStorage.getItem('nm-uso') || 'null'); return x && x.m && x.c ? x : null; } catch (e) { return null; } }
+  function usoConta() {
+    if (S.status !== 'ready' || !S.myId) return;
+    var k = V.tab === 'mappa' ? (M.area === 'porto' ? 'porto' : 'mappa') : V.tab === 'riepiloghi' ? 'riep:' + (V.riep || 'scad') : V.tab; if (!k || k === USO.k) return; USO.k = k;
+    var m = todayISO().slice(0, 7), x = usoLoc(); if (!x || x.m !== m) { if (x) usoScrivi(x); x = { m: m, c: {} }; }
+    x.c[k] = (x.c[k] || 0) + 1;
+    try { localStorage.setItem('nm-uso', JSON.stringify(x)); } catch (e) { }
+    if (Date.now() - USO.t > 4 * 60000) usoScrivi(x);
+  }
+  function usoScrivi(x) { // somma il conto del telefono a quello salvato
+    x = x || usoLoc(); if (!x || !Object.keys(x.c).length || !S.db || !S.myId) return;
+    USO.t = Date.now();
+    var cur = (S.uso || {})[x.m] || {}, sez = Object.assign({}, cur.sez || {});
+    Object.keys(x.c).forEach(function (k) { sez[k] = (num(sez[k]) || 0) + x.c[k]; });
+    var d = { sez: sez, dal: cur.dal || todayISO(), modificato: new Date().toISOString() };
+    try { localStorage.setItem('nm-uso', JSON.stringify({ m: x.m, c: {} })); } catch (e) { }
+    (S.uso = S.uso || {})[x.m] = d;
+    try { S.db.collection('impostazioni').doc('uso_' + x.m).set(d).catch(function () { }); } catch (e) { }
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') usoScrivi(); });
+  function usoVoci() { // tutte le sezioni che si possono aprire adesso: [chiave, nome]
+    var v = [['home', 'Home'], ['scheda', 'Scheda lavoro'], ['lavori', 'Lavorazioni'], ['calendario', 'Calendario'], ['barche', 'Barche'], ['altro', 'Altro (il menù)']], seen = {};
+    v.forEach(function (x) { seen[x[0]] = 1; });
+    altroRows().forEach(function (r) {
+      if (r[0].slice(0, 3) === 'fb:') return;
+      if (r[0] === 'riepiloghi') { riepList().forEach(function (x) { v.push(['riep:' + x[0], 'Riepilogo: ' + x[1]]); }); return; }
+      if (r[0] === 'mappa') { v.push(['mappa', 'Mappa del cantiere']); if (strOn('porto') || typeof sezOn !== 'function') v.push(['porto', 'Porto']); return; }
+      if (!seen[r[0]]) { seen[r[0]] = 1; v.push([r[0], r[3]]); }
+    });
+    return v;
+  }
+  function usoSheet(m) {
+    if (!S.isOwner) return;
+    usoScrivi();
+    var oggi = todayISO().slice(0, 7); m = m || oggi;
+    var d = (S.uso || {})[m] || {}, sez = d.sez || {}, voci = usoVoci(), noti = {};
+    voci.forEach(function (x) { noti[x[0]] = 1; });
+    Object.keys(sez).forEach(function (k) { if (!noti[k]) voci.push([k, (TITOLI[k] || k) + ' (ora spenta)']); });
+    var l = voci.map(function (x) { return [x[0], x[1], num(sez[x[0]]) || 0]; }).sort(function (a, b) { return b[2] - a[2] || a[1].localeCompare(b[1]); });
+    var max = l.length ? l[0][2] : 0, tot = l.reduce(function (a, x) { return a + x[2]; }, 0), usate = l.filter(function (x) { return x[2] > 0; }), mai = l.filter(function (x) { return !x[2]; });
+    var pm = function (k, d2) { var p = k.split('-'), t = new Date(Date.UTC(+p[0], +p[1] - 1 + d2, 1)); return t.toISOString().slice(0, 7); };
+    var riga = function (x) {
+      return '<div style="padding:9px 14px"><div style="display:flex;justify-content:space-between;gap:10px"><span>' + esc(x[1]) + '</span><b>' + x[2] + '</b></div>' +
+        '<div style="height:6px;border-radius:3px;background:var(--track);margin-top:6px;overflow:hidden"><div style="height:100%;width:' + (max ? Math.max(2, Math.round(100 * x[2] / max)) : 0) + '%;background:var(--accent);border-radius:3px"></div></div></div>';
+    };
+    openSheet({ title: 'Uso delle sezioni', menu: true,
+      body: '<div class="cal-nav" style="margin-bottom:8px"><button type="button" class="icon-btn blue" data-act="uso-mese" data-m="' + pm(m, -1) + '" aria-label="Mese precedente">' + I.left + '</button><h2>' + monthLabel(m) + '</h2>' +
+        '<button type="button" class="icon-btn blue" data-act="uso-mese" data-m="' + pm(m, 1) + '" aria-label="Mese successivo"' + (m >= oggi ? ' disabled' : '') + '>' + I.right + '</button></div>' +
+        '<p class="context">Quante volte è stata aperta ogni sezione, da tutti. Lo vedi solo tu. Non c’è scritto chi l’ha aperta.' + (d.dal ? ' Si conta dal ' + fmtDate(d.dal) + '.' : '') + '</p>' +
+        (tot ? '<div class="lbl">Le più aperte · ' + tot + ' in tutto</div><div class="group">' + usate.map(riga).join('') + '</div>' : '<div class="notice">In questo mese non c’è ancora niente di contato.</div>') +
+        (mai.length ? '<div class="lbl" style="margin-top:16px">Mai aperte in questo mese · ' + mai.length + '</div><div class="group">' + mai.map(function (x) { return '<div class="kv-row"><span class="k" style="white-space:normal">' + esc(x[1]) + '</span><span class="v">0</span></div>'; }).join('') + '</div>' +
+          '<p class="cap" style="margin-top:8px">Prima di spegnere una sezione guarda almeno un mese intero: alcune servono solo in certi periodi (vari, inventario, ferie).</p>' : '') });
+  }
+
   function viewPannello() {
     var t = todayISO(), wk = panRange('sett'), wkE = panEntries(wk), wkH = wkE.reduce(function (a, l) { return a + num(l.oreLavoro); }, 0);
     var pt = progOf(t), ptDone = pt.filter(function (x) { return x.fatto; }).length;
@@ -7367,6 +7427,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       '<button type="button" class="row" data-act="mag-shop"><span class="main"><span class="title">Lista della spesa</span><span class="sub">' + esc(sl.length ? sl.slice(0, 3).map(function (x) { return x.m.nome; }).join(', ') + (sl.length > 3 ? '…' : '') : 'Niente da ordinare') + '</span></span><span class="side"><span class="big" style="font-size:1.2rem">' + sl.length + '</span></span></button>' +
       '<button type="button" class="row" data-act="tab" data-tab="batterie"><span class="main"><span class="title">Batterie da caricare</span><span class="sub">' + esc(bd ? battDue().slice(0, 3).map(function (b) { return b.nome; }).join(', ') : 'Tutte a posto') + '</span></span><span class="side"><span class="big" style="font-size:1.2rem">' + bd + '</span></span></button>' +
       '</div>') });
+    if (S.isOwner) h += '<button type="button" class="btn sec" data-act="uso-open" style="width:100%;margin-bottom:12px">' + I.list + 'Uso delle sezioni</button>';
     return h + lyRender('pannello', B.concat(LY_W));
   }
   /* ---------- Riepiloghi: scadenze, magazzino, porto e rifiuti in numeri e tabelle ---------- */
@@ -10967,7 +11028,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     else html = ({ emergenze: viewEmergenze, reperibilita: viewReperibilita, notecolleghi: viewNoteColleghi, segnala: viewSegnala, rubrica: viewRubrica, richiestecl: viewRichiesteCl, vernice: viewVernice, controllo: viewControllo, programma: viewProgramma, pannello: viewPannello, riepiloghi: viewRiepiloghi, batterie: viewBatterie, mappa: viewMappa, altro: viewAltro, backup: viewBackup, vari: viewVari, magazzino: viewMagazzino, preventivi: viewPreventivi, assenze: viewAssenze, misure: viewMisure, notifiche: viewNotifiche, categorie: viewCategorie, aspetto: viewAspetto, inventario: viewInventario, rifiuti: viewRifiuti, scadcantiere: viewScadCantiere, ore: viewOre, checklist: viewChecklist, operazioni: viewOperazioni, giro: viewGiro, ditte: viewDitte, home: viewHome, scheda: viewScheda, scadenze: viewScadenze, calendario: viewCalendario, lavori: viewLavori, barche: function () { return V.boatId ? viewBoat() : viewBarche(); } })[V.tab]();
     if (TAB.as && S.status === 'ready') html = tabBar() + html;
     $('#view').innerHTML = html;
-    renderTop(); renderTabs(); bindFeat(); tabCheck();
+    renderTop(); renderTabs(); bindFeat(); tabCheck(); usoConta();
     if (V.tab === 'misure') misUpdate();
     if (V.tab === 'mappa' && S.status === 'ready') { if (M.area === 'porto') { M.mounted = null; Porto.mount(); } else { M.mounted = M.mode; mapMount(); } } else M.mounted = null;
     if (S.status !== 'loading') hideSplash();
@@ -13791,6 +13852,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'xl-export': cpExcel(); break;
       case 'mo-lista': moLista(); break;
       case 'cs-open': csSheet(); break;
+      case 'uso-open': usoSheet(); break;
+      case 'uso-mese': usoSheet(t.getAttribute('data-m')); break;
       case 'mo-edit': moEdit(id); break;
       case 'mo-applica': var bm = boatById(id); if (bm) moApplica(bm); break;
       case 'do-open': var bd = boatById(id); if (bd) doSheet(bd); break;
@@ -14216,7 +14279,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     db.collection('impostazioni').onSnapshot(function (snap) {
       var m = null, b = null, ly = {}, asp = null;
       var pm0 = S.portoMio; S.portoMio = null; S.got.impostazioni = true;
-      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'ai') S.aiCfg = d.data(); else if (d.id === 'campi') S.campiCfg = d.data(); else if (d.id === 'modelliLavoro') S.moCfg = d.data(); else if (d.id === 'consumabili') S.csCfg = d.data(); else if (d.id === 'depositi') S.depCfg = d.data(); else if (d.id === 'emergenze') S.emCfg = d.data(); else if (d.id === 'reperibilita') S.repCfg = d.data(); else if (d.id === 'pacchetto') S.pacCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'schedaBarca') S.sbCfg = d.data(); else if (d.id === 'schede') S.schCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'vernice') S.vnCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'porto') S.portoMio = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
+      snap.docs.forEach(function (d) { if (/^layout_/.test(d.id)) ly[d.id] = d.data(); else if (d.id === 'aspetto') asp = d.data(); else if (d.id === 'sezioni') S.sezCfg = d.data(); else if (d.id === 'ai') S.aiCfg = d.data(); else if (d.id === 'campi') S.campiCfg = d.data(); else if (d.id === 'modelliLavoro') S.moCfg = d.data(); else if (d.id === 'consumabili') S.csCfg = d.data(); else if (/^uso_/.test(d.id)) (S.uso = S.uso || {})[d.id.slice(4)] = d.data(); else if (d.id === 'depositi') S.depCfg = d.data(); else if (d.id === 'emergenze') S.emCfg = d.data(); else if (d.id === 'reperibilita') S.repCfg = d.data(); else if (d.id === 'pacchetto') S.pacCfg = d.data(); else if (d.id === 'mappa') m = d.data(); else if (d.id === 'backup') b = d.data(); else if (d.id === 'batterie') S.battCfg = d.data(); else if (d.id === 'schedaBarca') S.sbCfg = d.data(); else if (d.id === 'schede') S.schCfg = d.data(); else if (d.id === 'rifiuti') S.rifCfg = d.data(); else if (d.id === 'notifiche') S.notifCfg = d.data(); else if (d.id === 'meteo') S.meteoCfg = d.data(); else if (d.id === 'vernice') S.vnCfg = d.data(); else if (d.id === 'percorso') S.percorso = d.data(); else if (d.id === 'porto') S.portoMio = d.data(); else if (d.id === 'categorie') { S.catCfg = d.data(); catApply(); } });
       var mc = m !== S.mapCfg; S.mapCfg = m; S.bkInfo = b; S.layouts = ly; S.aspetto = asp;
       if (NM_MARCA.dalDatabase(asp) && V.asp) NM_MARCA.prova(V.asp); // l'aspetto scelto vale subito per tutti
       if ((V.tab === 'mappa' && (mc || pm0 !== S.portoMio)) || V.tab === 'aspetto' || V.tab === 'backup' || V.tab === 'batterie' || V.tab === 'rifiuti' || V.tab === 'notifiche' || V.tab === 'categorie' || V.tab === 'home' || V.tab === 'barche' || V.tab === 'pannello' || V.tab === 'riepiloghi') { if (!LY.drag) render(); }
