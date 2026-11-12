@@ -86,6 +86,7 @@
     '#nmfb .eye{position:absolute;right:3px;top:50%;transform:translateY(-50%);width:48px;height:44px;margin:0;padding:0;border:0;border-radius:10px;background:none;color:#b9bccb;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
     '#nmfb .eye svg{width:22px;height:22px}#nmfb .eye[aria-pressed="true"]{color:#8cc2ff}' +
     '#nmfb .btn[disabled]{opacity:.6}#nmfb .lnk{display:block;width:100%;margin-top:12px;background:none;border:0;color:#8cc2ff;font:inherit;padding:8px;cursor:pointer}' +
+    '#nmfb .cpy{position:fixed;right:12px;bottom:calc(8px + env(safe-area-inset-bottom));padding:6px 8px;font-size:12px;color:#8a94a6;text-decoration:none}#nmfb .cpy:hover{color:#b9bccb}' +
     '#nmfb .err{color:#ff8a80;min-height:1.3em;margin-top:10px;font-size:.95rem}#nmfb .ok{color:#7fe0a0}#nmfb .card{background:#12114a;border:1px solid #33355a;border-radius:14px;padding:16px;margin-top:6px}' +
     '#nmfb .spin{width:34px;height:34px;border-radius:50%;border:3px solid #33355a;border-top-color:#2f8ff0;margin:30px auto;animation:nmspin 1s linear infinite}@keyframes nmspin{to{transform:rotate(360deg)}}' +
     /* pannelli (utenti, account) */
@@ -492,7 +493,8 @@
       '<label for="nm-pw">Password</label>' + pwField('nm-pw', 'current-password') +
       '<button class="btn" type="submit">Accedi</button><div class="err" id="nm-err">' + esc(msg || '') + '</div></form>' +
       '<button class="lnk" id="nm-goreg">Prima volta? Crea il tuo account</button><button class="lnk" id="nm-goreset">Password dimenticata</button>' +
-      '<button class="btn" id="nm-prova" type="button" style="margin-top:22px;background:transparent;border:1px solid rgba(255,255,255,.35)">Prova senza registrarti</button><p class="nm-prova-n" style="font-size:13px;opacity:.75;margin-top:6px;text-align:center">Un cantiere di esempio da toccare e modificare: non si salva nulla e sparisce quando chiudi la finestra.</p>');
+      '<button class="btn" id="nm-prova" type="button" style="margin-top:22px;background:transparent;border:1px solid rgba(255,255,255,.35)">Prova senza registrarti</button><p class="nm-prova-n" style="font-size:13px;opacity:.75;margin-top:6px;text-align:center">Un cantiere di esempio da toccare e modificare: non si salva nulla e sparisce quando chiudi la finestra.</p>' +
+      '<a class="cpy" href="./diritti.html" target="_blank" rel="noopener">© Torcio</a>');
     var f = $('#nm-login', o);
     f.addEventListener('submit', function (e) {
       e.preventDefault(); busy(f, true); $('#nm-err').textContent = '';
