@@ -1095,6 +1095,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
 .sb-gr .tr u { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--soon); }
 .sb-chart { width: 100%; height: auto; display: block; }
 .sb-oh { font: 600 1.15rem var(--font-data); text-align: right; } .sb-oh small { display: block; font: 500 .72rem var(--font-body); color: var(--muted); }
+/* righe motori: le ore restano intere a destra, la matricola va su una riga sua */
+.kv-row.sb-motr .k { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; } .kv-row.sb-motr .v { flex: none; white-space: nowrap; overflow-wrap: normal; }
 .sb-ord { display: flex; align-items: center; gap: 10px; padding: 10px 14px; } .group > .sb-ord + .sb-ord { border-top: 1px solid var(--line); }
 .sb-ord .nm { flex: 1; min-width: 0; font-weight: 600; } .sb-ord .nm small { display: block; font-weight: 400; color: var(--muted); font-size: .76rem; }
 .sb-ord .mv { display: flex; gap: 4px; } .sb-ord .mv button { width: 32px; height: 32px; border: 0; border-radius: 8px; background: var(--card-2); color: var(--ink); }
@@ -2538,8 +2540,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   function sbMotoriTab(b) {
     var ms = sbMotori(b), gs = sbGen(b), h = '';
-    var rows = ms.map(function (m) { return '<div class="kv-row"><span class="k" style="color:var(--ink)"><b>' + esc(m.nome) + '</b><br><span class="cap">' + esc([m.mod, m.cv != null ? fmtNum(m.cv) + ' cv' : '', m.mat ? 'matr. ' + m.mat : ''].filter(Boolean).join(' · ') || '–') + '</span></span><span class="v sb-oh">' + (m.ore != null ? esc(fmtNum(m.ore)) : '–') + '<small>ore</small></span></div>'; })
-      .concat(gs.map(function (g) { return '<button type="button" class="kv-row" data-act="edit-comp" data-id="' + esc(g.id) + '" style="width:100%;border:0;background:none;color:inherit;text-align:left"><span class="k" style="color:var(--ink)"><b>Generatore</b><br><span class="cap">' + esc([g.modello, g.misura, g.matricola ? 'matr. ' + g.matricola : ''].filter(Boolean).join(' · ') || '–') + '</span></span><span class="v sb-oh">' + (num(g.ore) != null ? esc(fmtNum(g.ore)) : '–') + '<small>ore</small></span></button>'; }));
+    var rows = ms.map(function (m) { return '<div class="kv-row sb-motr"><span class="k" style="color:var(--ink)"><b>' + esc(m.nome) + '</b><br><span class="cap">' + ([esc([m.mod, m.cv != null ? fmtNum(m.cv) + ' cv' : ''].filter(Boolean).join(' · ')), m.mat ? 'matr. ' + esc(m.mat) : ''].filter(Boolean).join('<br>') || '–') + '</span></span><span class="v sb-oh">' + (m.ore != null ? esc(fmtNum(m.ore)) : '–') + '<small>ore</small></span></div>'; })
+      .concat(gs.map(function (g) { return '<button type="button" class="kv-row sb-motr" data-act="edit-comp" data-id="' + esc(g.id) + '" style="width:100%;border:0;background:none;color:inherit;text-align:left"><span class="k" style="color:var(--ink)"><b>Generatore</b><br><span class="cap">' + ([esc([g.modello, g.misura].filter(Boolean).join(' · ')), g.matricola ? 'matr. ' + esc(g.matricola) : ''].filter(Boolean).join('<br>') || '–') + '</span></span><span class="v sb-oh">' + (num(g.ore) != null ? esc(fmtNum(g.ore)) : '–') + '<small>ore</small></span></button>'; }));
     h += secH('Motori e generatore', S.canWrite ? 'edit-boat' : '', 'Modifica', ' data-id="' + esc(b.id) + '"');
     h += rows.length ? '<div class="group">' + rows.join('') + '</div>' : '<div class="notice">Nessun motore segnato. Aggiungili con la matita in alto; il generatore si aggiunge tra i componenti (Attrezzatura).</div>';
     if (rows.length && S.canWrite) h += '<button type="button" class="btn" data-act="ore" data-id="' + esc(b.id) + '" style="width:100%;margin-top:10px">' + I.hours + 'Aggiorna le ore</button>';
