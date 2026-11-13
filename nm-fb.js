@@ -662,7 +662,7 @@
     if (!AZ_UNSUB || AZ_UNSUB.az !== x.azienda || (AZD === null && AZ_UNSUB.st !== x.stato)) {
       if (AZ_UNSUB) AZ_UNSUB();
       AZD = undefined;
-      var un = fs.collection('aziende').doc(x.azienda).onSnapshot(function (d) { AZD = d.exists ? d.data() : null; decidi(); if (started) avvisoAbb(); if ($('#nmpan')) renderPanel(); }, function () { AZD = null; decidi(); });
+      fzAscolta(); var un = fs.collection('aziende').doc(x.azienda).onSnapshot(function (d) { AZD = d.exists ? d.data() : null; fzAvvisa(); decidi(); if (started) avvisoAbb(); if ($('#nmpan')) renderPanel(); }, function () { AZD = null; decidi(); });
       un.az = x.azienda; un.st = x.stato; AZ_UNSUB = un;
     }
     decidi();
@@ -1149,6 +1149,49 @@
     return fs.collection('pacchetto').doc('attuale').get().then(function (d) { var x = d.exists ? d.data() : null; return x && !x._del ? Object.assign({}, PACK_DEF, x) : PACK_DEF; }, function () { return PACK_DEF; });
   }
   function righe(s) { return String(s || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
+  // Funzioni per azienda (idea 8.09): il gestore decide per ogni azienda quali sezioni sono fisse, non disponibili o in anteprima,
+  // e quali novità restano spente per tutti finché non le dà in anteprima a un'azienda
+  var FZ_T = [['', 'Come sceglie l’azienda'], ['fissa', 'Sempre accesa'], ['no', 'Non disponibile'], ['prova', 'In anteprima']];
+  var FZ_SEL = 'font:inherit;padding:8px 10px;border-radius:10px;background:var(--card,#1c1f24);color:inherit;border:1px solid rgba(255,255,255,.15);max-width:48%';
+  function fzSez() { return (window.NM_SEZIONI || []).filter(function (x) { return x[0] !== 'novita'; }); }
+  function fzNome(k) { var x = fzSez().filter(function (y) { return y[0] === k; })[0]; return x ? x[1] : k; }
+  function crFzLoad() { if (CR.fz === undefined) { CR.fz = null; fs.collection('pacchetto').doc('funzioni').get().then(function (d) { CR.fz = d.exists ? d.data() : {}; crRender(); }, function () { CR.fz = {}; crRender(); }); } }
+  function crFzAnte() { return (CR.fz && Array.isArray(CR.fz.anteprima)) ? CR.fz.anteprima : []; }
+  function crFzAz(k, A) {
+    crFzLoad(); var f = A.funzioni || {}, dec = Object.keys(f).filter(function (x) { return f[x]; });
+    if (CR.fzApri !== k) return '<h4>Funzioni</h4><div class="grp"><div class="u"><div class="em">' + (dec.length ? esc(dec.map(function (x) { return fzNome(x) + ': ' + (FZ_T.filter(function (o) { return o[0] === f[x]; })[0] || ['', f[x]])[1].toLowerCase(); }).join(' · ')) : 'Tutte come sceglie l’azienda in Aspetto dell’app') + '</div>' +
+      '<div class="acts"><button class="b" data-cr="fz-apri" data-id="' + k + '">Scegli le funzioni</button></div></div></div>';
+    return '<h4>Funzioni</h4><div class="grp">' + fzSez().map(function (x) {
+      var v = f[x[0]] || '', ante = crFzAnte().indexOf(x[0]) >= 0;
+      return '<div class="u" style="display:flex;gap:10px;align-items:center;justify-content:space-between"><div class="nm" style="min-width:0">' + esc(x[1]) + (ante ? '<span class="pill">novità</span>' : '') + '</div>' +
+        '<select data-crf="' + x[0] + '" data-id="' + k + '" style="' + FZ_SEL + '">' + FZ_T.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === v ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></div>';
+    }).join('') + '<div class="u"><div class="acts"><button class="b pri" data-cr="fz-chiudi">Fatto</button></div></div></div>' +
+      '<p class="note">«Come sceglie l’azienda»: la accende o spegne l’amministratore. «Sempre accesa»: non si può spegnere. «Non disponibile»: sparisce del tutto. «In anteprima»: una novità che dai prima a quest’azienda (le altre non la vedono finché non la togli dalle novità). Ogni scelta vale subito.</p>';
+  }
+  function crFzSalva(id, key, v) {
+    var A = CR.az[id]; if (!A) return; var f = Object.assign({}, A.funzioni || {}); if (v) f[key] = v; else delete f[key];
+    fs.collection('aziende').doc(id).update({ funzioni: f, modificato: nowISO() }).then(function () { toast('Salvato: ' + fzNome(key)); }, function (er) { toast('Non riuscito: ' + errOf(er).code); crRender(); });
+  }
+  function crFzHome() {
+    crFzLoad(); if (!CR.fz) return '<p class="note">Carico…</p>';
+    var an = crFzAnte();
+    if (!CR.fzEd) return '<div class="grp"><div class="u"><div class="em">' + (an.length ? esc(an.map(fzNome).join(' · ')) : 'Nessuna: ogni sezione è disponibile a tutte le aziende') + '</div>' +
+      '<div class="acts"><button class="b pri" data-cr="fz-mod">Modifica</button></div><div class="em">Una novità segnata qui resta spenta per tutte le aziende, tranne quelle a cui la metti «In anteprima» o «Sempre accesa» nella loro scheda. Quando va bene, la togli da qui e arriva a tutte.</div></div></div>';
+    return '<div class="grp">' + fzSez().map(function (x) {
+      return '<label class="u" style="display:flex;gap:10px;align-items:center;justify-content:space-between"><span class="nm">' + esc(x[1]) + '</span><input type="checkbox" data-fza="' + x[0] + '"' + (an.indexOf(x[0]) >= 0 ? ' checked' : '') + '></label>';
+    }).join('') + '<div class="u"><div class="acts"><button class="b pri" data-cr="fz-salva">Salva</button><button class="b" data-cr="fz-annulla">Annulla</button></div></div></div>';
+  }
+  function crFzHomeSalva() {
+    var l = []; Array.prototype.forEach.call(document.querySelectorAll('#nmcr [data-fza]'), function (c) { if (c.checked) l.push(c.getAttribute('data-fza')); });
+    fs.collection('pacchetto').doc('funzioni').set({ anteprima: l, modificato: nowISO() }).then(function () { CR.fz = { anteprima: l }; CR.fzEd = false; toast('Novità in anteprima salvate'); crRender(); }, function (er) { toast('Non riuscito: ' + errOf(er).code); });
+  }
+  // per l'app: le scelte del gestore per l'azienda in uso e le novità spente per tutti
+  var FZA = [], FZ_UNSUB = null;
+  function fzAvvisa() { try { document.dispatchEvent(new Event('nm-funzioni')); } catch (e) { } }
+  function fzAscolta() {
+    if (FZ_UNSUB) return;
+    FZ_UNSUB = fs.collection('pacchetto').doc('funzioni').onSnapshot(function (d) { var x = d.exists ? d.data() : {}; FZA = Array.isArray(x.anteprima) ? x.anteprima : []; fzAvvisa(); }, function () { FZA = []; });
+  }
   function crPackHtml() {
     if (CR.pack === undefined) { CR.pack = null; pacchetto().then(function (p) { CR.pack = p; crRender(); }); }
     var P = CR.pack; if (!P) return '<p class="note">Carico…</p>';
@@ -1273,6 +1316,7 @@
         '<h4>Persone (' + crPersone(k).length + ')</h4><div class="grp">' + (crPersone(k).length ? crPersone(k).sort(function (x, y) { return String(CR.ut[x].nome || '').localeCompare(String(CR.ut[y].nome || ''), 'it'); }).map(function (u) {
           var p = CR.ut[u]; return '<div class="u"><div class="nm">' + esc(p.nome || '(senza nome)') + '<span class="pill">' + esc(RUOLI[p.ruolo] || p.ruolo || '') + '</span>' + (p.tablet ? '<span class="pill">tablet</span>' : '') + '</div><div class="em">Ultimo accesso: ' + esc(ult[u] ? crQuando(ult[u]) : 'non nelle ultime 300 righe') + '</div></div>';
         }).join('') : '<div class="u"><div class="em">Nessuno.</div></div>') + '</div>' +
+        crFzAz(k, A) +
         '<h4>Nota privata</h4><div class="grp"><div class="u"><textarea id="cr-nota" rows="3" maxlength="1000" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#f4f5f7;padding:10px;font:inherit" placeholder="Solo per te: accordi, prezzo, cose da ricordare">' + esc(nota == null ? '' : nota) + '</textarea>' +
         '<div class="acts"><button class="b pri" data-cr="nota" data-id="' + k + '">Salva nota</button></div></div></div>' +
         '<p class="note">«Scarica i dati» funziona solo se l’azienda ha acceso «Permetti assistenza». Il file contiene persone e tutte le raccolte; le foto solo se le scegli.</p>';
@@ -1323,6 +1367,7 @@
         '<h4>Novità in app</h4>' + crNovHtml() +
         '<h4>Messaggio a tutte le aziende</h4>' + crMsgHtml() +
         '<h4>Pacchetto di partenza delle aziende nuove</h4>' + crPackHtml() +
+        '<h4>Novità in anteprima</h4>' + crFzHome() +
         (!ids.length && !CR.err ? '<p class="note">Ancora nessuna azienda. Quando un’azienda si registra dal sito, la sua richiesta compare qui.</p>' : '') +
         '<p class="note">Approvando un’azienda, chi l’ha registrata diventa il suo amministratore e l’azienda riceve il suo codice per far entrare colleghi e clienti. Nei dati di un’azienda entri solo se ha acceso «Permetti assistenza» in Altro › Utenti e permessi.</p>';
     }
@@ -1381,6 +1426,7 @@
   function crStato(k, st, msg) { fs.collection('aziende').doc(k).update({ stato: st, modificato: nowISO() }).then(function () { toast(msg); }, function (e) { toast('Non riuscito: ' + errOf(e).code); }); }
   document.addEventListener('input', function (e) { if (e.target && e.target.id === 'cr-q') { CR.q = e.target.value; crRender(); } });
   document.addEventListener('change', function (e) { var t = e.target; if (t && t.closest && t.closest('#nmcr') && t.getAttribute('data-cr') === 'chi') { CR.chi = t.value; crRender(); } });
+  document.addEventListener('change', function (e) { var t = e.target; if (t && t.closest && t.closest('#nmcr') && t.getAttribute('data-crf')) crFzSalva(t.getAttribute('data-id'), t.getAttribute('data-crf'), t.value); });
   document.addEventListener('click', function (e) {
     var t = e.target.closest && e.target.closest('#nmcr [data-cr]'); if (!t || t.tagName === 'SELECT') return;
     var k = t.getAttribute('data-cr'), id = t.getAttribute('data-id'), a = CR.az[id] || {};
@@ -1401,6 +1447,11 @@
     else if (k === 'pack-mod') { CR.packEd = true; crRender(); }
     else if (k === 'pack-annulla') { CR.packEd = false; crRender(); }
     else if (k === 'pack-salva') crPackSalva();
+    else if (k === 'fz-apri') { CR.fzApri = id; crRender(); }
+    else if (k === 'fz-chiudi') { CR.fzApri = null; crRender(); }
+    else if (k === 'fz-mod') { CR.fzEd = true; crRender(); }
+    else if (k === 'fz-annulla') { CR.fzEd = false; crRender(); }
+    else if (k === 'fz-salva') crFzHomeSalva();
     else if (k === 'pack-def') { if (confirm('Rimettere il pacchetto di partenza preparato all’inizio?')) fs.collection('pacchetto').doc('attuale').delete().then(function () { CR.pack = undefined; CR.packEd = false; toast('Pacchetto rimesso come all’inizio'); crRender(); }); }
     else if (k === 'msg-pub') {
       var mt = (($('#cr-msg') || {}).value || '').trim(); if (!mt) { toast('Scrivi il messaggio'); return; }
@@ -2304,6 +2355,8 @@
     },
     pacchetto: pacchetto,
     segnala: SEGN,
-    azienda: function () { return { nome: (AZD && AZD.nome) || '', assist: !!(ME && ME.assist) }; } // l'azienda in uso (per la procedura guidata)
+    azienda: function () { return { nome: (AZD && AZD.nome) || '', assist: !!(ME && ME.assist) }; }, // l'azienda in uso (per la procedura guidata)
+    funzioni: function () { return { per: (AZD && AZD.funzioni) || {}, ante: FZA }; }, // idea 8.09
+    persone: function () { return Object.keys(UT).filter(function (id) { var u = UT[id]; return u && u.stato === 'attivo' && u.ruolo !== 'cliente'; }).length; } // per i primi passi (8.01)
   };
 })();

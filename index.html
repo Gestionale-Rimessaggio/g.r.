@@ -1127,6 +1127,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
 .ch-n { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
 .ch-n input { flex: 1; }
 .nr { border-left: 3px solid var(--vio); }
+.pp-bar{height:8px;border-radius:6px;background:var(--track);overflow:hidden;margin:10px 0 6px}.pp-bar i{display:block;height:100%;background:var(--accent);border-radius:6px}.pp-l{list-style:none;margin:0;padding:0;font-size:14px;line-height:1.7;color:var(--muted)}.pp-l li.ok{color:var(--ok,#3fb27f)}
 </style>
 
 <div class="splash" id="splash" role="img" aria-label=""><img id="logo-src" alt=""></div>
@@ -1747,7 +1748,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function viewHome() {
     var h = (window.__NM_DEMO ? '<div class="banner"><p><b>Versione di prova.</b> Puoi toccare e modificare tutto: i dati sono di esempio, restano solo in questa finestra e spariscono quando la chiudi. Per usare l’app con i tuoi dati, esci dalla prova e registra la tua azienda.</p><div class="acts"><button type="button" class="link" data-act="demo-reset">Ricomincia da capo</button><button type="button" class="link" data-act="demo-esci">Esci dalla prova</button></div></div>' : '') + exampleBanner();
     if (!S.boats.length) {
-      return h + secH('Per iniziare') + emptyCard(I.boat, 'Nessuna barca registrata', 'Aggiungi la prima barca, poi inserisci lavori e scadenze: tagliandi, antivegetativa, assicurazioni.', ['new-boat', 'Aggiungi barca']);
+      return h + ppCard() + secH('Per iniziare') + emptyCard(I.boat, 'Nessuna barca registrata', 'Aggiungi la prima barca, poi inserisci lavori e scadenze: tagliandi, antivegetativa, assicurazioni.', ['new-boat', 'Aggiungi barca']);
     }
     var open = openScad(null);
     var late = open.filter(function (x) { return x.i.level === 'late'; });
@@ -1761,7 +1762,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     push('spazio', spazioHome()); push('mezzi', ctrlHome()); push('rif', rifSogliaHome());
     ncHome(push); repHome(push); push('mani', maniHome()); push('emerg', emHome());
     push('corte', schCorteCard()); push('permessi', permCard());
-    attHome(push); arrHome(push); cdHome(push);
+    push('pp', ppCard()); attHome(push); arrHome(push); cdHome(push);
     telHome(push); effHome(push); fuHome(push); chvHome(push); chHome(push);
     var pend = myPendingDays();
     if (pend.length) push('conferme', featCard('soon', I.check, pend.length === 1 ? 'Conferma la tua giornata' : 'Hai ' + pend.length + ' giornate da confermare',
@@ -1859,7 +1860,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var sec = ['m', 'l'];
     return h + lyRender('home', [
       { id: 'cerca', t: 'Cerca', sub: 'barca, cliente, articolo, lavoro', z: ['l'], d: 'l', h: gqBar },
-      { id: 'primo', t: 'In primo piano', sub: 'gli avvisi da guardare subito', z: sec, d: 'l', h: primo, opz: [['crono', 'Cronometri in corso o dimenticati'], ['giro', 'Giro di controllo'], ['fuori', 'Barche fuori in ritardo o che rientrano oggi'],
+      { id: 'primo', t: 'In primo piano', sub: 'gli avvisi da guardare subito', z: sec, d: 'l', h: primo, opz: [['pp', 'Primi passi (amministratore di un’azienda nuova)'], ['crono', 'Cronometri in corso o dimenticati'], ['giro', 'Giro di controllo'], ['fuori', 'Barche fuori in ritardo o che rientrano oggi'],
         ['conferme', 'Giornate da confermare'], ['corte', 'Schede lavoro sotto le 8 ore'], ['attesa', 'Lavori in attesa'], ['tel', 'Telefonate da richiamare'], ['ferme', 'Barche ferme o che non possono uscire'], ['chiavi', 'Chiavi e attrezzi fuori'], ['chiusura', 'Cantiere chiuso oggi o domani'], ['arrivi', 'Merce in arrivo o in ritardo'], ['ctrldati', 'Controllo dei dati a fine mese'], ['permessi', 'Permessi da controllare (amministratori)'], ['spazio', 'Spazio quasi pieno (amministratori)'], ['mezzi', 'Mezzi fermi o da controllare'], ['vari', 'Vari e alaggi di oggi e domani'], ['scad', 'Scadenze delle barche'], ['ferie', 'Ferie e permessi'], ['scadc', 'Scadenze del cantiere'], ['batt', 'Batterie da caricare'], ['mag', 'Ricambi da riordinare'], ['rif', 'Rifiuti oltre la soglia'], ['note', 'Note dei colleghi'], ['reper', 'Reperibilità'], ['mani', 'Tempi tra le mani'], ['emerg', 'Primo soccorso da controllare']] },
       { id: 'meteo', t: 'Meteo', sub: 'vento e mare dei prossimi giorni', z: sec, d: 'l', h: metHome },
       { id: 'prog', t: 'Programma di oggi', z: sec, d: 'l', h: homeProgHtml },
@@ -7683,6 +7684,32 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     toast('Lavoro creato: ' + tit); offSheet(V.offM);
   }
 
+  // 8.01 Primi passi: per l'amministratore di un'azienda nuova, 6 passi con la barra; si può saltare (impostazioni/primipassi)
+  function ppPassi() {
+    var nP = 0; try { nP = window.__NM_FB && window.__NM_FB.persone ? window.__NM_FB.persone() : 0; } catch (e) { }
+    var nb = S.boats.filter(function (b) { return !b._del; }).length;
+    return [
+      ['Nome, colori e logo dell’azienda', !aspNuovo(), '<button type="button" class="btn sec" data-act="tab" data-tab="aspetto">Aspetto dell’app</button>'],
+      ['Il porto o il piazzale', !sezOn('porto') || Object.keys(S.posti || {}).length > 0 || !!S.portoMio || (S.mezzi || []).length > 0, '<button type="button" class="btn sec" data-act="tab" data-tab="mappa">Mappa</button>'],
+      ['Fai entrare i colleghi', nP >= 2, '<button type="button" class="btn sec" data-act="fb" data-k="utenti">Utenti e permessi</button>'],
+      ['Almeno 3 barche' + (nb && nb < 3 ? ' (ora ' + nb + ')' : ''), nb >= 3, '<button type="button" class="btn sec" data-act="new-boat">Aggiungi barca</button>'],
+      ['Il primo lavoro', (S.lavoriAll || S.lavori || []).some(function (l) { return !l._del; }), '<button type="button" class="btn sec" data-act="tab" data-tab="lavori">Lavorazioni</button>'],
+      ['La prima scadenza (tagliando, assicurazione…)', (S.scadenze || []).some(function (x) { return !x._del; }), '<button type="button" class="btn sec" data-act="tab" data-tab="scadenze">Scadenze</button>']];
+  }
+  function ppCard() {
+    if (window.NM_ASPETTO || window.__NM_DEMO || !S.isOwner || !S.canWrite || S.status !== 'ready') return '';
+    var c = S.ppCfg; if (c && !c._del && (c.saltato || c.finito)) return '';
+    var P = ppPassi(), fatti = P.filter(function (x) { return x[1]; }).length; if (fatti === P.length) return '';
+    var nx = P.filter(function (x) { return !x[1]; })[0];
+    return featCard('vio', I.check, 'Primi passi: ' + fatti + ' di ' + P.length, 'Ora: ' + nx[0],
+      '<div class="pp-bar"><i style="width:' + Math.round(fatti / P.length * 100) + '%"></i></div><ul class="pp-l">' + P.map(function (x) { return '<li class="' + (x[1] ? 'ok' : '') + '">' + (x[1] ? '✓ ' : '○ ') + esc(x[0]) + '</li>'; }).join('') + '</ul>',
+      nx[2] + '<button type="button" class="btn sec" data-act="pp-salta">Salta</button>');
+  }
+  async function ppSalta() {
+    if (!confirm('Nascondere i primi passi? L’app resta com’è: puoi fare tutto anche da Altro.')) return;
+    if (await w(function () { return S.db.collection('impostazioni').doc('primipassi').set({ saltato: true, il: new Date().toISOString() }); })) { S.ppCfg = { saltato: true }; render(); }
+  }
+
   // 7.01 Controllo dei dati: un elenco corto di cose incomplete, da sistemare a fine mese
   function cdOn() { return strOn('controllodati'); }
   function cdVoci() {
@@ -10458,11 +10485,20 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   // riquadri di Home e Pannello che appartengono a una sezione (spariscono se le loro sezioni sono tutte spente)
   var SEZ_BLOCCHI = { w_mag: ['magazzino'], w_porto: ['porto'], w_rif: ['rifiuti'], w_batt: ['batterie'], vari: ['vari'], prog: ['programma'], meteo: ['meteo'],
     contr: ['porto'], riord: ['magazzino', 'batterie'], serv: ['operazioni'], magb: ['magazzino', 'batterie'] };
-  function sezSpente() {
+  window.NM_SEZIONI = SEZIONI; // per il pannello del gestore (funzioni per azienda)
+  function sezFz() { var F = null; try { F = window.__NM_FB && window.__NM_FB.funzioni ? window.__NM_FB.funzioni() : null; } catch (e) { } return { per: (F && F.per) || {}, ante: (F && F.ante) || [] }; }
+  function sezFzStato(k, F) { F = F || sezFz(); var v = F.per[k]; if (v === 'no') return 'no'; if (v === 'fissa') return 'fissa'; if (v === 'prova') return 'prova'; return F.ante.indexOf(k) >= 0 ? 'no' : ''; } // '' = sceglie l'azienda
+  function sezBase(F) {
     var c = S.sezCfg;
-    if (c && !c._del && Array.isArray(c.spente)) { var l = c.spente.slice(), con = c.conosce || []; SEZ_OFF.forEach(function (k) { if (con.indexOf(k) < 0 && l.indexOf(k) < 0) l.push(k); }); return l; }
-    return (window.NM_ASPETTO ? [] : ['porto']).concat(SEZ_OFF);
+    if (c && !c._del && Array.isArray(c.spente)) { var l = c.spente.slice(), con = c.conosce || []; SEZ_OFF.forEach(function (k) { if (con.indexOf(k) < 0 && l.indexOf(k) < 0 && !(F && F.per[k] === 'prova')) l.push(k); }); return l; }
+    return (window.NM_ASPETTO ? [] : ['porto']).concat(SEZ_OFF.filter(function (k) { return !(F && F.per[k] === 'prova'); }));
   } // il porto disegnato è quello di Nautica Mare
+  function sezSpente() {
+    var F = sezFz(), l = sezBase(F);
+    SEZIONI.forEach(function (x) { var st = sezFzStato(x[0], F); if (st === 'no' && l.indexOf(x[0]) < 0) l.push(x[0]); else if (st === 'fissa') l = l.filter(function (y) { return y !== x[0]; }); });
+    return l;
+  }
+  document.addEventListener('nm-funzioni', function () { if (S.status === 'ready') render(); });
   function sezOn(k) { return sezSpente().indexOf(k) < 0; }
   function strOn(k) { return sezOn(k); } // il codice in comune con Nautica Mare chiama strOn: qui sono le sezioni
   function sezBlocco(b) { var ks = SEZ_BLOCCHI[b.id]; return !ks || ks.some(sezOn); }
@@ -10510,8 +10546,11 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         }).join('') + '</div>' : '<span class="hint">Nessun luogo trovato con questo nome.</span>') : '') + '</div>';
   }
   function aspSezHtml() {
-    return '<div class="group asp-sez">' + SEZIONI.map(function (x) {
-      return '<label class="row"><span class="main"><span class="title">' + esc(x[1]) + '</span><span class="sub">' + esc(x[2]) + '</span></span><input type="checkbox" data-asp-sez="' + x[0] + '"' + (V.asp.spente.indexOf(x[0]) < 0 ? ' checked' : '') + '></label>';
+    var F = sezFz();
+    return '<div class="group asp-sez">' + SEZIONI.filter(function (x) { return sezFzStato(x[0], F) !== 'no'; }).map(function (x) {
+      var st = sezFzStato(x[0], F);
+      if (st === 'fissa') return '<div class="row"><span class="main"><span class="title">' + esc(x[1]) + '</span><span class="sub">' + esc(x[2]) + ' · sempre accesa nel vostro abbonamento</span></span><input type="checkbox" checked disabled></div>';
+      return '<label class="row"><span class="main"><span class="title">' + esc(x[1]) + (st === 'prova' ? ' <span class="pill">in anteprima</span>' : '') + '</span><span class="sub">' + esc(x[2]) + '</span></span><input type="checkbox" data-asp-sez="' + x[0] + '"' + (V.asp.spente.indexOf(x[0]) < 0 ? ' checked' : '') + '></label>';
     }).join('') + '</div><p class="cap" style="margin:0">Spenta una sezione, sparisce dal menù, dalla Home e dalla guida. I dati già inseriti restano: riaccendendola ritornano.</p>';
   }
   function viewAspetto() {
@@ -10591,7 +10630,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   async function aspSave() {
     var d = aspDraft(), now = new Date().toISOString(),
       data = { nome: String(d.nome || '').trim().slice(0, 60), colore1: d.colore1, colore2: d.colore2, logo: d.logo || '', scritta: d.scritta || '', luogo: d.luogo || '', lat: d.lat, lon: d.lon, modificato: now },
-      sez = { spente: d.spente.filter(function (k) { return SEZIONI.some(function (x) { return x[0] === k; }); }), conosce: SEZ_OFF.slice(), modificato: now };
+      fzF = sezFz(), fzB = sezBase(), fzL = function (k) { return sezFzStato(k, fzF) === 'no' || sezFzStato(k, fzF) === 'fissa'; },
+      sez = { spente: d.spente.filter(function (k) { return SEZIONI.some(function (x) { return x[0] === k; }) && !fzL(k); }).concat(fzB.filter(function (k) { return fzL(k) && SEZIONI.some(function (x) { return x[0] === k; }); })).filter(function (k, i, a) { return a.indexOf(k) === i; }), conosce: SEZ_OFF.slice(), modificato: now };
     if (!data.nome) { if (V.wizStep) V.wizStep = 0; render(); toast('Scrivi il nome dell’azienda.', true); return; }
     var r = S.db.collection('impostazioni').doc('aspetto'), r2 = S.db.collection('impostazioni').doc('sezioni');
     if (!(await w(function () { return Promise.all([r.set(data), r2.set(sez)]); }))) return;
@@ -14488,6 +14528,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var x;
     switch (act) {
       case 'fb': if (window.__NM_FB) window.__NM_FB.open(t.getAttribute('data-k')); break;
+      case 'pp-salta': ppSalta(); break;
       case 'tab': if (t.getAttribute('data-tab') === 'segnala' && V.tab !== 'segnala') V.sgDa = (TITOLI && TITOLI[V.tab]) || V.tab; if (t.getAttribute('data-tab') === 'mappa' && V.tab !== 'mappa') { M.prevTab = V.tab; M.prevBoat = null; } V.tab = t.getAttribute('data-tab'); V.boatId = null; V.boatView = null; V.exConfirm = false; if (V.tab === 'giro') V.giroId = null; window.scrollTo(0, 0); render(); break;
       case 'bk-save': bkSave(); break;
       case 'fs-conta': fsAzione('conta'); break;
