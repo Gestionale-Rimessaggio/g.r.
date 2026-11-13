@@ -6,7 +6,7 @@
   'use strict';
   var CFG = window.NM_FIREBASE_CONFIG || null;
   var COLLS = ['barche', 'lavori', 'scadenze', 'dipendenti', 'conferme', 'impostazioni', 'magazzino', 'movimenti', 'vari', 'modelli',
-    'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'deposito', 'programma', 'cariche', 'posti', 'richieste', 'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente', 'verbali', 'componenti', 'barattoli', 'noteColleghi'];
+    'checkBarca', 'checklist', 'opModelli', 'operazioni', 'mezzi', 'attrezzatura', 'deposito', 'programma', 'cariche', 'posti', 'richieste', 'rifiuti', 'ritiri', 'scadCantiere', 'preventivi', 'assenze', 'kit', 'inventari', 'giri', 'cronometri', 'ditte', 'pin', 'controlliMezzi', 'richiesteCliente', 'verbali', 'componenti', 'barattoli', 'noteColleghi', 'telefonate', 'prese'];
   var RUOLI = { base: 'Dipendente', editor: 'Dipendente', admin: 'Amministratore', cliente: 'Cliente' }; // «editor» era «Può cancellare»: ora vale come Dipendente
   var FULL_EVERY = 7 * 864e5;            // una rilettura completa a settimana per sicurezza
   var GIF0 = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
@@ -86,6 +86,7 @@
     '#nmfb .eye{position:absolute;right:3px;top:50%;transform:translateY(-50%);width:48px;height:44px;margin:0;padding:0;border:0;border-radius:10px;background:none;color:#b9bccb;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
     '#nmfb .eye svg{width:22px;height:22px}#nmfb .eye[aria-pressed="true"]{color:#8cc2ff}' +
     '#nmfb .btn[disabled]{opacity:.6}#nmfb .lnk{display:block;width:100%;margin-top:12px;background:none;border:0;color:#8cc2ff;font:inherit;padding:8px;cursor:pointer}' +
+    '#nmfb .cpy{position:fixed;right:12px;bottom:calc(8px + env(safe-area-inset-bottom));padding:6px 8px;font-size:12px;color:#8a94a6;text-decoration:none}#nmfb .cpy:hover{color:#b9bccb}' +
     '#nmfb .err{color:#ff8a80;min-height:1.3em;margin-top:10px;font-size:.95rem}#nmfb .ok{color:#7fe0a0}#nmfb .card{background:#12114a;border:1px solid #33355a;border-radius:14px;padding:16px;margin-top:6px}' +
     '#nmfb .spin{width:34px;height:34px;border-radius:50%;border:3px solid #33355a;border-top-color:#2f8ff0;margin:30px auto;animation:nmspin 1s linear infinite}@keyframes nmspin{to{transform:rotate(360deg)}}' +
     /* pannelli (utenti, account) */
@@ -492,7 +493,8 @@
       '<label for="nm-pw">Password</label>' + pwField('nm-pw', 'current-password') +
       '<button class="btn" type="submit">Accedi</button><div class="err" id="nm-err">' + esc(msg || '') + '</div></form>' +
       '<button class="lnk" id="nm-goreg">Prima volta? Crea il tuo account</button><button class="lnk" id="nm-goreset">Password dimenticata</button>' +
-      '<button class="btn" id="nm-prova" type="button" style="margin-top:22px;background:transparent;border:1px solid rgba(255,255,255,.35)">Prova senza registrarti</button><p class="nm-prova-n" style="font-size:13px;opacity:.75;margin-top:6px;text-align:center">Un cantiere di esempio da toccare e modificare: non si salva nulla e sparisce quando chiudi la finestra.</p>');
+      '<button class="btn" id="nm-prova" type="button" style="margin-top:22px;background:transparent;border:1px solid rgba(255,255,255,.35)">Prova senza registrarti</button><p class="nm-prova-n" style="font-size:13px;opacity:.75;margin-top:6px;text-align:center">Un cantiere di esempio da toccare e modificare: non si salva nulla e sparisce quando chiudi la finestra.</p>' +
+      '<a class="cpy" href="./diritti.html" target="_blank" rel="noopener">© Torcio</a>');
     var f = $('#nm-login', o);
     f.addEventListener('submit', function (e) {
       e.preventDefault(); busy(f, true); $('#nm-err').textContent = '';
@@ -660,7 +662,7 @@
     if (!AZ_UNSUB || AZ_UNSUB.az !== x.azienda || (AZD === null && AZ_UNSUB.st !== x.stato)) {
       if (AZ_UNSUB) AZ_UNSUB();
       AZD = undefined;
-      var un = fs.collection('aziende').doc(x.azienda).onSnapshot(function (d) { AZD = d.exists ? d.data() : null; decidi(); if (started) avvisoAbb(); if ($('#nmpan')) renderPanel(); }, function () { AZD = null; decidi(); });
+      fzAscolta(); var un = fs.collection('aziende').doc(x.azienda).onSnapshot(function (d) { AZD = d.exists ? d.data() : null; fzAvvisa(); decidi(); if (started) avvisoAbb(); if ($('#nmpan')) renderPanel(); }, function () { AZD = null; decidi(); });
       un.az = x.azienda; un.st = x.stato; AZ_UNSUB = un;
     }
     decidi();
@@ -750,7 +752,7 @@
   var CEST_NOMI = { barche: 'Barca', lavori: 'Lavoro o mansione', scadenze: 'Scadenza', vari: 'Varo o alaggio', magazzino: 'Ricambio', movimenti: 'Movimento di magazzino',
     operazioni: 'Servizio', opModelli: 'Gruppo di servizi', mezzi: 'Mezzo', conferme: 'Giornata confermata', posti: 'Posto al porto', attrezzatura: 'Attrezzatura', deposito: 'Roba in deposito', componenti: 'Componente a bordo', barattoli: 'Barattolo aperto', noteColleghi: 'Nota a un collega', programma: 'Programma',
     cariche: 'Carica batterie', richieste: 'Richiesta', richiesteCliente: 'Richiesta del cliente', verbali: 'Verbale', rifiuti: 'Rifiuto', ritiri: 'Ritiro rifiuti', scadCantiere: 'Scadenza del cantiere', preventivi: 'Preventivo', assenze: 'Ferie o permesso', kit: 'Kit ricambi', inventari: 'Inventario', giri: 'Giro di controllo', cronometri: 'Cronometro', ditte: 'Ditta esterna',
-    checklist: 'Checklist', modelli: 'Modello di checklist', checkBarca: 'Lista della barca', dipendenti: 'Dipendente', impostazioni: 'Impostazione' };
+    telefonate: 'Telefonata', prese: 'Chiavi o attrezzo preso', checklist: 'Checklist', modelli: 'Modello di checklist', checkBarca: 'Lista della barca', dipendenti: 'Dipendente', impostazioni: 'Impostazione' };
   function cestCutoff() { return new Date(Date.now() - CEST_DAYS * 864e5).toISOString(); }
   function purgeCestino() { // toglie per sempre ciò che è nel cestino da più di 60 giorni
     return AC('cestino').where('il', '<', cestCutoff()).limit(200).get().then(function (s) {
@@ -1147,6 +1149,49 @@
     return fs.collection('pacchetto').doc('attuale').get().then(function (d) { var x = d.exists ? d.data() : null; return x && !x._del ? Object.assign({}, PACK_DEF, x) : PACK_DEF; }, function () { return PACK_DEF; });
   }
   function righe(s) { return String(s || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
+  // Funzioni per azienda (idea 8.09): il gestore decide per ogni azienda quali sezioni sono fisse, non disponibili o in anteprima,
+  // e quali novità restano spente per tutti finché non le dà in anteprima a un'azienda
+  var FZ_T = [['', 'Come sceglie l’azienda'], ['fissa', 'Sempre accesa'], ['no', 'Non disponibile'], ['prova', 'In anteprima']];
+  var FZ_SEL = 'font:inherit;padding:8px 10px;border-radius:10px;background:var(--card,#1c1f24);color:inherit;border:1px solid rgba(255,255,255,.15);max-width:48%';
+  function fzSez() { return (window.NM_SEZIONI || []).filter(function (x) { return x[0] !== 'novita'; }); }
+  function fzNome(k) { var x = fzSez().filter(function (y) { return y[0] === k; })[0]; return x ? x[1] : k; }
+  function crFzLoad() { if (CR.fz === undefined) { CR.fz = null; fs.collection('pacchetto').doc('funzioni').get().then(function (d) { CR.fz = d.exists ? d.data() : {}; crRender(); }, function () { CR.fz = {}; crRender(); }); } }
+  function crFzAnte() { return (CR.fz && Array.isArray(CR.fz.anteprima)) ? CR.fz.anteprima : []; }
+  function crFzAz(k, A) {
+    crFzLoad(); var f = A.funzioni || {}, dec = Object.keys(f).filter(function (x) { return f[x]; });
+    if (CR.fzApri !== k) return '<h4>Funzioni</h4><div class="grp"><div class="u"><div class="em">' + (dec.length ? esc(dec.map(function (x) { return fzNome(x) + ': ' + (FZ_T.filter(function (o) { return o[0] === f[x]; })[0] || ['', f[x]])[1].toLowerCase(); }).join(' · ')) : 'Tutte come sceglie l’azienda in Aspetto dell’app') + '</div>' +
+      '<div class="acts"><button class="b" data-cr="fz-apri" data-id="' + k + '">Scegli le funzioni</button></div></div></div>';
+    return '<h4>Funzioni</h4><div class="grp">' + fzSez().map(function (x) {
+      var v = f[x[0]] || '', ante = crFzAnte().indexOf(x[0]) >= 0;
+      return '<div class="u" style="display:flex;gap:10px;align-items:center;justify-content:space-between"><div class="nm" style="min-width:0">' + esc(x[1]) + (ante ? '<span class="pill">novità</span>' : '') + '</div>' +
+        '<select data-crf="' + x[0] + '" data-id="' + k + '" style="' + FZ_SEL + '">' + FZ_T.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === v ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></div>';
+    }).join('') + '<div class="u"><div class="acts"><button class="b pri" data-cr="fz-chiudi">Fatto</button></div></div></div>' +
+      '<p class="note">«Come sceglie l’azienda»: la accende o spegne l’amministratore. «Sempre accesa»: non si può spegnere. «Non disponibile»: sparisce del tutto. «In anteprima»: una novità che dai prima a quest’azienda (le altre non la vedono finché non la togli dalle novità). Ogni scelta vale subito.</p>';
+  }
+  function crFzSalva(id, key, v) {
+    var A = CR.az[id]; if (!A) return; var f = Object.assign({}, A.funzioni || {}); if (v) f[key] = v; else delete f[key];
+    fs.collection('aziende').doc(id).update({ funzioni: f, modificato: nowISO() }).then(function () { toast('Salvato: ' + fzNome(key)); }, function (er) { toast('Non riuscito: ' + errOf(er).code); crRender(); });
+  }
+  function crFzHome() {
+    crFzLoad(); if (!CR.fz) return '<p class="note">Carico…</p>';
+    var an = crFzAnte();
+    if (!CR.fzEd) return '<div class="grp"><div class="u"><div class="em">' + (an.length ? esc(an.map(fzNome).join(' · ')) : 'Nessuna: ogni sezione è disponibile a tutte le aziende') + '</div>' +
+      '<div class="acts"><button class="b pri" data-cr="fz-mod">Modifica</button></div><div class="em">Una novità segnata qui resta spenta per tutte le aziende, tranne quelle a cui la metti «In anteprima» o «Sempre accesa» nella loro scheda. Quando va bene, la togli da qui e arriva a tutte.</div></div></div>';
+    return '<div class="grp">' + fzSez().map(function (x) {
+      return '<label class="u" style="display:flex;gap:10px;align-items:center;justify-content:space-between"><span class="nm">' + esc(x[1]) + '</span><input type="checkbox" data-fza="' + x[0] + '"' + (an.indexOf(x[0]) >= 0 ? ' checked' : '') + '></label>';
+    }).join('') + '<div class="u"><div class="acts"><button class="b pri" data-cr="fz-salva">Salva</button><button class="b" data-cr="fz-annulla">Annulla</button></div></div></div>';
+  }
+  function crFzHomeSalva() {
+    var l = []; Array.prototype.forEach.call(document.querySelectorAll('#nmcr [data-fza]'), function (c) { if (c.checked) l.push(c.getAttribute('data-fza')); });
+    fs.collection('pacchetto').doc('funzioni').set({ anteprima: l, modificato: nowISO() }).then(function () { CR.fz = { anteprima: l }; CR.fzEd = false; toast('Novità in anteprima salvate'); crRender(); }, function (er) { toast('Non riuscito: ' + errOf(er).code); });
+  }
+  // per l'app: le scelte del gestore per l'azienda in uso e le novità spente per tutti
+  var FZA = [], FZ_UNSUB = null;
+  function fzAvvisa() { try { document.dispatchEvent(new Event('nm-funzioni')); } catch (e) { } }
+  function fzAscolta() {
+    if (FZ_UNSUB) return;
+    FZ_UNSUB = fs.collection('pacchetto').doc('funzioni').onSnapshot(function (d) { var x = d.exists ? d.data() : {}; FZA = Array.isArray(x.anteprima) ? x.anteprima : []; fzAvvisa(); }, function () { FZA = []; });
+  }
   function crPackHtml() {
     if (CR.pack === undefined) { CR.pack = null; pacchetto().then(function (p) { CR.pack = p; crRender(); }); }
     var P = CR.pack; if (!P) return '<p class="note">Carico…</p>';
@@ -1271,6 +1316,7 @@
         '<h4>Persone (' + crPersone(k).length + ')</h4><div class="grp">' + (crPersone(k).length ? crPersone(k).sort(function (x, y) { return String(CR.ut[x].nome || '').localeCompare(String(CR.ut[y].nome || ''), 'it'); }).map(function (u) {
           var p = CR.ut[u]; return '<div class="u"><div class="nm">' + esc(p.nome || '(senza nome)') + '<span class="pill">' + esc(RUOLI[p.ruolo] || p.ruolo || '') + '</span>' + (p.tablet ? '<span class="pill">tablet</span>' : '') + '</div><div class="em">Ultimo accesso: ' + esc(ult[u] ? crQuando(ult[u]) : 'non nelle ultime 300 righe') + '</div></div>';
         }).join('') : '<div class="u"><div class="em">Nessuno.</div></div>') + '</div>' +
+        crFzAz(k, A) +
         '<h4>Nota privata</h4><div class="grp"><div class="u"><textarea id="cr-nota" rows="3" maxlength="1000" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#f4f5f7;padding:10px;font:inherit" placeholder="Solo per te: accordi, prezzo, cose da ricordare">' + esc(nota == null ? '' : nota) + '</textarea>' +
         '<div class="acts"><button class="b pri" data-cr="nota" data-id="' + k + '">Salva nota</button></div></div></div>' +
         '<p class="note">«Scarica i dati» funziona solo se l’azienda ha acceso «Permetti assistenza». Il file contiene persone e tutte le raccolte; le foto solo se le scegli.</p>';
@@ -1321,6 +1367,7 @@
         '<h4>Novità in app</h4>' + crNovHtml() +
         '<h4>Messaggio a tutte le aziende</h4>' + crMsgHtml() +
         '<h4>Pacchetto di partenza delle aziende nuove</h4>' + crPackHtml() +
+        '<h4>Novità in anteprima</h4>' + crFzHome() +
         (!ids.length && !CR.err ? '<p class="note">Ancora nessuna azienda. Quando un’azienda si registra dal sito, la sua richiesta compare qui.</p>' : '') +
         '<p class="note">Approvando un’azienda, chi l’ha registrata diventa il suo amministratore e l’azienda riceve il suo codice per far entrare colleghi e clienti. Nei dati di un’azienda entri solo se ha acceso «Permetti assistenza» in Altro › Utenti e permessi.</p>';
     }
@@ -1379,6 +1426,7 @@
   function crStato(k, st, msg) { fs.collection('aziende').doc(k).update({ stato: st, modificato: nowISO() }).then(function () { toast(msg); }, function (e) { toast('Non riuscito: ' + errOf(e).code); }); }
   document.addEventListener('input', function (e) { if (e.target && e.target.id === 'cr-q') { CR.q = e.target.value; crRender(); } });
   document.addEventListener('change', function (e) { var t = e.target; if (t && t.closest && t.closest('#nmcr') && t.getAttribute('data-cr') === 'chi') { CR.chi = t.value; crRender(); } });
+  document.addEventListener('change', function (e) { var t = e.target; if (t && t.closest && t.closest('#nmcr') && t.getAttribute('data-crf')) crFzSalva(t.getAttribute('data-id'), t.getAttribute('data-crf'), t.value); });
   document.addEventListener('click', function (e) {
     var t = e.target.closest && e.target.closest('#nmcr [data-cr]'); if (!t || t.tagName === 'SELECT') return;
     var k = t.getAttribute('data-cr'), id = t.getAttribute('data-id'), a = CR.az[id] || {};
@@ -1399,6 +1447,11 @@
     else if (k === 'pack-mod') { CR.packEd = true; crRender(); }
     else if (k === 'pack-annulla') { CR.packEd = false; crRender(); }
     else if (k === 'pack-salva') crPackSalva();
+    else if (k === 'fz-apri') { CR.fzApri = id; crRender(); }
+    else if (k === 'fz-chiudi') { CR.fzApri = null; crRender(); }
+    else if (k === 'fz-mod') { CR.fzEd = true; crRender(); }
+    else if (k === 'fz-annulla') { CR.fzEd = false; crRender(); }
+    else if (k === 'fz-salva') crFzHomeSalva();
     else if (k === 'pack-def') { if (confirm('Rimettere il pacchetto di partenza preparato all’inizio?')) fs.collection('pacchetto').doc('attuale').delete().then(function () { CR.pack = undefined; CR.packEd = false; toast('Pacchetto rimesso come all’inizio'); crRender(); }); }
     else if (k === 'msg-pub') {
       var mt = (($('#cr-msg') || {}).value || '').trim(); if (!mt) { toast('Scrivi il messaggio'); return; }
@@ -1858,7 +1911,7 @@
     dipendenti: ['nome dei dipendenti', 'nomi dei dipendenti'], impostazioni: ['misure della mappa', 'misure della mappa'], posti: ['posto al porto', 'posti al porto'],
     attrezzatura: ['attrezzatura di bordo', 'attrezzature di bordo'], deposito: ['cosa in deposito', 'cose in deposito'], componenti: ['componente a bordo', 'componenti a bordo'], barattoli: ['barattolo aperto', 'barattoli aperti'], noteColleghi: ['nota a un collega', 'note ai colleghi'], programma: ['voce del programma', 'voci del programma'], cariche: ['carica delle batterie', 'cariche delle batterie'],
     richieste: ['richiesta', 'richieste'], checklist: ['checklist', 'checklist'], checkBarca: ['lista per barca', 'liste per barca'], modelli: ['modello di checklist', 'modelli di checklist'],
-    giri: ['giro di controllo', 'giri di controllo'], cronometri: ['cronometro', 'cronometri'], ditte: ['ditta esterna', 'ditte esterne'] };
+    giri: ['giro di controllo', 'giri di controllo'], telefonate: ['telefonata', 'telefonate'], prese: ['chiave o attrezzo preso', 'chiavi e attrezzi presi'], cronometri: ['cronometro', 'cronometri'], ditte: ['ditta esterna', 'ditte esterne'] };
   var IMP_KEY = null, IMP = null;
   function impHash() {
     var m = /[#&]importa=([A-Za-z0-9_-]{40,})/.exec(location.hash || '');
@@ -2302,6 +2355,8 @@
     },
     pacchetto: pacchetto,
     segnala: SEGN,
-    azienda: function () { return { nome: (AZD && AZD.nome) || '', assist: !!(ME && ME.assist) }; } // l'azienda in uso (per la procedura guidata)
+    azienda: function () { return { nome: (AZD && AZD.nome) || '', assist: !!(ME && ME.assist) }; }, // l'azienda in uso (per la procedura guidata)
+    funzioni: function () { return { per: (AZD && AZD.funzioni) || {}, ante: FZA }; }, // idea 8.09
+    persone: function () { return Object.keys(UT).filter(function (id) { var u = UT[id]; return u && u.stato === 'attivo' && u.ruolo !== 'cliente'; }).length; } // per i primi passi (8.01)
   };
 })();

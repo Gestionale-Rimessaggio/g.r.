@@ -1,5 +1,21 @@
 [
   {
+    "id": "2026-11-13-idee",
+    "titolo": "Novembre 2026",
+    "righe": [
+      "Lavori in attesa: in un lavoro scrivi cosa aspetta (ricambio, cliente, meteo, altro); esce da «da fare», lo trovi in «In attesa» e con «Riparte» torna tra le cose da fare.",
+      "Merce in arrivo (Altro): cosa avete ordinato, da chi e quando arriva; se è per un lavoro, il lavoro resta in attesa finché non segni «Arrivato» (anche in parte, con il carico in magazzino).",
+      "Revisioni da offrire (in Scadenze): cosa scade nel mese cliente per cliente, il messaggio pronto per WhatsApp e «Ha detto sì» che crea il lavoro.",
+      "Avviso fissato sulla barca (es. «non avviare il motore sinistro»): in alto nella scheda della barca, nella scheda lavoro e nel programma.",
+      "Bozze salvate: se chiudi una scheda a metà, quando la riapri riprendi da dove eri.",
+      "Controllo dei dati (Altro): barche, mansioni e lavori lasciati incompleti, da sistemare a fine mese.",
+      "Telefonate da richiamare, Chiavi e attrezzi (chi li ha presi, chi ha aperto), Mezzi e attrezzi fuori uso, Giorni di chiusura nel calendario.",
+      "Annulla per 10 secondi dopo un’eliminazione o un «fatto»; effetto del lavoro sulla barca (ferma, non può uscire); note riservate su barca e lavoro, mai nel portale del cliente.",
+      "Le scadenze vicine (30 giorni o 20 ore di motore) diventano da sole una lavorazione da fare; fatta la lavorazione, la scadenza si rinnova.",
+      "Ogni novità si spegne da Altro › Aspetto dell’app, tra le sezioni."
+    ]
+  },
+  {
     "id": "2026-11-05-detta",
     "titolo": "Novembre 2026",
     "righe": [
