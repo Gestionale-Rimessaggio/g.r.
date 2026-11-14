@@ -10497,12 +10497,16 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var MB = '', MC = ''; // segni temporanei: dopo la parola nuova si sistemano gli aggettivi
     var L = '(?<![A-Za-zÀ-ÿ’\'])', R = '(?![A-Za-zÀ-ÿ])';
     var out = [];
+    // iPhone con iOS prima del 16.4: non conoscono il «guarda indietro» (?<!…) delle regole. Lì la regola si crea senza
+    // e al suo posto c'è un gruppo in più che prende il carattere prima (non una lettera); vocSenzaLB lo rimette com'era.
+    var LB = true; try { new RegExp('(?<!a)b'); } catch (e) { LB = false; }
+    function RX(src, fl) { if (LB || src.indexOf(L) !== 0) return new RegExp(src, fl); var re = new RegExp('(^|[^A-Za-zÀ-ÿ’\'])' + src.slice(L.length), fl); re.lb = 1; return re; }
     function cap(s) { var i = 0; while (i < s.length && (s[i] === MB || s[i] === MC)) i++; return s.slice(0, i) + s.charAt(i).toUpperCase() + s.slice(i + 1); }
     function ci(w) { return '[' + w.charAt(0) + w.charAt(0).toUpperCase() + ']' + w.slice(1); } // «veicolo» o «Veicolo»
     // regola minuscola + la stessa con l'iniziale maiuscola
     function add(p, r, noCap) {
-      out.push([new RegExp(L + p + R, 'g'), r]);
-      if (!noCap && /^[a-zà-ÿ]/.test(p)) out.push([new RegExp(L + cap(p) + R, 'g'), typeof r === 'string' ? cap(r) : function () { var x = r.apply(null, arguments); return cap(x); }]);
+      out.push([RX(L + p + R, 'g'), r]);
+      if (!noCap && /^[a-zà-ÿ]/.test(p)) out.push([RX(L + cap(p) + R, 'g'), typeof r === 'string' ? cap(r) : function () { var x = r.apply(null, arguments); return cap(x); }]);
     }
     var ap = '[’\']';
     /* ---- frasi intere prima di tutto ---- */
@@ -10557,7 +10561,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     function alt(D) { return '(?:' + Object.keys(D).sort(function (a, b) { return b.length - a.length; }).join('|') + ')'; }
     function seq(A, G, noun, rep0, plur) {
       var rep = rep0;
-      var re = new RegExp(L + '(' + (plur ? '(?:tutte\\s+)?' : '') + '(?:' + alt(A) + '\\s+)?(?:' + alt(G) + '\\s+)*)' + noun + R, 'gi');
+      var re = RX(L + '(' + (plur ? '(?:tutte\\s+)?' : '') + '(?:' + alt(A) + '\\s+)?(?:' + alt(G) + '\\s+)*)' + noun + R, 'gi');
       var D = Object.assign({ tutte: 'tutti' }, A, G);
       out.push([re, function (m, pre) {
         if (set === 'impianti' && pre && /(^|\s)(tu|su)[ae](\s|$)/i.test(pre)) rep = MB + (plur ? 'impianti' : 'impianto'); else rep = rep0;
@@ -10574,36 +10578,47 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     }
     seq(AP, GP, 'barche', MB + N[1], true); seq(AS, GS, 'barca', MB + N[0]);
     // aggettivo prima: «è pronta la barca»
-    out.push([new RegExp(L + '(pront|ferm|consegnat|pulit)a(\\s+(?:il|un|del|questo)\\s+' + MB + ')', 'g'), '$1o$2']);
+    out.push([RX(L + '(pront|ferm|consegnat|pulit)a(\\s+(?:il|un|del|questo)\\s+' + MB + ')', 'g'), '$1o$2']);
     /* ---- cantiere ---- */
     var CD = { il: 'l’', del: 'dell’', al: 'all’', dal: 'dall’', nel: 'nell’', sul: 'sull’', un: 'un’', questo: 'quest’', quel: 'quell’', ogni: 'ogni ', nostro: 'nostra ', vostro: 'vostra ', suo: 'sua ', tuo: 'tua ', in: 'in ', di: 'dell’', per: 'per l’' };
     var CF = { il: 'la', del: 'della', al: 'alla', dal: 'dalla', nel: 'nella', sul: 'sulla' }, PF = { nostro: 'nostra', vostro: 'vostra', suo: 'sua', tuo: 'tua', mio: 'mia' };
-    out.push([new RegExp(L + '(il|del|al|dal|nel|sul)\\s+(nostro|vostro|suo|tuo|mio)\\s+cantiere' + R, 'gi'), function (m, a, p) {
+    out.push([RX(L + '(il|del|al|dal|nel|sul)\\s+(nostro|vostro|suo|tuo|mio)\\s+cantiere' + R, 'gi'), function (m, a, p) {
       var r = CF[a.toLowerCase()] + ' ' + PF[p.toLowerCase()] + ' ' + MC + X; return /^[A-Z]/.test(a) ? cap(r) : r;
     }]);
-    out.push([new RegExp(L + '(il|del|al|dal|nel|sul|un|questo|quel|ogni|nostro|vostro|suo|tuo|in|di)\\s+cantiere' + R, 'gi'), function (m, a) {
+    out.push([RX(L + '(il|del|al|dal|nel|sul|un|questo|quel|ogni|nostro|vostro|suo|tuo|in|di)\\s+cantiere' + R, 'gi'), function (m, a) {
       var r = CD[a.toLowerCase()] + MC + X; return /^[A-Z]/.test(a) ? cap(r) : r;
     }]);
-    out.push([new RegExp(L + 'per il\\s+cantiere' + R, 'g'), 'per l’' + MC + X]);
+    out.push([RX(L + 'per il\\s+cantiere' + R, 'g'), 'per l’' + MC + X]);
     add('cantieri', X === 'officina' ? 'officine' : 'aziende');
     add('cantiere', MC + X);
     /* ---- aggettivi dopo la parola nuova ---- */
     var adjS = '(ferma|pronta|nuova|scelta|aggiunta|coinvolta|lunga|adatta|stessa|chiusa|tolta|messa|rimasta|[a-zà-ÿ]+(?:ata|uta|ita))';
     var AVV = '(?:\\s+(?:non|già|ancora|sempre|più))*';
-    out.push([new RegExp(MB + '(' + ci(N[0]) + ')(' + AVV + '\\s+(?:è|era|resta|rimane)' + AVV + '\\s+stata)\\s+([a-zà-ÿ]+)a' + R, 'g'), function (m, n, v, a) { return n + v.replace('stata', 'stato') + ' ' + a + 'o'; }]);
-    out.push([new RegExp(MB + '(' + ci(N[0]) + ')(' + AVV + '(?:\\s+(?:è|era|resta|rimane))?' + AVV + ')\\s+' + adjS + R, 'g'), function (m, n, v, a) { return n + (v || '') + ' ' + a.replace(/a$/, 'o'); }]);
-    out.push([new RegExp(MB + '(' + ci(N[0]) + ')\\s+\\((facoltativ)a\\)', 'g'), '$1 ($2o)']);
+    out.push([RX(MB + '(' + ci(N[0]) + ')(' + AVV + '\\s+(?:è|era|resta|rimane)' + AVV + '\\s+stata)\\s+([a-zà-ÿ]+)a' + R, 'g'), function (m, n, v, a) { return n + v.replace('stata', 'stato') + ' ' + a + 'o'; }]);
+    out.push([RX(MB + '(' + ci(N[0]) + ')(' + AVV + '(?:\\s+(?:è|era|resta|rimane))?' + AVV + ')\\s+' + adjS + R, 'g'), function (m, n, v, a) { return n + (v || '') + ' ' + a.replace(/a$/, 'o'); }]);
+    out.push([RX(MB + '(' + ci(N[0]) + ')\\s+\\((facoltativ)a\\)', 'g'), '$1 ($2o)']);
     var adjP = '(ferme|pronte|nuove|scelte|aggiunte|coinvolte|lunghe|adatte|stesse|chiuse|tolte|messe|sovrapposte|rimaste|[a-zà-ÿ]+(?:ate|ute|ite))';
-    out.push([new RegExp(MB + '(' + ci(N[1]) + ')(' + AVV + '\\s+(?:sono|erano|restano)' + AVV + '\\s+state)\\s+([a-zà-ÿ]+)e' + R, 'g'), function (m, n, v, a) { return n + v.replace('state', 'stati') + ' ' + a + 'i'; }]);
-    out.push([new RegExp(MB + '(' + ci(N[1]) + ')(' + AVV + '(?:\\s+(?:sono|erano|restano))?' + AVV + ')\\s+' + adjP + R, 'g'), function (m, n, v, a) { return n + (v || '') + ' ' + a.replace(/he$/, 'hi').replace(/e$/, 'i'); }]);
-    out.push([new RegExp(MC + '(' + ci(X) + ')((?:\\s+non)?\\s+(?:è|era|resta))?\\s+(chius|apert|[a-zà-ÿ]+(?:at|ut|it))o' + R, 'g'), '$1$2 $3a']);
+    out.push([RX(MB + '(' + ci(N[1]) + ')(' + AVV + '\\s+(?:sono|erano|restano)' + AVV + '\\s+state)\\s+([a-zà-ÿ]+)e' + R, 'g'), function (m, n, v, a) { return n + v.replace('state', 'stati') + ' ' + a + 'i'; }]);
+    out.push([RX(MB + '(' + ci(N[1]) + ')(' + AVV + '(?:\\s+(?:sono|erano|restano))?' + AVV + ')\\s+' + adjP + R, 'g'), function (m, n, v, a) { return n + (v || '') + ' ' + a.replace(/he$/, 'hi').replace(/e$/, 'i'); }]);
+    out.push([RX(MC + '(' + ci(X) + ')((?:\\s+non)?\\s+(?:è|era|resta))?\\s+(chius|apert|[a-zà-ÿ]+(?:at|ut|it))o' + R, 'g'), '$1$2 $3a']);
     if (set === 'impianti') { // niente «cliente del cliente»
-      out.push([new RegExp(MB + '([cC]lienti?)\\s+(?:del|dei|di un|di)\\s+clienti?' + R, 'g'), '$1']);
-      out.push([new RegExp('([cC]lienti?)(,| e| o)\\s+' + MB + '(clienti?)' + R, 'g'), '$1']);
-      out.push([new RegExp(MB + '([cC]lienti?)(,| e| o)\\s+(clienti?)' + R, 'g'), '$1']);
+      out.push([RX(MB + '([cC]lienti?)\\s+(?:del|dei|di un|di)\\s+clienti?' + R, 'g'), '$1']);
+      out.push([RX('([cC]lienti?)(,| e| o)\\s+' + MB + '(clienti?)' + R, 'g'), '$1']);
+      out.push([RX(MB + '([cC]lienti?)(,| e| o)\\s+(clienti?)' + R, 'g'), '$1']);
     }
     out.push([/[]/g, '']);
+    if (!LB) out = out.map(function (x) { return x[0].lb ? [x[0], vocSenzaLB(x[1])] : x; });
     return out;
+  }
+  // senza «guarda indietro»: il primo gruppo è il carattere prima della parola; si toglie, si sostituisce come con il
+  // «guarda indietro» e si rimette davanti
+  function vocSenzaLB(r) {
+    return function (m, pre) {
+      var a = Array.prototype.slice.call(arguments), n = a.length, nom = typeof a[n - 1] !== 'string';
+      var g = a.slice(2, nom ? n - 3 : n - 2), off = a[nom ? n - 3 : n - 2], str = a[nom ? n - 2 : n - 1];
+      var b = [m.slice(pre.length)].concat(g, [off + pre.length, str]);
+      return pre + (typeof r === 'function' ? r.apply(null, b) : String(r).replace(/\$(\d)/g, function (x, k) { return b[+k] == null ? '' : b[+k]; }));
+    };
   }
   function vocApplica(regole, s) { for (var i = 0; i < regole.length; i++) s = s.replace(regole[i][0], regole[i][1]); return s; }
   var VOC = { set: 'nautica', R: null, obs: null };
