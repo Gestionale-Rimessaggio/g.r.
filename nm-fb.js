@@ -132,6 +132,10 @@
     '#nmfb .upd{color:#8a8db0;font-size:.82rem;margin-top:10px}#nmfb .more{background:none;border:0;color:#8cc2ff;font:inherit;padding:8px 0;cursor:pointer}' +
     '#nmpan .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;width:100%}#nmpan .chip{display:inline-flex;align-items:center;gap:4px;background:#1e3a5f;color:#d6e8ff;border-radius:99px;padding:4px 4px 4px 10px;font-size:.9rem}' +
     '#nmpan .chip button{background:none;border:0;color:#d6e8ff;font-size:1.1rem;line-height:1;padding:2px 6px;cursor:pointer}' +
+    '#nmpan .conf{position:fixed;inset:0;z-index:5;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px}' +
+    '#nmpan .conf .box{background:#1b1c20;border:1px solid #2a2c31;border-radius:16px;max-width:460px;width:100%;max-height:100%;overflow-y:auto;padding:18px}' +
+    '#nmpan .conf h3{margin:0 0 10px;font-size:1.1rem}#nmpan .conf ul{margin:0;padding-left:20px;color:#c9ccd6;font-size:.95rem}#nmpan .conf li{margin:6px 0}' +
+    '#nmpan .conf .acts{justify-content:flex-end;margin-top:16px}#nmpan button.b.dan{background:#c62828;border-color:#c62828;color:#fff}' +
     /* pannello del gestore: a tutto schermo, come i pannelli */
     '#nmcr{position:fixed;inset:0;z-index:99999;background:var(--bg,#0e0e10);color:#f4f5f7;overflow-y:auto;font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;padding:env(safe-area-inset-top) 16px 40px}#nmcr .in{max-width:760px;margin:0 auto}' +
     '#nmcr .top{display:flex;align-items:center;gap:8px;height:56px}#nmcr .top h3{flex:1;text-align:center;margin:0;font-size:1.1rem}#nmcr .back{background:none;border:0;color:#8cc2ff;font:inherit;padding:8px 4px;cursor:pointer;min-width:64px;text-align:left}' +
@@ -381,7 +385,7 @@
     canEdit: function () { return Promise.resolve(!!ME && (ME.ruolo === 'admin' || ME.ruolo === 'editor')); },
     can: function (n) { return Promise.resolve(n === 'data.write' ? true : null); },
     profiles: function (ids) {
-      var o = {}; (ids || []).forEach(function (id) { var u = UT[id]; o[id] = { id: id, name: u ? (u.nome || '') : '', avatarUrl: '' }; });
+      var o = {}, ex = exNomi(); (ids || []).forEach(function (id) { var u = UT[id]; o[id] = { id: id, name: u ? (u.nome || '') : ((ex[id] && ex[id].nome) || ''), avatarUrl: '' }; });
       return Promise.resolve(o);
     },
     search: function (q) {
@@ -634,6 +638,10 @@
       perche === 'nessuna' ? 'Il tuo account non è collegato a nessuna azienda attiva.' : 'Il tuo account non è attivo. Parla con un amministratore della tua azienda.') + '</p><button class="lnk" id="nm-out">Esci</button>');
     $('#nm-out', o).onclick = logout;
   }
+  function showDeleted() {
+    var o = overlay('<h2>Account cancellato</h2><p>Il tuo account è stato cancellato da un amministratore della tua azienda. Se pensi che sia un errore, parla con lui.</p><button class="lnk" id="nm-out">Esci</button>');
+    $('#nm-out', o).onclick = logout;
+  }
   function logout() {
     var ask = $('#nmfb') ? true : confirm('Vuoi uscire? Su questo telefono verranno tolti i dati salvati per lavorare senza campo.');
     if (!ask) return;
@@ -645,8 +653,10 @@
   function watchMe(u) {
     if (ME_UNSUB) { ME_UNSUB(); ME_UNSUB = null; }
     overlay('<div class="spin"></div>');
+    var visto = false; // il profilo c'era: se sparisce adesso, l'amministratore ha cancellato l'account
     ME_UNSUB = fs.collection('utenti').doc(u.uid).onSnapshot(function (d) {
-      if (!d.exists) { if (!registering && !started) showRegister('codice', u); return; }
+      if (!d.exists) { if (visto && !registering) showDeleted(); else if (!registering && !started) showRegister('codice', u); return; }
+      visto = true;
       var x = d.data(); x.uid = u.uid; x.email = x.email || u.email;
       if (x.ruolo === 'creatore') { if (x.stato === 'attivo') avviaCreatore(x); else showBlocked(); return; }
       if (!x.azienda) { if (started) location.reload(); else showRegister('codice', u, { nome: x.nome }); return; }
@@ -852,7 +862,7 @@
   function staccaClienti(bid, ids) {
     return Promise.all((ids || []).filter(function (id) { return UT[id]; }).map(function (id) { return setUser(id, { barche: (UT[id].barche || []).filter(function (b) { return b !== bid; }) }); }));
   }
-  function nomeUtente(id) { var u = UT[id] || {}; return u.nome || u.email || id; }
+  function nomeUtente(id) { var u = UT[id]; if (u) return u.nome || u.email || id; var x = exNomi()[id]; return (x && x.nome) || id; }
   function closePanel() { PAN = null; var p = $('#nmpan'); if (p) p.remove(); }
   // sul computer il menù a sinistra resta visibile: toccando una sua voce il pannello si chiude
   document.addEventListener('click', function (e) { if ($('#nmpan') && e.target.closest && e.target.closest('#tabs [data-act]')) closePanel(); }, true);
@@ -897,7 +907,7 @@
           '<button class="b red" data-nm="block" data-id="' + id + '">Sospendi</button>' +
           (tabStr() && !isCl ? '<button class="b' + (u.tablet ? ' pri' : '') + '" data-nm="tab" data-id="' + id + '">' + (u.tablet ? 'È il tablet condiviso' : 'Usa come tablet condiviso') + '</button>' +
             (u.tablet ? '' : '<button class="b" data-nm="pin-a" data-id="' + id + '">' + (pinDi(id) ? 'Cambia PIN tablet' : 'Metti PIN tablet') + '</button>') : '');
-        else a = '<button class="b" data-nm="ok" data-id="' + id + '">Riattiva</button>';
+        else a = '<button class="b" data-nm="ok" data-id="' + id + '">Riattiva</button>' + (self ? '' : '<button class="b red" data-nm="del" data-id="' + id + '">Cancella account</button>');
         if (u.stato === 'attivo' && !isCl && !u.tablet) a += '<button class="b' + (schOn(id) ? ' pri' : '') + '" data-nm="sch" data-id="' + id + '">' + (schOn(id) ? '✓ Ore controllate' : 'Ore non controllate') + '</button>';
         if (isCl && u.stato === 'attivo') {
           var mine = u.barche || [], others = Object.keys(B).filter(function (b) { return mine.indexOf(b) < 0; }).sort(function (x, y) { return bname(x).localeCompare(bname(y), 'it'); });
@@ -915,7 +925,9 @@
         '<p class="note"><b>Dipendente</b>: usa tutta l’app; cancella solo ciò che ha aggiunto, modifica solo le proprie mansioni e richieste di ferie. <b>Amministratore</b>: in più cancella tutto, vede il cestino, approva le ferie e i colleghi e cambia i permessi. ' +
         '<b>Cliente</b>: vede solo le barche che gli colleghi, con stato, posto e lavori eseguiti' + (sezAccesa('orecliente', false) ? '; vede anche le ore di lavoro per tipo, con il testo delle mansioni e il nome di chi le ha fatte (solo giornate confermate)' : ', senza ore né nomi dei dipendenti (si accendono dalla sezione «Ore di lavoro al cliente»)') + '.</p>' +
         (olds.length ? '<p class="note"><b>Collega ai dati vecchi</b>: dopo aver ripristinato la copia presa da Claude, scegli chi era quella persona. Mansioni, ore e giornate confermate passano al nuovo account.</p>' : '') +
-        '<p class="note">Per far entrare un collega o un cliente mandagli il link dell’app e il codice dell’azienda: sceglie «Entro nella mia azienda», scrive il codice e compare qui sopra, in attesa.</p>';
+        '<p class="note">Per far entrare un collega o un cliente mandagli il link dell’app e il codice dell’azienda: sceglie «Entro nella mia azienda», scrive il codice e compare qui sopra, in attesa.</p>' +
+        (by('bloccato').length ? '<p class="note"><b>Cancella account</b>: c’è solo per chi è sospeso o ha avuto la richiesta rifiutata (un account attivo va prima sospeso). La persona sparisce da questo elenco, ma il lavoro che ha fatto resta con il suo nome.</p>' : '') +
+        delConfHtml();
     } else if (PAN === 'cestino' && ME.ruolo === 'admin') {
       h = '<div class="top"><button class="back" data-nm="close">‹ Indietro</button><h3>Cestino</h3><span style="min-width:64px"></span></div>' + cestinoHtml() +
         '<p class="note">Qui finisce tutto ciò che viene cancellato, con chi l’ha cancellato e quando. Dopo 60 giorni sparisce per sempre. Le cose cancellate insieme (per esempio una barca con i suoi lavori) si recuperano insieme.</p>';
@@ -946,6 +958,13 @@
     else if (k === 'pin') pinSalva(id, ($('#nm-pin') || {}).value || '');
     else if (k === 'pin-no') { if (confirm('Togliere il tuo PIN? Sul tablet non comparirai più.')) write('pin', id, 'update', { hash: '', modificato: nowISO() }).then(function () { toast('PIN tolto.'); renderPanel(); }, function () { toast('Non riuscito.'); }); }
     else if (k === 'block') { if (confirm('Sospendere ' + (UT[id] && UT[id].nome || '') + '? Non potrà più entrare finché non lo riattivi.')) setUser(id, { stato: 'bloccato' }); }
+    else if (k === 'del') { DELCONF = id; renderPanel(); var bt = $('#nmpan .conf [data-nm="del-no"]'); if (bt) bt.focus(); }
+    else if (k === 'del-no') { DELCONF = null; renderPanel(); }
+    else if (k === 'del-si') {
+      var nd = nomeUtente(id); t.disabled = true;
+      cancellaAccount(id).then(function () { DELCONF = null; toast('Account di ' + nd + ' cancellato. Il suo lavoro resta con il suo nome.'); renderPanel(); },
+        function (er) { DELCONF = null; toast('Non riuscito: ' + (errOf(er).code || 'errore') + '. Riprova.'); renderPanel(); });
+    }
   });
   document.addEventListener('change', function (e) {
     var t = e.target; if (!t.closest || !t.closest('#nmpan') || !t.getAttribute('data-nm')) return;
@@ -967,6 +986,36 @@
       relink(old, id).then(function (n) { toast('Fatto: ' + n + ' elementi collegati.'); renderPanel(); }, function () { toast('Collegamento non riuscito. Riprova.'); renderPanel(); });
     }
   });
+  /* Cancellare un account non più abilitato (sospeso o richiesta rifiutata). Scelta di Torcio (14/11/2026):
+     sparisce solo l'account, il lavoro resta con il suo nome. Il nome si conserva in impostazioni/exUtenti dell'azienda
+     (solo nome, senza email); si tolgono anche il PIN del tablet, gli avvisi sul telefono e le «ore controllate». */
+  var DELCONF = null;
+  function delConfHtml() {
+    var u = DELCONF && UT[DELCONF];
+    if (!u || u.stato === 'attivo' || u.stato === 'in_attesa' || DELCONF === ME.uid) { DELCONF = null; return ''; }
+    var n = esc(u.nome || u.email || 'questa persona'), cl = u.ruolo === 'cliente' || u.tipo === 'cliente';
+    return '<div class="conf" role="dialog" aria-modal="true" aria-labelledby="nm-delt"><div class="box"><h3 id="nm-delt">Cancellare l’account di ' + n + '?</h3><ul>' +
+      '<li>' + n + ' sparisce da Utenti e permessi e non può più entrare nell’azienda con questo account.</li>' +
+      (cl ? '<li>Le sue barche restano nel gestionale; lui non le vede più nell’area clienti. Le richieste che ha mandato restano.</li>'
+        : '<li>Il lavoro che ha fatto resta, con il suo nome: mansioni, ore, giornate confermate, ferie e storico delle barche.</li><li>Si tolgono il suo PIN del tablet e gli avvisi sul suo telefono.</li>') +
+      '<li><b>Non si può annullare.</b> Se un giorno torna, rientra con il codice dell’azienda e lo approvi come una persona nuova.</li></ul>' +
+      '<div class="acts"><button class="b" data-nm="del-no">Annulla</button><button class="b dan" data-nm="del-si" data-id="' + DELCONF + '">Cancella per sempre</button></div></div></div>';
+  }
+  function exNomi() { var L = LIVE.impostazioni, c = L && L.map && L.map.exUtenti; return (c && !c._del && c.nomi) || {}; }
+  function cancellaAccount(id) {
+    var u = UT[id];
+    if (!u || !ME || ME.ruolo !== 'admin' || u.azienda !== AZ || u.stato === 'attivo' || u.stato === 'in_attesa' || id === ME.uid) return Promise.reject({ code: 'non_permesso' });
+    var b = fs.batch(), ts = FV.serverTimestamp(), ex = {}, c = function (n, d) { return AC(n).doc(d); };
+    var c0 = function (n) { var L = LIVE[n]; return !!(L && L.map && L.map[id]); };
+    ex[id] = { nome: String(u.nome || u.email || '').slice(0, 80), cliente: u.ruolo === 'cliente' || u.tipo === 'cliente', il: nowISO() };
+    b.set(c('impostazioni', 'exUtenti'), { nomi: ex, _ts: ts }, { merge: true });
+    if (c0('pin')) b.set(c('pin', id), { _del: true, _ts: ts });
+    if (c0('notifiche')) b.set(c('notifiche', id), { _del: true, _ts: ts });
+    var sc = schChi(); if (sc && sc.indexOf(id) >= 0) b.set(c('impostazioni', 'schede'), { chi: sc.filter(function (x) { return x !== id; }), modificato: nowISO(), da: ME.uid, _ts: ts });
+    b.delete(fs.collection('utenti').doc(id));
+    var nm = ex[id].nome;
+    return b.commit().then(function () { attScrivi('cancella l’account di ' + nm); });
+  }
   function setUser(id, f) { f.modificato = nowISO(); return fs.collection('utenti').doc(id).update(f).catch(function (e) { toast('Non riuscito: ' + errOf(e).code); throw e; }); }
   function swap(v, a, b) {
     if (typeof v === 'string') return v === a ? b : v;
