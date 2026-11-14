@@ -32,6 +32,7 @@
   function esempioSett(sett) {
     var now = new Date().toISOString(), D = {}, n = 0, OF = sett === 'officina';
     function add(c, id, x) { D[c] = D[c] || {}; D[c][id || ('e' + (++n))] = Object.assign({ creato: now, modificato: now, creatoDa: ME }, x); }
+    add('impostazioni', 'schede', { chi: [] }); // come nella prova nautica: nessun avviso «schede da completare» sui giorni vuoti
     add('impostazioni', 'aspetto', { nome: OF ? 'Officina di prova' : 'Impianti di prova', fatto: true });
     add('impostazioni', 'categorie', { lista: OF ? ['Tagliando e motore', 'Freni e sospensioni', 'Gomme', 'Elettrico ed elettronica', 'Climatizzazione', 'Carrozzeria', 'Diagnosi', 'Revisione', 'Lavori interni']
       : ['Manutenzione', 'Installazione', 'Riparazione', 'Pronto intervento', 'Sopralluogo e preventivo', 'Certificazioni', 'Lavori interni'] });
