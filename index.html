@@ -37,16 +37,23 @@
 window.NM_MARCA = (function () {
   // loghi neutri: una barca stilizzata con il nome dell'azienda scritto accanto (finché non se ne carica uno)
   var BARCA = '<path d="M30 6 V58 H4 Z" fill="#E6EEF6"/><path d="M36 14 Q58 34 54 58 H36 Z" fill="#2EC4B6"/><path d="M0 64 H70 L60 78 H10 Z" fill="#E6EEF6"/><path d="M-4 88 Q8 82 20 88 T44 88 T68 88" fill="none" stroke="#2EC4B6" stroke-width="4" stroke-linecap="round"/>';
+  // officina e impianti: un'auto o una casa al posto della barca (il settore si ricorda sul dispositivo per l'avvio)
+  var EMBL = {
+    officina: '<path d="M2 62 L10 44 Q14 34 26 34 H46 Q55 34 61 43 L69 55 Q71 58 71 62 V70 H2 Z" fill="#E6EEF6"/><path d="M15 52 L21 40 H33 V52 Z" fill="#2EC4B6"/><path d="M38 40 H46 Q51 40 54 45 L58 52 H38 Z" fill="#2EC4B6"/><circle cx="18" cy="70" r="10" fill="#2EC4B6"/><circle cx="18" cy="70" r="4" fill="#E6EEF6"/><circle cx="55" cy="70" r="10" fill="#2EC4B6"/><circle cx="55" cy="70" r="4" fill="#E6EEF6"/><path d="M-4 88 H74" stroke="#2EC4B6" stroke-width="4" stroke-linecap="round"/>',
+    impianti: '<path d="M35 6 L72 40 H62 V84 H8 V40 H-2 Z" fill="#E6EEF6"/><path d="M35 6 L72 40 H62 L35 15 L8 40 H-2 Z" fill="#2EC4B6"/><path d="M28 84 V60 H42 V84 Z" fill="#2EC4B6"/><path d="M14 48 H24 V58 H14 Z M46 48 H56 V58 H46 Z" fill="#2EC4B6"/>'
+  }, SETT = '';
+  try { SETT = localStorage.getItem('nm-settore') || ''; } catch (e) { }
+  function emblema() { return EMBL[SETT] || BARCA; }
   function xml(t) { return String(t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]; }); }
   function svgUrl(s) { return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s); }
   function logoNeutro(nome) {
     var t = String(nome).toUpperCase(), fs = Math.max(22, Math.min(52, 520 / (t.length * .68)));
-    return svgUrl('<svg xmlns="http://www.w3.org/2000/svg" width="720" height="160" viewBox="0 0 720 160"><g transform="translate(40 30) scale(1.1)">' + BARCA + '</g>' +
+    return svgUrl('<svg xmlns="http://www.w3.org/2000/svg" width="720" height="160" viewBox="0 0 720 160"><g transform="translate(40 30) scale(1.1)">' + emblema() + '</g>' +
       '<text x="150" y="' + (80 + fs * .35) + '" font-family="Helvetica,Arial,sans-serif" font-size="' + fs.toFixed(1) + '" font-weight="700" fill="#E6EEF6" letter-spacing="2">' + xml(t) + '</text></svg>');
   }
   function scrittaNeutra(nome) {
     var t = String(nome), fs = Math.max(18, Math.min(34, 440 / (t.length * .56))), w = 62 + t.length * fs * .56, x = Math.max(0, (600 - w) / 2);
-    return svgUrl('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="72" viewBox="0 0 600 72"><g transform="translate(' + x.toFixed(0) + ' 2) scale(.7)">' + BARCA + '</g>' +
+    return svgUrl('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="72" viewBox="0 0 600 72"><g transform="translate(' + x.toFixed(0) + ' 2) scale(.7)">' + emblema() + '</g>' +
       '<text x="' + (x + 62).toFixed(0) + '" y="' + (36 + fs * .38).toFixed(1) + '" font-family="Helvetica,Arial,sans-serif" font-size="' + fs.toFixed(1) + '" font-weight="700" fill="#E6EEF6">' + xml(t) + '</text></svg>');
   }
   var DEF = { nome: 'Gestionale Rimessaggio', colore1: '#263442', colore2: '#0D131A' };
@@ -117,7 +124,9 @@ window.NM_MARCA = (function () {
     },
     // anteprima di scelte non ancora salvate (Altro › Aspetto); applica() torna a quelle salvate
     prova: function (d) { var keep = db; db = Object.assign({}, db || {}, d); applica(); db = keep; },
-    applica: applica
+    applica: applica,
+    // settore dell'azienda: cambia solo il logo neutro (chi ha caricato un logo suo non vede differenze)
+    settore: function (v) { v = EMBL[v] ? v : ''; if (v === SETT) return; SETT = v; try { if (v) localStorage.setItem('nm-settore', v); else localStorage.removeItem('nm-settore'); } catch (e) { } applica(); }
   };
 })();
 </script>
@@ -10640,6 +10649,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     document.documentElement.setAttribute('data-settore', x);
     if (VOC.R) { vocAvvia(); vocAlbero(document.body); document.title = vocT(document.title); }
     else if (VOC.obs) { VOC.obs.disconnect(); VOC.obs = null; }
+    if (window.NM_MARCA && NM_MARCA.settore) NM_MARCA.settore(x === 'nautica' ? '' : x); // logo neutro: barca, auto o casa
     return true;
   }
   document.addEventListener('nm-funzioni', settApplica); // arriva con la scheda dell'azienda (anche quando il gestore cambia il settore)
@@ -12449,7 +12459,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       'A|Scrivi il nome dell’azienda: compare nel titolo, nei messaggi ai clienti, nei resoconti e nelle notifiche.',
       'A|In «Che lavoro fate» scegli Nautica, Officina (auto, moto, camper, macchine agricole) o Impianti e artigiani: cambiano le parole dell’app, i campi della scheda e le sezioni proposte. Per gli impianti scegli anche se i clienti che tornano hanno una scheda o se li scrivete solo nella mansione. Vale subito per tutti e i dati già salvati restano.',
       'A|Scegli il colore in alto e quello in basso della sfumatura: mentre li cambi vedi subito come viene tutta l’app.',
-      'A|Con «Scegli un’immagine» carichi il logo d’apertura (avvio, caricamento, resoconti) e quello in alto nella Home. Senza, c’è una barca stilizzata con il nome dell’azienda.',
+      'A|Con «Scegli un’immagine» carichi il logo d’apertura (avvio, caricamento, resoconti) e quello in alto nella Home. Senza, c’è un disegno semplice adatto al vostro lavoro con il nome dell’azienda.',
       'A|In «Dove si trova il cantiere» cerchi il paese o il porto: da lì prende il meteo in Home e il vento per il giro di controllo.',
       'A|In «Sezioni dell’app» spegni quelle che non usate (porto, rifiuti, batterie…): spariscono da menù, Home e guida (preventivi, servizi, scadenze del cantiere e giro di controllo anche dalla scheda della barca, dalla storia e dalla ricerca), ma i dati restano e tornano se le riaccendi.',
       'A|«Tablet condiviso con PIN» è spento finché non lo accendi qui. Acceso, in Utenti e permessi tocchi «Usa come tablet condiviso» sull’account del tablet: lì si apre «Chi lavora adesso?», ognuno tocca il suo nome e scrive il suo PIN, e lavora a nome suo con i permessi da dipendente. Il PIN (4 cifre) si mette da Il mio account, o lo mette l’amministratore; «Ho finito» o 5 minuti senza tocchi richiudono il tablet.',
