@@ -5,9 +5,12 @@
    Chiusa la scheda (o con «Esci dalla prova») si riparte da capo. Senza la prova questo file non fa nulla. */
 (function () {
   'use strict';
-  var K = 'nm-prova', KD = 'nm-prova-dati', on = false;
+  var K = 'nm-prova', KD = 'nm-prova-dati', KS = 'nm-prova-settore', on = false;
   try { on = /[?&]prova\b/.test(location.search) || sessionStorage.getItem(K) === '1'; if (on) sessionStorage.setItem(K, '1'); } catch (e) { on = /[?&]prova\b/.test(location.search); }
   if (!on) return;
+  // settore della prova: ?prova=officina o ?prova=impianti (senza: Nautica)
+  var SETT = (/[?&]prova=(officina|impianti)\b/.exec(location.search) || [])[1] || '';
+  try { if (/[?&]prova\b/.test(location.search)) { var vec = sessionStorage.getItem(KS) || ''; if (vec !== SETT) sessionStorage.removeItem(KD); sessionStorage.setItem(KS, SETT); } else SETT = sessionStorage.getItem(KS) || ''; } catch (e) { }
   try { if (/[?&]prova\b/.test(location.search)) history.replaceState(null, '', location.pathname + location.hash); } catch (e) { }
 
   // L'aspetto scelto dalla prova non deve restare sul dispositivo (né quello vero entrare nella prova)
@@ -25,8 +28,71 @@
   function rid(p) { return (p || '') + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
   function giorno(n) { var d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 
+  /* ---------- l'officina e l'azienda di impianti di esempio ---------- */
+  function esempioSett(sett) {
+    var now = new Date().toISOString(), D = {}, n = 0, OF = sett === 'officina';
+    function add(c, id, x) { D[c] = D[c] || {}; D[c][id || ('e' + (++n))] = Object.assign({ creato: now, modificato: now, creatoDa: ME }, x); }
+    add('impostazioni', 'aspetto', { nome: OF ? 'Officina di prova' : 'Impianti di prova', fatto: true });
+    add('impostazioni', 'categorie', { lista: OF ? ['Tagliando e motore', 'Freni e sospensioni', 'Gomme', 'Elettrico ed elettronica', 'Climatizzazione', 'Carrozzeria', 'Diagnosi', 'Revisione', 'Lavori interni']
+      : ['Manutenzione', 'Installazione', 'Riparazione', 'Pronto intervento', 'Sopralluogo e preventivo', 'Certificazioni', 'Lavori interni'] });
+    add('impostazioni', 'pacchetto', { il: now, applicato: true, tipiScadenza: OF ? ['Tagliando', 'Revisione', 'Cambio gomme', 'Assicurazione', 'Bollo', 'Cinghia di distribuzione', 'Ricarica clima', 'Fine deposito gomme']
+      : ['Manutenzione caldaia', 'Controllo fumi', 'Manutenzione condizionatore', 'Verifica impianto elettrico', 'Verifica messa a terra', 'Estintori', 'Fine contratto di manutenzione', 'Garanzia'] });
+    add('dipendenti', ME, { nome: 'Giulia (tu)' });
+    add('dipendenti', 'prova-marco', { nome: 'Marco' });
+    add('dipendenti', 'prova-luca', { nome: 'Luca' });
+    if (OF) [
+      ['b1', 'AB123CD', 'Fiat Panda 1.2', 'Auto', 'Mario Verdi', '333 1234567', 'In lavorazione', 84500, 'Benzina', '2017', 40],
+      ['b2', 'CD456EF', 'Volkswagen Golf 2.0 TDI', 'Auto', 'Paola Rossi', '347 2223344', 'In rimessaggio', 132000, 'Diesel', '2015', 200],
+      ['b3', 'EF789GH', 'Fiat Ducato camper', 'Camper', 'Andrea Neri', '338 9876543', 'In lavorazione', 61000, 'Diesel', '2019', 90],
+      ['b4', 'AA12345', 'Honda SH 125', 'Moto', 'Luisa Bianchi', '339 5556677', 'Consegnata', 22000, 'Benzina', '2020', 300],
+      ['b5', 'Landini di Galli', 'Landini 5D', 'Macchina agricola', 'Franco Galli', '335 1112233', 'In rimessaggio', null, 'Diesel', '2012', null]
+    ].forEach(function (b) { add('barche', b[0], { nome: b[1], modello: b[2], tipo: b[3], proprietario: b[4], telefono: b[5], stato: b[6], km: b[7], alim: b[8], anno: b[9], revisione: b[10] == null ? '' : giorno(b[10]), motoreTipo: 'Nessuno', note: '' }); });
+    else [
+      ['b1', 'Mario Verdi', 'Privato', 'via Roma 12, Cecina', '333 1234567', 'Caldaia Vaillant ecoTEC 2019 in cucina\nCondizionatore Daikin in sala'],
+      ['b2', 'Condominio Le Querce', 'Condominio', 'viale Italia 40, Livorno', '0586 123456', 'Centrale termica a gas\nAutoclave in cantina'],
+      ['b3', 'Bar Centrale', 'Azienda', 'piazza Garibaldi 3, Cecina', '347 2223344', 'Quadro elettrico\n2 condizionatori nella sala'],
+      ['b4', 'Paola Rossi', 'Privato', 'via dei Pini 7, Bibbona', '338 9876543', 'Scaldabagno elettrico Ariston 80 l']
+    ].forEach(function (b) { add('barche', b[0], { nome: b[1], tipo: b[2], indirizzo: b[3], telefono: b[4], impianti: b[5], proprietario: b[1], stato: 'In rimessaggio', motoreTipo: 'Nessuno', note: '' }); });
+    function lav(b, t, cat, st, g, chi, ore, extra) {
+      add('lavori', null, Object.assign({ barcaId: b, titolo: t, categoria: cat, stato: st, data: g == null ? '' : giorno(g), descr: '', oreStima: ore || null, oreLavoro: st === 'fatto' ? ore || null : null, importo: null, oreMotore: null, ricambi: [], foto: [], utente: chi }, extra || {}));
+    }
+    if (OF) {
+      lav('b1', 'Tagliando con cambio olio e filtri', 'Tagliando e motore', 'in_corso', 0, 'prova-marco', 2);
+      lav('b2', 'Pastiglie dei freni anteriori', 'Freni e sospensioni', 'da_fare', 2, 'prova-luca', 1.5);
+      lav('b2', 'Cambio gomme invernali', 'Gomme', 'da_fare', 9, '', 1);
+      lav('b3', 'Diagnosi spia motore', 'Diagnosi', 'in_corso', 0, 'prova-marco', 1);
+      lav('b4', 'Tagliando scooter', 'Tagliando e motore', 'fatto', -6, 'prova-luca', 1.5);
+      lav('b1', 'Tagliando', 'Tagliando e motore', 'fatto', -1, ME, 2, { fonte: 'scheda' });
+      lav('', 'Cambio lampadina del faro', 'Elettrico ed elettronica', 'fatto', -1, ME, 0.5, { fonte: 'scheda', clienteNome: 'Giorgio Sala', clienteTel: '333 0001112' });
+      lav('', 'Pulizia del ponte sollevatore', 'Lavori interni', 'fatto', -1, ME, 1, { fonte: 'scheda' });
+    } else {
+      lav('b1', 'Manutenzione caldaia', 'Manutenzione', 'fatto', -12, 'prova-marco', 1.5);
+      lav('b2', 'Sostituzione autoclave', 'Installazione', 'da_fare', 6, '', 5);
+      lav('b3', 'Verifica impianto elettrico', 'Certificazioni', 'in_corso', 0, 'prova-luca', 3);
+      lav('b4', 'Perdita sotto lo scaldabagno', 'Pronto intervento', 'fatto', -5, 'prova-marco', 1);
+      lav('b1', 'Pulizia filtri condizionatore', 'Manutenzione', 'fatto', -1, ME, 1, { fonte: 'scheda' });
+      lav('', 'Sostituzione rubinetto della cucina', 'Riparazione', 'fatto', -1, ME, 1.5, { fonte: 'scheda', clienteNome: 'Signora Gori', clienteTel: '' });
+      lav('', 'Riordino del furgone', 'Lavori interni', 'fatto', -1, ME, 1, { fonte: 'scheda' });
+    }
+    function scad(b, t, g, mesi) { add('scadenze', null, { barcaId: b, tipo: t, modello: '', data: giorno(g), oreScadenza: null, ricorrenzaMesi: mesi || null, ricorrenzaOre: null, note: '', preavviso: null, fatta: false }); }
+    if (OF) { scad('b1', 'Revisione', 40, 24); scad('b2', 'Tagliando', 9, 12); scad('b2', 'Cambio gomme', 20, 6); scad('b3', 'Assicurazione', -4, 12); scad('b4', 'Bollo', 45, 12); }
+    else { scad('b1', 'Manutenzione caldaia', 20, 12); scad('b1', 'Controllo fumi', 200, 24); scad('b3', 'Manutenzione condizionatore', -3, 12); scad('b2', 'Fine contratto di manutenzione', 60, 12); }
+    var M = OF ? [['m1', 'Filtro olio', 'ricambio', 'Tagliando e motore', 'pz', 4, 10], ['m2', 'Olio motore 5W30', 'prodotto', 'Tagliando e motore', 'l', 10, 40],
+      ['m3', 'Pastiglie freni anteriori', 'ricambio', 'Freni e sospensioni', 'kit', 2, 3], ['m4', 'Guanti in nitrile', 'consumo', '', 'paia', 20, 60], ['m5', 'Spazzole tergicristallo', 'ricambio', 'Elettrico ed elettronica', 'pz', 4, 6]]
+      : [['m1', 'Raccordo in rame 15 mm', 'ricambio', 'Installazione', 'pz', 10, 25], ['m2', 'Cavo FG16 3x2,5', 'prodotto', 'Installazione', 'm', 50, 200],
+      ['m3', 'Differenziale 2P 25 A', 'ricambio', 'Riparazione', 'pz', 2, 4], ['m4', 'Guanti da lavoro', 'consumo', '', 'paia', 10, 30], ['m5', 'Guarnizioni assortite', 'consumo', 'Riparazione', 'conf', 2, 5]];
+    M.forEach(function (m) {
+      add('magazzino', m[0], { nome: m[1], tipo: m[2], categoria: m[3], um: m[4], minimo: m[5], fornitore: OF ? 'Ricambi Auto Rossi' : 'Termoidraulica Forniture', qtaOrdine: null, inLista: false, note: '', codice: '' });
+      add('movimenti', null, { articoloId: m[0], qta: m[6], tipo: 'carico', data: giorno(-30), utente: ME, fornitore: '', bolla: '' });
+    });
+    if (OF) { add('modelli', null, { nome: 'Tagliando', voci: ['Olio motore e filtro', 'Filtro aria', 'Filtro abitacolo', 'Liquido freni', 'Luci', 'Pressione gomme'] }); add('modelli', null, { nome: 'Cambio gomme di stagione', voci: ['Smontaggio', 'Battistrada e data', 'Equilibratura', 'Montaggio', 'Pressione'] }); }
+    else { add('modelli', null, { nome: 'Manutenzione caldaia', voci: ['Pulizia bruciatore e scambiatore', 'Pressione dell’impianto', 'Analisi dei fumi', 'Libretto di impianto compilato'] }); add('modelli', null, { nome: 'Fine lavoro dal cliente', voci: ['Prova di funzionamento', 'Pulizia', 'Spiegato al cliente', 'Foto del lavoro'] }); }
+    return D;
+  }
+
   /* ---------- il cantiere di esempio ---------- */
   function esempio() {
+    if (SETT) return esempioSett(SETT);
     var now = new Date().toISOString(), D = {}, n = 0;
     function add(c, id, x) { D[c] = D[c] || {}; D[c][id || ('e' + (++n))] = Object.assign({ creato: now, modificato: now, creatoDa: ME }, x); }
     add('impostazioni', 'aspetto', { nome: 'Cantiere di prova', fatto: true });
@@ -168,6 +234,7 @@
 
   function via() { try { sessionStorage.removeItem(KD); } catch (e) { } }
   window.__NM_DEMO = {
+    settore: SETT || 'nautica', clienti: 'scheda',
     use: function (n) { return Promise.resolve({ db: DB, user: USER, assets: ASSETS, downloads: DL }[n] || null); },
     photoSrc: function (id) { return FOTO[id] || GIF0; },
     reset: function () { via(); location.reload(); },

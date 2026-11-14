@@ -28,6 +28,8 @@ service cloud.firestore {
     function staffA(a) { return staff(a) || assist(a); }
     function adminA(a) { return admin(a) || assist(a); }
     // testi scritti da chi si registra: se ci sono, solo testo e non più lunghi di n caratteri
+    // settore dell'azienda (Nautica, Officina, Impianti e artigiani) e come segna i clienti
+    function settoreOk(d) { return (!('settore' in d) || d.settore in ['nautica', 'officina', 'impianti']) && (!('clienti' in d) || d.clienti in ['scheda', 'mansione']); }
     function corto(d, k, n) { return !(k in d) || (d[k] is string && d[k].size() <= n); }
 
     match /creatori/{uid} {
@@ -97,16 +99,16 @@ service cloud.firestore {
       allow list: if creatore();
       allow create: if signedIn() && !exists(profilo())
         && request.resource.data.admin == request.auth.uid && request.resource.data.stato == 'in_attesa'
-        && request.resource.data.keys().hasOnly(['nome', 'telefono', 'admin', 'adminNome', 'email', 'stato', 'creato'])
+        && request.resource.data.keys().hasOnly(['nome', 'telefono', 'admin', 'adminNome', 'email', 'stato', 'creato', 'settore', 'clienti']) && settoreOk(request.resource.data)
         && request.resource.data.nome is string && request.resource.data.nome.size() > 0 && request.resource.data.nome.size() <= 60
         && corto(request.resource.data, 'adminNome', 60) && corto(request.resource.data, 'email', 254) && corto(request.resource.data, 'telefono', 30)
         && getAfter(profilo()).data.azienda == a;
       // il gestore approva, sospende o rifiuta, dà il codice e la quota; il permesso di assistenza e l'amministratore non li tocca
-      allow update: if (creatore() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stato', 'codice', 'approvata', 'quotaMb', 'modificato', 'scade', 'scadeMs', 'abbonata', 'aiMax', 'funzioni'])
-          && (!('scadeMs' in request.resource.data) || request.resource.data.scadeMs is int)
+      allow update: if (creatore() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stato', 'codice', 'approvata', 'quotaMb', 'modificato', 'scade', 'scadeMs', 'abbonata', 'aiMax', 'funzioni', 'settore', 'clienti'])
+          && settoreOk(request.resource.data) && (!('scadeMs' in request.resource.data) || request.resource.data.scadeMs is int)
           && (!('funzioni' in request.resource.data) || (request.resource.data.funzioni is map && request.resource.data.funzioni.size() <= 120))
           && (!('codice' in request.resource.data) || getAfter(/databases/$(database)/documents/codici/$(request.resource.data.codice)).data.azienda == a))
-        || (admin(a) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['codice', 'assistenza', 'modificato'])
+        || (admin(a) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['codice', 'assistenza', 'modificato', 'settore', 'clienti']) && settoreOk(request.resource.data)
           && (!('codice' in request.resource.data) || getAfter(/databases/$(database)/documents/codici/$(request.resource.data.codice)).data.azienda == a));
 
       // Area cliente: ogni cliente legge solo il riepilogo delle barche che l'azienda gli ha collegato
