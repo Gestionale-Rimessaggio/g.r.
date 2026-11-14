@@ -118,6 +118,22 @@
     '#nmfb .oy{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 8px}#nmfb .oy button{padding:5px 13px;border-radius:99px;border:1px solid #3a3d7a;background:none;color:#b9bccb;font:inherit;font-size:.85rem;cursor:pointer}#nmfb .oy button[aria-pressed="true"]{background:#2f8ff0;border-color:#2f8ff0;color:#fff}' +
     '#nmfb .odn{display:flex;justify-content:center;margin:6px 0 4px}#nmfb .oc{display:flex;width:100%;align-items:center;gap:10px;padding:9px 0;border:0;border-top:1px solid #23245a;background:none;color:inherit;font:inherit;font-size:.95rem;text-align:left;cursor:pointer}#nmfb .oc i{width:11px;height:11px;border-radius:3px;flex:none}#nmfb .oc span{flex:1}#nmfb .oc b{white-space:nowrap;font-variant-numeric:tabular-nums}#nmfb .oc small{color:#8a8db0;width:12px}' +
     '#nmfb .ors{padding:0 0 6px 12px;border-left:3px solid;margin:0 0 8px 4px}#nmfb .ors .lv{font-size:.9rem;border-top:0;padding:5px 0}#nmfb .ors .lv .d{width:52px}#nmfb .ors .on{display:block;color:#9a9dc0;font-size:.82rem;margin-top:1px}#nmfb .lv .oh{margin-left:auto;padding-left:8px;white-space:nowrap;color:#c9d4ff;font-variant-numeric:tabular-nums}#nmfb .otot{display:flex;justify-content:space-between;padding:10px 0 2px;border-top:2px solid #3a3d7a;font-weight:700}' +
+    /* settore dell'azienda: riquadri con icona (registrazione, finestra delle aziende già iscritte) */
+    '.nmsett .tag{display:block;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#2ec4b6;margin:16px 0 0}' +
+    '.nmsett .sec{display:flex;gap:12px;align-items:center;width:100%;box-sizing:border-box;padding:13px 14px;border:1.5px solid #33355a;border-radius:14px;margin-top:9px;background:#0f0e3e;color:#f4f5f7;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
+    '.nmsett .sec .ic{flex:none;width:46px;height:46px;border-radius:50%;display:grid;place-items:center}.nmsett .sec .ic svg{width:26px;height:26px}' +
+    '.nmsett .sec .tx{flex:1;min-width:0}.nmsett .sec .tx b{display:block;font-size:1.05rem}.nmsett .sec .tx small{display:block;color:#9a9dc0;font-size:.86rem;line-height:1.3;margin-top:2px}' +
+    '.nmsett .sec .sck{flex:none;width:24px;height:24px;box-sizing:border-box;border-radius:50%;border:2px solid #3a3d7a;display:grid;place-items:center}.nmsett .sec .sck svg{width:15px;height:15px}' +
+    '.nmsett .sec[aria-pressed="true"]{border-color:#2ec4b6;background:rgba(46,196,182,.09)}.nmsett .sec[aria-pressed="true"] .sck{border-color:#2ec4b6;background:#2ec4b6;color:#03201d}' +
+    '.nmsett .sec .smenu{display:block;margin-top:6px;font-size:.8rem;color:#2ec4b6;font-weight:600}' +
+    '.nmsett .ic.n{background:rgba(140,194,255,.15);color:#8cc2ff}.nmsett .ic.o{background:rgba(255,181,71,.15);color:#ffb547}.nmsett .ic.a{background:rgba(74,222,155,.14);color:#4ade9b}' +
+    '.nmsett .q{margin-top:12px;padding:12px 14px;border:1px solid #33355a;border-radius:14px}.nmsett .q h3{margin:0 0 2px;font-size:1rem}.nmsett .q p{font-size:.88rem;margin:0 0 4px}' +
+    '.nmsett .opt{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid #33355a;border-radius:12px;margin-top:8px;color:#f4f5f7;cursor:pointer}.nmsett .opt input{width:20px;height:20px;padding:0;margin:0;flex:none;accent-color:#2f8ff0}' +
+    '.nmsett .opt .tx b{display:block;font-weight:600}.nmsett .opt .tx small{display:block;color:#9a9dc0;font-size:.85rem;line-height:1.3;margin-top:1px}.nmsett .shint{font-size:.8rem;color:#8a8db0;margin-top:10px}' +
+    '#nmset{position:fixed;inset:0;z-index:100002;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px}' +
+    '#nmset .it{max-width:460px;width:100%;max-height:90vh;overflow:auto;box-sizing:border-box;background:#18212c;color:#eef3f8;border:1px solid #2a3644;border-radius:18px;padding:18px;font:15px/1.5 -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.5)}' +
+    '#nmset h3{margin:0 0 6px;font-size:1.2rem}#nmset p{font-size:.92rem;margin:0 0 6px;color:#b9c3cf}#nmset .nmsett .sec,#nmset .nmsett .q,#nmset .nmsett .opt{background:#111a24;border-color:#2a3644}#nmset .nmsett .sec[aria-pressed="true"]{border-color:#2ec4b6;background:rgba(46,196,182,.09)}' +
+    '#nmset .ok{margin-top:14px;width:100%;border:0;border-radius:12px;background:#2ec4b6;color:#062a26;padding:12px;font:600 15px/1 -apple-system,BlinkMacSystemFont,sans-serif;cursor:pointer}#nmset .ok[disabled]{opacity:.6}#nmset .dopo{display:block;width:100%;margin-top:8px;background:none;border:0;color:#8cc2ff;font:inherit;padding:8px;cursor:pointer}' +
     '#nmfb .gd{margin-top:18px;color:#b9bccb;font-size:.95rem}#nmfb .gd summary{color:#8cc2ff;cursor:pointer;padding:8px 0}#nmfb .gd ul{margin:4px 0 0;padding-left:20px}#nmfb .gd li{margin:6px 0}' +
     /* area cliente su computer e tablet: schede delle barche in alto e riquadri su 2 o 3 colonne (sul telefono non cambia nulla) */
     '#nmfb .btabs{display:none}@media (min-width:768px) and (min-height:500px){#nmfb.cli .box{max-width:1180px}#nmfb.cli .logo{width:220px;margin:6px 0 18px}' +
@@ -518,15 +534,71 @@
     '<li>Ogni azienda ha un suo <b>codice</b> (per esempio K7P4-M2QX). L’amministratore lo trova in Altro › Utenti e permessi e lo manda a colleghi e clienti.</li>' +
     '<li><b>Colleghi e clienti</b> scelgono «Entro nella mia azienda», scrivono il codice e i loro dati, poi aspettano che l’amministratore li approvi.</li>' +
     '<li>Ogni azienda vede solo i suoi dati.</li></ul></details>';
+  /* ---------- Settore dell'azienda: Nautica, Officina, Impianti e artigiani (aziende/{az}.settore e .clienti) ----------
+     Lo sceglie chi registra l'azienda; le aziende già iscritte lo scelgono al primo accesso dell'amministratore (finché no, restano Nautica).
+     Il gestore lo può correggere dalla scheda dell'azienda, l'amministratore da Altro › Aspetto dell'app. L'app cambia parole, scheda e funzioni (index.html, SETT). */
+  var SETT_IC = {
+    n: '<path d="M2.5 14.5h19l-2.6 4.3a1.6 1.6 0 0 1-1.4.8H6.4a1.6 1.6 0 0 1-1.3-.7z"/><path d="M6.5 14.5V11h6.5l3 3.5"/><path d="M9 11V8.5h3"/>',
+    o: '<path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/>',
+    a: '<path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M12 11.5v3M10 14.5h4v2.5a2 2 0 0 1-4 0z"/>'
+  };
+  var SETT_L = [['nautica', 'Nautica', 'Rimessaggi, cantieri e officine nautiche', 'n', 'Nel menù vedrai «Barche»'], ['officina', 'Officina', 'Auto, moto, camper, macchine agricole', 'o', 'Nel menù vedrai «Veicoli»'],
+    ['impianti', 'Impianti e artigiani', 'Idraulici, elettricisti, edili, manutenzioni', 'a', 'Nel menù vedrai «Clienti»']];
+  function settOk(v) { return v === 'nautica' || v === 'officina' || v === 'impianti'; }
+  function settNome(v) { var x = SETT_L.filter(function (y) { return y[0] === v; })[0]; return x ? x[1] : 'Nautica'; }
+  function settSvg(k, sw) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (sw || 1.9) + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (k === 'ck' ? '<path d="M5 12.5l4.5 4.5L19 7.5"/>' : SETT_IC[k]) + '</svg>'; }
+  // st = { s: settore scelto ('' = nessuno), c: come segnano i clienti ('scheda' | 'mansione', solo impianti), gia: azienda già iscritta }
+  function settHtml(st) {
+    return '<div class="nmsett"><span class="tag">Che lavoro fate?</span>' + SETT_L.map(function (x) {
+      var on = st.s === x[0];
+      return '<button type="button" class="sec" data-sett="' + x[0] + '" aria-pressed="' + on + '"><span class="ic ' + x[3] + '">' + settSvg(x[3]) + '</span><span class="tx"><b>' + x[1] + '</b><small>' + x[2] + '</small>' +
+        (on ? '<span class="smenu">' + (st.gia && x[0] === 'nautica' ? 'Resta tutto come oggi' : x[4]) + '</span>' : '') + '</span><span class="sck">' + (on ? settSvg('ck', 3) : '') + '</span></button>';
+    }).join('') +
+      (st.s === 'impianti' ? '<div class="q"><h3>Come segnate i clienti?</h3><p>Si può cambiare quando vuoi.</p>' +
+        [['scheda', 'Scheda per chi torna', 'Nome, indirizzo e telefono, con scadenze, preventivi e storico'], ['mansione', 'Solo scritti nella mansione', 'Nessuna scheda: il nome si scrive ogni volta']].map(function (o) {
+          return '<label class="opt"><input type="radio" name="nm-cli" value="' + o[0] + '"' + ((st.c || 'scheda') === o[0] ? ' checked' : '') + '><span class="tx"><b>' + o[1] + '</b><small>' + o[2] + '</small></span></label>';
+        }).join('') + '<div class="shint">Il cliente di passaggio si può sempre scrivere nella mansione.</div></div>' : '') + '</div>';
+  }
+  function settBind(root, st) {
+    root.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('[data-sett]'); if (!b || !root.contains(b)) return;
+      e.preventDefault(); st.s = b.getAttribute('data-sett');
+      var w = root.querySelector('.nmsett'); if (w) w.outerHTML = settHtml(st);
+      var nb = root.querySelector('[data-sett="' + st.s + '"]'); if (nb) nb.focus();
+    });
+    root.addEventListener('change', function (e) { if (e.target.name === 'nm-cli') st.c = e.target.value === 'mansione' ? 'mansione' : 'scheda'; });
+  }
+  function settDati(st) { var v = settOk(st.s) ? st.s : 'nautica'; return { settore: v, clienti: v === 'impianti' && st.c === 'mansione' ? 'mansione' : 'scheda' }; }
+  // aziende già iscritte: l'amministratore sceglie il settore al primo accesso dopo l'aggiornamento («Decido dopo»: si richiede al prossimo accesso)
+  function settChiedi() {
+    if (!ME || ME.ruolo !== 'admin' || ME.assist || CLIENTE || !AZ || !AZD || settOk(AZD.settore) || $('#nmset')) return;
+    try { if (sessionStorage.getItem('nm-sett-dopo') === AZ) return; } catch (e) { }
+    ensureCss();
+    var st = { s: 'nautica', c: 'scheda', gia: true }, el = document.createElement('div');
+    el.id = 'nmset'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'Che lavoro fate?');
+    el.innerHTML = '<div class="it"><h3>Che lavoro fate?</h3><p>Da oggi l’app funziona anche per officine e artigiani. Scegli il vostro settore: cambiano le parole e le funzioni proposte, i dati già salvati restano tutti.</p>' +
+      settHtml(st) + '<button type="button" class="ok">Conferma</button><button type="button" class="dopo">Decido dopo (intanto resta Nautica)</button></div>';
+    document.body.appendChild(el); settBind(el, st);
+    function chiudi() { el.remove(); setTimeout(novitaMostra, 600); }
+    el.querySelector('.ok').onclick = function () {
+      var b = this, x = settDati(st); b.disabled = true;
+      fs.collection('aziende').doc(AZ).update({ settore: x.settore, clienti: x.clienti, modificato: nowISO() }).then(function () {
+        chiudi(); toast(x.settore === 'nautica' ? 'Fatto: resta tutto come prima.' : 'Fatto: settore ' + settNome(x.settore) + '. Si cambia da Altro › Aspetto dell’app.');
+      }, function (er) { b.disabled = false; toast('Non riuscito: ' + errOf(er).code); });
+    };
+    el.querySelector('.dopo').onclick = function () { try { sessionStorage.setItem('nm-sett-dopo', AZ); } catch (e) { } chiudi(); };
+  }
   // u: chi ha già l'account ma non ancora il profilo (registrazione interrotta, codice sbagliato): sceglie solo l'azienda
   function showRegister(modo, u, d, msg) {
     var az = modo === 'azienda'; d = d || {};
+    var ST = { s: settOk(d.settore) ? d.settore : '', c: d.clienti === 'mansione' ? 'mansione' : 'scheda' };
     function v(k) { return esc(d[k] || ''); }
     var o = overlay('<h2>' + (u ? 'Scegli la tua azienda' : 'Crea il tuo account') + '</h2>' +
       '<form id="nm-reg"><label class="opt"><input type="radio" name="nm-modo" value="codice"' + (az ? '' : ' checked') + '> Entro nella mia azienda con il suo codice</label>' +
       '<label class="opt"><input type="radio" name="nm-modo" value="azienda"' + (az ? ' checked' : '') + '> Registro la mia azienda</label>' +
       (az ? '<p style="margin-top:14px">Il gestore del servizio controlla la richiesta: appena la approva entri come amministratore e puoi far entrare colleghi e clienti con il codice dell’azienda.</p>' +
         '<label for="nm-az">Nome dell’azienda</label><input id="nm-az" type="text" autocomplete="organization" required maxlength="60" value="' + v('azNome') + '">' +
+        settHtml(ST) +
         '<label for="nm-tel">Telefono</label><input id="nm-tel" type="tel" autocomplete="tel" inputmode="tel" required maxlength="30" value="' + v('tel') + '">'
         : '<p style="margin-top:14px">Il codice te lo dà l’amministratore della tua azienda. Dopo la registrazione ti deve approvare.</p>' +
         '<label for="nm-cod">Codice dell’azienda</label><input id="nm-cod" type="text" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" required maxlength="12" placeholder="es. K7P4-M2QX" value="' + v('codice') + '">' +
@@ -539,15 +611,17 @@
       '<button class="btn" type="submit">' + (az ? 'Invia la richiesta' : u ? 'Entra nell’azienda' : 'Crea account') + '</button><div class="err" id="nm-err">' + esc(msg || '') + '</div></form>' +
       (u ? '<button class="lnk" id="nm-out">Esci</button>' : '<button class="lnk" id="nm-gologin">Ho già un account: accedi</button>') + COME);
     var f = $('#nm-reg', o);
+    if (az) settBind(f, ST);
     function dati() {
       var g = function (id) { var e = $('#' + id, f); return e ? e.value.trim() : ''; };
-      return { modo: az ? 'azienda' : 'codice', azNome: g('nm-az'), tel: g('nm-tel'), codice: g('nm-cod'), tipo: (f.querySelector('input[name="nm-tipo"]:checked') || {}).value === 'cliente' ? 'cliente' : 'staff', nome: g('nm-nm'), email: u ? (u.email || '') : g('nm-em') };
+      return { modo: az ? 'azienda' : 'codice', azNome: g('nm-az'), tel: g('nm-tel'), codice: g('nm-cod'), tipo: (f.querySelector('input[name="nm-tipo"]:checked') || {}).value === 'cliente' ? 'cliente' : 'staff', nome: g('nm-nm'), email: u ? (u.email || '') : g('nm-em'), settore: ST.s, clienti: ST.c };
     }
     f.addEventListener('change', function (e) { if (e.target.name === 'nm-modo' && (e.target.value === 'azienda') !== az) { var x = dati(); showRegister(e.target.value, u, x); } });
     f.addEventListener('submit', function (e) {
       e.preventDefault(); busy(f, true); $('#nm-err').textContent = '';
       var x = dati();
       if (!az && codPulito(x.codice).length !== 8) { busy(f, false); $('#nm-err').textContent = 'Il codice ha 8 tra lettere e numeri, per esempio K7P4-M2QX.'; return; }
+      if (az && !settOk(x.settore)) { busy(f, false); $('#nm-err').textContent = 'Scegli che lavoro fate: Nautica, Officina o Impianti e artigiani.'; var t0 = f.querySelector('[data-sett]'); if (t0) t0.focus(); return; }
       registering = true;
       var acc = u ? Promise.resolve({ user: u }) : auth.createUserWithEmailAndPassword(x.email, $('#nm-pw').value);
       acc.then(function (cr) {
@@ -562,7 +636,8 @@
     var now = nowISO(), base = { nome: d.nome || (u.email || '').split('@')[0], email: d.email || u.email || '', creato: now, modificato: now, stato: 'in_attesa' };
     if (d.modo === 'azienda') { // l'azienda e il suo amministratore nascono insieme, tutti e due in attesa del gestore
       var ar = fs.collection('aziende').doc(), b = fs.batch();
-      b.set(ar, { nome: d.azNome, telefono: d.tel, admin: u.uid, adminNome: base.nome, email: base.email, stato: 'in_attesa', creato: now });
+      var sx = settDati({ s: d.settore, c: d.clienti });
+      b.set(ar, { nome: d.azNome, telefono: d.tel, admin: u.uid, adminNome: base.nome, email: base.email, stato: 'in_attesa', creato: now, settore: sx.settore, clienti: sx.clienti });
       b.set(fs.collection('utenti').doc(u.uid), Object.assign(base, { tipo: 'staff', ruolo: 'admin', azienda: ar.id }));
       return b.commit();
     }
@@ -709,7 +784,7 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 
   function afterStart() {
-    msgServizio(); avvisoAbb(); setTimeout(novitaMostra, 2500);
+    msgServizio(); avvisoAbb(); setTimeout(settChiedi, 1200); setTimeout(novitaMostra, 2500);
     UT_UNSUB = fs.collection('utenti').where('azienda', '==', AZ).onSnapshot(function (s) {
       var m = {}; s.docs.forEach(function (d) { m[d.id] = d.data(); }); UT = m; if ($('#nmpan')) renderPanel(); schedulePortale();
     }, function () { });
@@ -1194,7 +1269,52 @@
       { id: 'olio', nome: 'Olio motore esausto', cer: '13 02 05*', cont: 'Cisternetta olio', unita: 'l', kgU: 0.9, ditta: 'olio' }
     ]
   };
-  function pacchetto() {
+  // pacchetto degli altri settori (quello del gestore qui sopra è per la Nautica)
+  var PACK_SETT = {
+    officina: {
+      categorie: ['Tagliando e motore', 'Freni e sospensioni', 'Gomme', 'Elettrico ed elettronica', 'Climatizzazione', 'Carrozzeria', 'Diagnosi', 'Revisione', 'Lavori interni'],
+      tipiScadenza: ['Tagliando', 'Revisione', 'Cambio gomme', 'Assicurazione', 'Bollo', 'Cinghia di distribuzione', 'Ricarica clima', 'Fine deposito gomme'],
+      checklist: [
+        { nome: 'Tagliando', voci: ['Olio motore e filtro', 'Filtro aria', 'Filtro abitacolo', 'Filtro carburante', 'Liquido freni', 'Liquido di raffreddamento', 'Spazzole tergicristallo', 'Luci', 'Pressione gomme', 'Spia del service azzerata'] },
+        { nome: 'Cambio gomme di stagione', voci: ['Smontaggio', 'Battistrada e data delle gomme', 'Equilibratura', 'Montaggio con la coppia giusta', 'Pressione', 'Etichetta delle gomme in deposito'] },
+        { nome: 'Arrivo del veicolo', voci: ['Km', 'Livello del carburante', 'Danni già presenti con foto', 'Oggetti lasciati nel veicolo', 'Chiavi ricevute'] },
+        { nome: 'Consegna al cliente', voci: ['Prova su strada', 'Spie spente', 'Pulizia', 'Km all’uscita', 'Chiavi consegnate'] }
+      ],
+      rifiuti: [
+        { id: 'olio', nome: 'Olio motore esausto', cer: '13 02 05*', cont: 'Cisternetta olio', unita: 'l', kgU: 0.9, ditta: 'olio' },
+        { id: 'filtri-olio', nome: 'Filtri dell’olio', cer: '16 01 07*', cont: 'Fusto ermetico filtri', unita: 'pz', kgU: 0.7, ditta: 'd1' },
+        { id: 'batterie', nome: 'Batterie al piombo', cer: '16 06 01*', cont: 'Batterie', unita: 'pz', kgU: 15, dare: true, ditta: 'd1' },
+        { id: 'freni', nome: 'Liquido dei freni', cer: '16 01 13*', cont: 'Tanica liquidi', unita: 'l', kgU: 1, ditta: 'd1' },
+        { id: 'antigelo', nome: 'Liquido antigelo', cer: '16 01 14*', cont: 'Tanica liquidi', unita: 'l', kgU: 1.1, ditta: 'd1' },
+        { id: 'gomme', nome: 'Pneumatici fuori uso', cer: '16 01 03', cont: 'Gomme', unita: 'pz', kgU: 8, ditta: 'd1' },
+        { id: 'stracci', nome: 'Carta e stracci sporchi', cer: '15 02 02*', cont: 'Big bag', unita: 'sacchetto', kgU: 2, ditta: 'd1', es: 'stracci, carta assorbente, panni sporchi d’olio' },
+        { id: 'contenitori', nome: 'Contenitori vuoti di sostanze pericolose', cer: '15 01 10*', cont: 'Big bag', unita: 'pz', kgU: 0.5, ditta: 'd1', es: 'taniche d’olio, barattoli, flaconi' },
+        { id: 'spray', nome: 'Bombolette spray', cer: '15 01 11*', cont: 'Big bag', unita: 'pz', kgU: 0.25, ditta: 'd1' }
+      ]
+    },
+    impianti: {
+      categorie: ['Manutenzione', 'Installazione', 'Riparazione', 'Pronto intervento', 'Sopralluogo e preventivo', 'Certificazioni', 'Lavori interni'],
+      tipiScadenza: ['Manutenzione caldaia', 'Controllo fumi', 'Manutenzione condizionatore', 'Verifica impianto elettrico', 'Verifica messa a terra', 'Estintori', 'Fine contratto di manutenzione', 'Garanzia'],
+      checklist: [
+        { nome: 'Manutenzione caldaia', voci: ['Pulizia bruciatore e scambiatore', 'Pressione dell’impianto', 'Vaso di espansione', 'Analisi dei fumi', 'Tenuta del gas', 'Libretto di impianto compilato', 'Bollino'] },
+        { nome: 'Manutenzione condizionatore', voci: ['Pulizia dei filtri', 'Igienizzazione', 'Scarico della condensa', 'Controllo del gas', 'Prova in caldo e in freddo'] },
+        { nome: 'Verifica impianto elettrico', voci: ['Differenziali con il tasto di prova', 'Messa a terra', 'Serraggio dei morsetti', 'Quadro e targhette', 'Prese e interruttori'] },
+        { nome: 'Fine lavoro dal cliente', voci: ['Prova di funzionamento', 'Pulizia', 'Spiegato al cliente', 'Dichiarazione di conformità', 'Foto del lavoro'] }
+      ],
+      rifiuti: [
+        { id: 'imballaggi', nome: 'Imballaggi misti', cer: '15 01 06', cont: 'Cassone', unita: 'sacchetto', kgU: 3, ditta: 'd1', es: 'cartoni, plastica e polistirolo delle confezioni' },
+        { id: 'cavi', nome: 'Cavi elettrici', cer: '17 04 11', cont: 'Cassone metalli', unita: 'kg', kgU: 1, dare: true, ditta: 'd1' },
+        { id: 'ferro', nome: 'Ferro e acciaio', cer: '17 04 05', cont: 'Cassone metalli', unita: 'kg', kgU: 1, dare: true, ditta: 'd1' },
+        { id: 'rame', nome: 'Rame, bronzo e ottone', cer: '17 04 01', cont: 'Cassone metalli', unita: 'kg', kgU: 1, dare: true, ditta: 'd1', es: 'tubi e raccordi di rame' },
+        { id: 'macerie', nome: 'Rifiuti misti da costruzione', cer: '17 09 04', cont: 'Cassone macerie', unita: 'kg', kgU: 1, ditta: 'd1', es: 'calcinacci, mattoni, piastrelle' },
+        { id: 'raee', nome: 'Apparecchi fuori uso', cer: '16 02 14', cont: 'RAEE', unita: 'pz', kgU: 10, ditta: 'd1', es: 'caldaie, scaldabagni, condizionatori senza gas' },
+        { id: 'contenitori', nome: 'Contenitori vuoti di sostanze pericolose', cer: '15 01 10*', cont: 'Big bag', unita: 'pz', kgU: 0.5, ditta: 'd1', es: 'barattoli di silicone, schiume, vernici' },
+        { id: 'stracci', nome: 'Carta e stracci sporchi', cer: '15 02 02*', cont: 'Big bag', unita: 'sacchetto', kgU: 2, ditta: 'd1' }
+      ]
+    }
+  };
+  function pacchetto(settore) {
+    if (settore === 'officina' || settore === 'impianti') return Promise.resolve(PACK_SETT[settore]);
     return fs.collection('pacchetto').doc('attuale').get().then(function (d) { var x = d.exists ? d.data() : null; return x && !x._del ? Object.assign({}, PACK_DEF, x) : PACK_DEF; }, function () { return PACK_DEF; });
   }
   function righe(s) { return String(s || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
@@ -1365,6 +1485,10 @@
         '<h4>Persone (' + crPersone(k).length + ')</h4><div class="grp">' + (crPersone(k).length ? crPersone(k).sort(function (x, y) { return String(CR.ut[x].nome || '').localeCompare(String(CR.ut[y].nome || ''), 'it'); }).map(function (u) {
           var p = CR.ut[u]; return '<div class="u"><div class="nm">' + esc(p.nome || '(senza nome)') + '<span class="pill">' + esc(RUOLI[p.ruolo] || p.ruolo || '') + '</span>' + (p.tablet ? '<span class="pill">tablet</span>' : '') + '</div><div class="em">Ultimo accesso: ' + esc(ult[u] ? crQuando(ult[u]) : 'non nelle ultime 300 righe') + '</div></div>';
         }).join('') : '<div class="u"><div class="em">Nessuno.</div></div>') + '</div>' +
+        '<h4>Settore</h4><div class="grp"><div class="u" style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap"><div class="nm">' + esc(settOk(A.settore) ? settNome(A.settore) : 'Non ancora scelto (resta Nautica)') + (A.settore === 'impianti' ? '<span class="pill">clienti: ' + (A.clienti === 'mansione' ? 'solo nella mansione' : 'con la scheda') + '</span>' : '') + '</div>' +
+        '<select data-crs="settore" data-id="' + k + '" style="' + FZ_SEL + '">' + (settOk(A.settore) ? '' : '<option value="" selected>Scegli…</option>') + SETT_L.map(function (x) { return '<option value="' + x[0] + '"' + (A.settore === x[0] ? ' selected' : '') + '>' + esc(x[1]) + '</option>'; }).join('') + '</select>' +
+        (A.settore === 'impianti' ? '<select data-crs="clienti" data-id="' + k + '" style="' + FZ_SEL + '"><option value="scheda"' + (A.clienti !== 'mansione' ? ' selected' : '') + '>Clienti con la scheda</option><option value="mansione"' + (A.clienti === 'mansione' ? ' selected' : '') + '>Clienti solo nella mansione</option></select>' : '') +
+        '</div></div><p class="note">Lo sceglie l’azienda quando si registra (le aziende già iscritte al primo accesso dell’amministratore). Qui lo correggi: cambia subito parole, scheda e funzioni proposte, i dati restano.</p>' +
         crFzAz(k, A) +
         '<h4>Nota privata</h4><div class="grp"><div class="u"><textarea id="cr-nota" rows="3" maxlength="1000" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#f4f5f7;padding:10px;font:inherit" placeholder="Solo per te: accordi, prezzo, cose da ricordare">' + esc(nota == null ? '' : nota) + '</textarea>' +
         '<div class="acts"><button class="b pri" data-cr="nota" data-id="' + k + '">Salva nota</button></div></div></div>' +
@@ -1476,6 +1600,13 @@
   document.addEventListener('input', function (e) { if (e.target && e.target.id === 'cr-q') { CR.q = e.target.value; crRender(); } });
   document.addEventListener('change', function (e) { var t = e.target; if (t && t.closest && t.closest('#nmcr') && t.getAttribute('data-cr') === 'chi') { CR.chi = t.value; crRender(); } });
   document.addEventListener('change', function (e) { var t = e.target; if (t && t.closest && t.closest('#nmcr') && t.getAttribute('data-crf')) crFzSalva(t.getAttribute('data-id'), t.getAttribute('data-crf'), t.value); });
+  document.addEventListener('change', function (e) { // settore dell'azienda (gestore)
+    var t = e.target, k = t && t.getAttribute && t.getAttribute('data-crs'); if (!k || !t.closest('#nmcr')) return;
+    var id = t.getAttribute('data-id'), A = CR.az[id]; if (!A || (k === 'settore' && !settOk(t.value))) return;
+    var up = k === 'settore' ? { settore: t.value, clienti: t.value === 'impianti' ? (A.clienti === 'mansione' ? 'mansione' : 'scheda') : 'scheda' } : { clienti: t.value === 'mansione' ? 'mansione' : 'scheda' };
+    up.modificato = nowISO();
+    fs.collection('aziende').doc(id).update(up).then(function () { Object.assign(A, up); toast('Settore salvato: ' + settNome(A.settore)); crRender(); }, function (er) { toast('Non riuscito: ' + errOf(er).code); crRender(); });
+  });
   document.addEventListener('click', function (e) {
     var t = e.target.closest && e.target.closest('#nmcr [data-cr]'); if (!t || t.tagName === 'SELECT') return;
     var k = t.getAttribute('data-cr'), id = t.getAttribute('data-id'), a = CR.az[id] || {};
@@ -1585,10 +1716,10 @@
   }
   function novitaVista(id) { if (!ME) return; ME.novitaVista = id; fs.collection('utenti').doc(ME.uid).update({ novitaVista: id, modificato: nowISO() }).catch(function () { }); }
   function novitaMostra() {
-    if (!ME || ME.ruolo === 'cliente' || ME.assist || $('#nmnov')) return;
+    if (!ME || ME.ruolo === 'cliente' || ME.assist || $('#nmnov') || $('#nmset')) return;
     var LI = live('impostazioni');
     LI.start.then(function () { return whenReady(LI, 15000); }).then(novitaTutte).then(function (l) {
-      if (!l.length || !ME || !sezAccesa('novita', true)) return; // spenta in Aspetto dell'app
+      if (!l.length || !ME || !sezAccesa('novita', true) || $('#nmset') || $('#nmnov')) return; // spenta in Aspetto dell'app, o c'è la domanda del settore
       var vista = ME.novitaVista || '', ultima = String(l[0].id);
       if (!vista && String(ME.creato || '').slice(0, 10) >= ultima.slice(0, 10)) { novitaVista(ultima); return; } // arrivato dopo: si parte da qui
       var nuove = l.filter(function (x) { return String(x.id) > vista; }).slice(0, 3);
@@ -2404,7 +2535,11 @@
     },
     pacchetto: pacchetto,
     segnala: SEGN,
-    azienda: function () { return { nome: (AZD && AZD.nome) || '', assist: !!(ME && ME.assist) }; }, // l'azienda in uso (per la procedura guidata)
+    azienda: function () { return { nome: (AZD && AZD.nome) || '', assist: !!(ME && ME.assist), settore: (AZD && settOk(AZD.settore)) ? AZD.settore : 'nautica', clienti: (AZD && AZD.clienti === 'mansione') ? 'mansione' : 'scheda', scelto: !!(AZD && settOk(AZD.settore)) }; }, // l'azienda in uso (procedura guidata, settore)
+    settoreSalva: function (v, c) { // Altro › Aspetto dell'app (solo amministratore)
+      if (!AZ || !ME || ME.ruolo !== 'admin' || !settOk(v)) return Promise.reject({ code: 'permesso' });
+      return fs.collection('aziende').doc(AZ).update({ settore: v, clienti: v === 'impianti' && c === 'mansione' ? 'mansione' : 'scheda', modificato: nowISO() });
+    },
     funzioni: function () { return { per: (AZD && AZD.funzioni) || {}, ante: FZA }; }, // idea 8.09
     persone: function () { return Object.keys(UT).filter(function (id) { var u = UT[id]; return u && u.stato === 'attivo' && u.ruolo !== 'cliente'; }).length; } // per i primi passi (8.01)
   };
