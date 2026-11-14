@@ -6943,7 +6943,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         case 'pt-close': P.sel = null; card(); draw(); return true;
         case 'pt-filter': var f = t.getAttribute('data-f'); if (f === 'fit') { P.filter = null; P.fit = null; } else P.filter = P.filter === f ? null : f; refresh(); return true;
         case 'pt-edit': if (P.sel && BY[P.sel]) postoSheet(BY[P.sel]); return true;
-        case 'pt-openboat': var bb = P.sel && berthBoat(BY[P.sel]); if (bb) { V.tab = 'barche'; V.boatId = bb.id; V.boatView = null; window.scrollTo(0, 0); render(); } return true;
+        case 'pt-openboat': var bb = P.sel && berthBoat(BY[P.sel]); if (bb) { altApri(bb.id); V.tab = 'barche'; V.boatId = bb.id; V.boatView = null; window.scrollTo(0, 0); render(); } return true;
         case 'pt-sell': var sb = P.sel && berthBoat(BY[P.sel]); if (sb) venditaSheet(sb); return true;
         case 'pt-sellpick': sellPick(); return true;
         case 'pt-sellboat': var x = boatById(id); if (x) venditaSheet(x); return true;
@@ -11853,7 +11853,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       var b = boatById(V.boatId);
       if (V.boatView === 'storia') { t.innerHTML = '<div class="l"><button type="button" class="icon-btn blue" data-act="res-back" aria-label="Torna alla scheda">' + I.back + '</button></div><h1>Storia</h1><div class="r">' + help + '</div>'; return; }
       if (V.boatView === 'resoconto') { t.innerHTML = '<div class="l"><button type="button" class="icon-btn blue" data-act="res-back" aria-label="Torna alla scheda">' + I.back + '</button></div><h1>Resoconto</h1><div class="r">' + help + '</div>'; return; }
-      t.innerHTML = '<div class="l"><button type="button" class="icon-btn blue" data-act="back" aria-label="Torna alle barche">' + I.back + '</button>' + '</div><h1>' + esc(b.nome || 'Barca') + '</h1>' +
+      t.innerHTML = '<div class="l"><button type="button" class="icon-btn blue" data-act="back" aria-label="Indietro">' + I.back + '</button>' + '</div><h1>' + esc(b.nome || 'Barca') + '</h1>' +
         '<div class="r">' + help + (S.canWrite ? '<button type="button" class="icon-btn blue" data-act="edit-boat" data-id="' + esc(b.id) + '" aria-label="Modifica scheda">' + I.pencil + '</button>' : '') + '</div>';
       return;
     }
@@ -12198,7 +12198,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function gqGo(k, id) {
     var x;
     closeSheet();
-    if (k === 'boat') { V.tab = 'barche'; V.boatId = id; V.boatView = null; V.boatLavAll = false; render(); window.scrollTo(0, 0); }
+    if (k === 'boat') { altApri(id); V.tab = 'barche'; V.boatId = id; V.boatView = null; V.boatLavAll = false; render(); window.scrollTo(0, 0); }
     else if (k === 'mag') { x = S.mag.find(function (m) { return m.id === id; }); if (x && S.canWrite) magSheet(x); else { V.tab = 'magazzino'; V.boatId = null; V.magQ = x ? x.nome : ''; render(); } }
     else if (k === 'lav') {
       x = S.lavori.find(function (l) { return l.id === id; }); if (!x) return;
@@ -13023,13 +13023,13 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         var mr = motRead(f); if (!mr) return false;
         Object.assign(data, motSync(mr));
         if (!NA) { data.dove = b.dove || ''; data.doveNome = b.doveNome || ''; data.doveLuogo = b.doveLuogo || ''; if (!b.dove) delete data.dove; }
-        if (isNew && !dupAsk(f, data.nome, function (gia) { closeSheet(); V.tab = 'barche'; V.boatId = gia.id; window.scrollTo(0, 0); render(); toast('Ti ho aperto la scheda di ' + (gia.nome || 'questa barca')); })) return false;
+        if (isNew && !dupAsk(f, data.nome, function (gia) { closeSheet(); altApri(gia.id); V.tab = 'barche'; V.boatId = gia.id; window.scrollTo(0, 0); render(); toast('Ti ho aperto la scheda di ' + (gia.nome || 'questa barca')); })) return false;
         if (isNew) {
           data.creato = data.modificato;
           var ref = S.db.collection('barche').doc(); S.pendingBoat = ref.id;
           var ok = await w(function () { return ref.set(data); });
           if (ok && sezOn('postogiusto') && PORTO_ON() && data.posto && Porto.libero(data.posto)) await Porto.assign(data.posto, ref.id);
-          if (ok) { V.tab = 'barche'; V.boatId = ref.id; V.boatLavAll = false; window.scrollTo(0, 0); render(); toast('Barca aggiunta'); }
+          if (ok) { altApri(ref.id); V.tab = 'barche'; V.boatId = ref.id; V.boatLavAll = false; window.scrollTo(0, 0); render(); toast('Barca aggiunta'); }
           return ok;
         }
         var r2 = S.db.collection('barche').doc(b.id);
@@ -13050,7 +13050,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function qrApri() {
     var id = qrHash(); try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { location.hash = ''; }
     var b = boatById(id); if (!b) { setTimeout(function () { toast('Questa barca non c’è più nell’app', true); }, 300); return; }
-    V.tab = 'barche'; V.boatId = b.id; V.boatLavAll = false; window.scrollTo(0, 0);
+    altApri(b.id); V.tab = 'barche'; V.boatId = b.id; V.boatLavAll = false; window.scrollTo(0, 0);
   }
   window.addEventListener('hashchange', function () { if (S.status === 'ready' && qrHash()) { qrApri(); render(); } });
   async function qrSvg(id, px) {
@@ -14791,10 +14791,41 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     render();
   }
 
+  /* ---------- Stessa altezza della pagina (14/11/2026) ----------
+     Ogni pagina si ricorda a che altezza eri arrivato: tornandoci, con la freccia o dal menù, la ritrovi lì.
+     Toccare di nuovo la sezione in cui sei già riporta in cima. La freccia della scheda barca riporta alla pagina
+     da cui l'avevi aperta (Home, Riepiloghi, Mappa, ricerca, un'altra barca...). Una scheda aperta di nuovo parte dall'inizio. */
+  var ALT = { y: {}, pila: [] };
+  function altChiave() {
+    var b = V.tab === 'barche' && V.boatId ? V.boatId : '';
+    return [V.tab, b, b ? V.boatView || '' : '', V.tab === 'giro' ? V.giroId || '' : '', V.tab === 'categorie' ? V.catOpen || '' : '', V.tab === 'riepiloghi' ? V.riep || 'scad' : '', V.tab === 'mappa' ? M.area || '' : ''].join('|');
+  }
+  function altSegna() { if (S.status === 'ready') ALT.y[altChiave()] = window.pageYOffset || document.documentElement.scrollTop || 0; }
+  function altVai() { window.scrollTo(0, ALT.y[altChiave()] || 0); }
+  // prima di aprire la scheda di una barca: si segna da dove arrivi, per la freccia
+  function altApri(id) {
+    if (!id || (V.tab === 'barche' && V.boatId === id)) return;
+    altSegna();
+    ALT.pila.push({ per: id, tab: V.tab, boatId: V.boatId || null, boatView: V.boatView || null, boatTab: V.boatTab, boatLavAll: V.boatLavAll, boatRicAll: V.boatRicAll, giroId: V.giroId || null, catOpen: V.catOpen || '', riep: V.riep || '', area: M.area });
+    if (ALT.pila.length > 30) ALT.pila.shift();
+  }
+  // freccia della scheda barca
+  function altIndietro() {
+    var p = ALT.pila[ALT.pila.length - 1];
+    if (p && p.per === V.boatId) {
+      ALT.pila.pop();
+      V.tab = p.tab; V.boatId = p.boatId && boatById(p.boatId) ? p.boatId : null; V.boatView = V.boatId ? p.boatView : null; V.giroId = p.giroId; V.catOpen = p.catOpen; V.riep = p.riep;
+      if (V.boatId) { V.boatTab = p.boatTab; V.boatLavAll = p.boatLavAll; V.boatRicAll = p.boatRicAll; }
+      if (V.tab === 'mappa') { M.area = p.area; M.mounted = null; }
+    } else { V.boatId = null; V.boatView = null; }
+    render(); altVai();
+  }
+
   /* ---------- Eventi ---------- */
   document.addEventListener('click', function (e) {
     var t = e.target.closest('[data-act]'); if (!t || t.disabled) return;
     var act = t.getAttribute('data-act'), id = t.getAttribute('data-id');
+    altSegna();
     if (/^(new-|edit-|done-|ore$|ex-delete|add-menu|start-check|ck-|conf-|ph-boat)/.test(act) && (!S.db || S.status !== 'ready')) return;
     if (t.closest('.menu')) closeSheet();
     if (act.indexOf('pt-') === 0 && Porto.click(act, t)) return;
@@ -14802,15 +14833,15 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     switch (act) {
       case 'fb': if (window.__NM_FB) window.__NM_FB.open(t.getAttribute('data-k')); break;
       case 'pp-salta': ppSalta(); break;
-      case 'tab': if (t.getAttribute('data-tab') === 'segnala' && V.tab !== 'segnala') V.sgDa = (TITOLI && TITOLI[V.tab]) || V.tab; if (t.getAttribute('data-tab') === 'mappa' && V.tab !== 'mappa') { M.prevTab = V.tab; M.prevBoat = null; } V.tab = t.getAttribute('data-tab'); V.boatId = null; V.boatView = null; V.exConfirm = false; if (V.tab === 'giro') V.giroId = null; window.scrollTo(0, 0); render(); break;
+      case 'tab': x = t.getAttribute('data-tab') === V.tab && !V.boatId && (V.tab !== 'giro' || !V.giroId); if (t.getAttribute('data-tab') === 'segnala' && V.tab !== 'segnala') V.sgDa = (TITOLI && TITOLI[V.tab]) || V.tab; if (t.getAttribute('data-tab') === 'mappa' && V.tab !== 'mappa') { M.prevTab = V.tab; M.prevBoat = null; } V.tab = t.getAttribute('data-tab'); V.boatId = null; V.boatView = null; V.exConfirm = false; if (V.tab === 'giro') V.giroId = null; render(); if (x) window.scrollTo(0, 0); else altVai(); break;
       case 'bk-save': bkSave(); break;
       case 'fs-conta': fsAzione('conta'); break;
       case 'fs-cerca': fsAzione('cerca'); break;
       case 'fs-togli': fsAzione('togli'); break;
       case 'fs-file': fsAzione('file'); break;
       case 'fs-salva': fsAzione('salva', +t.getAttribute('data-i')); break;
-      case 'back': V.boatId = null; V.boatView = null; render(); window.scrollTo(0, 0); break;
-      case 'open-boat': closeLightbox(); V.tab = 'barche'; V.boatId = id; V.boatView = null; V.boatLavAll = false; V.boatRicAll = false; render(); window.scrollTo(0, 0); break;
+      case 'back': altIndietro(); break;
+      case 'open-boat': closeLightbox(); altApri(id); V.tab = 'barche'; V.boatId = id; V.boatView = null; V.boatLavAll = false; V.boatRicAll = false; render(); window.scrollTo(0, 0); break;
       case 'cat-add': if (S.isOwner) catAdd(); break;
       case 'asp-save': if (S.isOwner) aspSave(); break;
       case 'sett-sc': settScegli(t.getAttribute('data-v'), cliMansione() ? 'mansione' : 'scheda'); break;
@@ -14827,7 +14858,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'cat-del': if (S.isOwner) catDelSheet(+t.getAttribute('data-i')); break;
       case 'cat-up': if (S.isOwner) catUp(+t.getAttribute('data-i')); break;
       case 'cat-open': V.catOpen = CATEGORIE[+t.getAttribute('data-i')] || ''; V.catAll = false; window.scrollTo(0, 0); render(); break;
-      case 'cat-close': V.catOpen = ''; render(); break;
+      case 'cat-close': V.catOpen = ''; render(); altVai(); break;
       case 'cat-all': V.catAll = true; render(); break;
       case 'cat-ckall': x = document.querySelectorAll('.cat-ck'); var on = Array.prototype.some.call(x, function (c) { return !c.checked; }); Array.prototype.forEach.call(x, function (c) { c.checked = on; }); break;
       case 'cat-move': if (S.isOwner) catMoveSel(); break;
@@ -14918,7 +14949,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'storia-open': V.boatView = 'storia'; V.stFiltro = 'tutto'; V.stTutto = false; window.scrollTo(0, 0); render(); break;
       case 'st-filtro': V.stFiltro = t.getAttribute('data-f'); V.stTutto = false; render(); break;
       case 'st-tutto': V.stTutto = true; render(); break;
-      case 'res-back': V.boatView = null; window.scrollTo(0, 0); render(); break;
+      case 'res-back': V.boatView = null; render(); altVai(); break;
       case 'res-range': V.resRange = t.getAttribute('data-r'); render(); break;
       case 'res-copy':
         x = boatById(V.boatId); if (!x) break;
@@ -14963,7 +14994,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'side-reset': lySave({ side: null }); break;
       case 'side-mv': sideMove(+t.getAttribute('data-g'), +t.getAttribute('data-k'), +t.getAttribute('data-d')); break;
       case 'ly-menu': case 'ly-edit': case 'ly-done': case 'ly-add': case 'ly-add-one': case 'ly-del': case 'ly-size': case 'ly-opz': lyAct(act, t); break;
-      case 'riep': V.tab = 'riepiloghi'; V.riep = t.getAttribute('data-v'); V.boatId = null; window.scrollTo(0, 0); render(); break;
+      case 'riep': x = V.tab === 'riepiloghi' && (V.riep || 'scad') === t.getAttribute('data-v'); V.tab = 'riepiloghi'; V.riep = t.getAttribute('data-v'); V.boatId = null; render(); if (x) window.scrollTo(0, 0); else altVai(); break;
       case 'b-sort': var bk = t.getAttribute('data-k'); V.bSortDir = V.bSort === bk ? -(V.bSortDir || 1) : 1; V.bSort = bk; renderBoatList(); break;
       case 'b-filt': V.bFilt = t.getAttribute('data-v'); renderBoatList(); break;
       case 'demo-reset': if (window.__NM_DEMO && window.__NM_DEMO.reset) window.__NM_DEMO.reset(); break;
@@ -15017,7 +15048,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'giro-start': if (S.canWrite) giroStart(t.getAttribute('data-d') || todayISO(), t.getAttribute('data-kn')); break;
       case 'giro-salta': if (S.canWrite) giroSalta(t.getAttribute('data-d'), t.getAttribute('data-kn')); break;
       case 'giro-open': giroOpen(id); break;
-      case 'giro-elenco': V.giroId = null; window.scrollTo(0, 0); render(); break;
+      case 'giro-elenco': V.giroId = null; render(); altVai(); break;
       case 'giro-f': V.giroF = t.getAttribute('data-f'); render(); break;
       case 'giro-ok': var gk = giroById(V.giroId); if (gk && S.canWrite) giroOk(gk, id); break;
       case 'giro-pb': var gp = giroById(V.giroId), bp = boatById(id); if (gp && bp && S.canWrite) giroPbSheet(gp, bp); break;
@@ -15050,7 +15081,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         if (V.tab !== 'mappa') { M.prevTab = V.tab; M.prevBoat = V.tab === 'barche' ? V.boatId : null; }
         V.tab = 'mappa'; V.boatId = null; V.boatView = null; M.area = 'porto'; if (M.three) dispose3D(); M.mounted = null; Porto.unmount(); Porto.gotoBerth(id);
         window.scrollTo(0, 0); render(); break;
-      case 'm-back': V.tab = M.prevTab || 'home'; V.boatId = M.prevBoat || null; M.prevBoat = null; window.scrollTo(0, 0); render(); break;
+      case 'm-back': V.tab = M.prevTab || 'home'; V.boatId = M.prevBoat || null; M.prevBoat = null; render(); altVai(); break;
       case 'm-area': x = t.getAttribute('data-a'); if (x !== M.area) { M.area = x; if (M.three) dispose3D(); M.mounted = null; Porto.unmount(); window.scrollTo(0, 0); render(); } break;
       case 'm-mode': x = t.getAttribute('data-m'); if (x !== M.mode) { M.mode = x; dispose3D(); M.mounted = null; if (x === '3d') M.move = false; render(); } break;
       case 'm-to2d': M.mode = '2d'; M.move = true; dispose3D(); M.mounted = null; render(); break;
