@@ -1,0 +1,36 @@
+# Sito su Firebase Hosting: quando una modifica viene unita su main, pubblica il gestionale
+# sull'indirizzo Firebase (al posto di GitHub Pages, che non si può usare per vendere un servizio in abbonamento).
+# Usa lo stesso segreto FIREBASE_SERVICE_ACCOUNT delle regole: al suo account serve il ruolo «Firebase Hosting Admin».
+name: Sito su Firebase
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['.github/notifiche/**', 'README.md', 'firestore.rules']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sito
+  cancel-in-progress: false
+
+jobs:
+  pubblica:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Pubblica il sito
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then echo 'Manca il segreto FIREBASE_SERVICE_ACCOUNT.'; exit 1; fi
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/chiave.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/chiave.json"
+          npx --yes firebase-tools@15.34.2 deploy --only hosting --project gestionale-rimessaggio --non-interactive --message "${GITHUB_SHA::7}"
+          rm -f "$RUNNER_TEMP/chiave.json"
