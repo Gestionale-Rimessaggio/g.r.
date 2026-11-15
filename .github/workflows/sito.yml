@@ -1,5 +1,5 @@
 # Sito su Firebase Hosting: quando una modifica viene unita su main, pubblica il gestionale
-# sull'indirizzo Firebase (al posto di GitHub Pages, che non si può usare per vendere un servizio in abbonamento).
+# su https://kardan.web.app (sito «kardan» del progetto Firebase gestionale-rimessaggio, al posto di GitHub Pages, che non si può usare per vendere un servizio in abbonamento).
 # Usa lo stesso segreto FIREBASE_SERVICE_ACCOUNT delle regole: al suo account serve il ruolo «Firebase Hosting Admin».
 name: Sito su Firebase
 

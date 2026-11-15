@@ -3,7 +3,7 @@
    o «?prova». Prima spegne la copia dell'app salvata sul telefono dal vecchio indirizzo, così non riapre la versione vecchia.
    Sul nuovo indirizzo non fa niente. Finché NUOVO è vuoto non fa niente da nessuna parte. */
 (function () {
-  var NUOVO = ''; // l'indirizzo nuovo, per esempio 'https://app.kardan.it' (senza «/» in fondo)
+  var NUOVO = ''; // l'indirizzo nuovo, per esempio 'https://kardan.web.app' (senza «/» in fondo)
   if (!NUOVO || !/\.github\.io$/i.test(location.hostname)) return;
   var pag = location.pathname.replace(/^\/g\.r\.(\/|$)/i, '/');
   var dove = NUOVO + pag + location.search + location.hash;
