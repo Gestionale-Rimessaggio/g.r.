@@ -3001,8 +3001,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       (sv.length ? '<div class="stack">' + sv.map(function (x) { return '<div><b>' + esc(x[0]) + '</b><span>' + esc(x[1]) + '</span></div>'; }).join('') + '</div>' : '<span class="cap">' + (naut() ? 'Aggiungi lunghezza, anno e potenza con la matita in alto' : settore() === 'officina' ? 'Aggiungi anno, km e revisione con la matita in alto' : 'Aggiungi indirizzo e impianti con la matita in alto') + '</span>') + '</div>';
     P.da += '<div class="tiles" style="margin-top:14px"><div style="grid-column:1/-1">' + schedaTile + '</div></div>';
     var onMap = !!(boatPos(b) && boatDims(b)), berth = Porto.berthLabel(b.id);
-    P.fo += '<div class="grid2" style="margin-top:14px"><button type="button" class="btn sec" data-act="res-open">' + I.doc + 'Resoconto</button>' +
-      (berth && !onMap ? '<button type="button" class="btn sec" data-act="go-porto" data-id="' + esc(berth) + '">' + I.map + 'Al porto · ' + esc(berth) + '</button>' : '<button type="button" class="btn sec" data-act="go-map" data-id="' + esc(b.id) + '">' + I.map + (onMap ? 'Sulla mappa' : 'Posiziona') + '</button>') + '</div>' +
+    P.fo += '<div' + (naut() || veicolo() || berth ? ' class="grid2"' : '') + ' style="margin-top:14px"><button type="button" class="btn sec" data-act="res-open"' + (naut() || veicolo() || berth ? '' : ' style="width:100%"') + '>' + I.doc + 'Resoconto</button>' +
+      (berth && !onMap ? '<button type="button" class="btn sec" data-act="go-porto" data-id="' + esc(berth) + '">' + I.map + 'Al porto · ' + esc(berth) + '</button>' : naut() || veicolo() ? '<button type="button" class="btn sec" data-act="go-map" data-id="' + esc(b.id) + '">' + I.map + (onMap ? 'Sulla mappa' : 'Posiziona') + '</button>' : '') + '</div>' +
       '<button type="button" class="btn sec" data-act="storia-open" style="width:100%;margin-top:10px">' + I.hours + 'Storia della barca</button>';
 
     var fotoB = (b.foto || []).map(function (id) { return { id: id, boat: true }; });
@@ -4471,7 +4471,17 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var L = num(b.lunghezza) || 0, k = b.tipo === 'Vela' ? [0.31, 0.2] : b.tipo === 'Gommone' ? [0.38, 0.15] : [0.29, 0.5];
     return { B: Math.round((L * k[0] + k[1]) * 100) / 100, est: true };
   }
-  function boatDims(b) { var L = num(b.lunghezza); if (!L || L <= 0) return null; var bb = beamOf(b); return { L: L, B: bb.B, est: bb.est }; }
+  // Officina: ogni veicolo ha le misure tipiche del suo tipo (lunghezza × larghezza in metri), se non sono scritte
+  var VEIC_MIS = { Auto: [4.3, 1.8], Moto: [2.2, 0.8], Camper: [7, 2.35], Furgone: [5.4, 2], 'Macchina agricola': [4.2, 2.3], Altro: [4.5, 1.9] };
+  function veicolo() { return settore() === 'officina'; }
+  function boatDims(b) {
+    if (!naut()) { // Impianti: i clienti non stanno sulla mappa
+      if (!veicolo()) return null;
+      var v = VEIC_MIS[b.tipo] || VEIC_MIS.Altro, L0 = num(b.lunghezza), B0 = num(b.larghezza);
+      return { L: L0 > 0 ? L0 : v[0], B: B0 > 0 ? B0 : v[1], est: false, tip: !(L0 > 0) };
+    }
+    var L = num(b.lunghezza); if (!L || L <= 0) return null; var bb = beamOf(b); return { L: L, B: bb.B, est: bb.est };
+  }
   function mezzoById(id) { for (var i = 0; i < S.mezzi.length; i++) if (S.mezzi[i].id === id) return S.mezzi[i]; return null; }
   function mezzoDims(m) { var L = num(m.lunghezza), B = num(m.larghezza); return L > 0 && B > 0 ? { L: L, B: B } : null; }
   function mezzoPos(m) { var p = M.pend['m:' + m.id] || m.mappa; return p && num(p.x) != null && num(p.y) != null ? p : null; }
@@ -4481,7 +4491,14 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function cargoPose(m) { var p = mezzoPos(m), d = mezzoDims(m), off = -drawbarLen(d, m) / 2, r = (num(p.rot) || 0) * Math.PI / 180; return { x: p.x + Math.cos(r) * off, y: p.y + Math.sin(r) * off, rot: num(p.rot) || 0 }; }
   function boatPos(b) { var c = carrierOf(b.id); if (c) return cargoPose(c); var p = M.pend[b.id] || b.mappa; return p && num(p.x) != null && num(p.y) != null ? p : null; }
   function placedBoats() { return S.boats.filter(function (b) { return boatPos(b) && boatDims(b); }); }
-  function unplacedBoats() { return S.boats.filter(function (b) { return !boatPos(b) || !boatDims(b); }).sort(byName); }
+  function unplacedBoats() { return naut() || veicolo() ? S.boats.filter(function (b) { return (!boatPos(b) || !boatDims(b)) && !(veicolo() && b.stato === 'Consegnata'); }).sort(byName) : []; } // Officina: i veicoli già riconsegnati non vanno messi sulla mappa
+  function vehLocal(L, B, tipo) {
+    var h = L / 2, b = B / 2, r = Math.min(0.35, L * 0.08);
+    if (tipo === 'Moto') return [[-h, -b * 0.35], [-h * 0.55, -b], [h * 0.45, -b], [h, -b * 0.3], [h, b * 0.3], [h * 0.45, b], [-h * 0.55, b], [-h, b * 0.35]];
+    if (tipo === 'Camper' || tipo === 'Furgone' || tipo === 'Macchina agricola') return [[-h, -b], [h - r, -b], [h, -b + r], [h, b - r], [h - r, b], [-h, b]];
+    return [[-h, -b * 0.88], [-h + r * 0.6, -b], [h - r * 1.6, -b], [h - r * 0.3, -b * 0.82], [h, -b * 0.5], [h, b * 0.5], [h - r * 0.3, b * 0.82], [h - r * 1.6, b], [-h + r * 0.6, b], [-h, b * 0.88]];
+  }
+  function shapeLocal(L, B, b) { return veicolo() ? vehLocal(L, B, b && b.tipo) : hullLocal(L, B); }
   function hullLocal(L, B) {
     var h = L / 2, b = B / 2;
     return [[-h, -b * 0.9], [-h + Math.min(0.2, L * 0.03), -b], [h * 0.22, -b], [h * 0.62, -b * 0.76], [h, 0], [h * 0.62, b * 0.76], [h * 0.22, b], [-h + Math.min(0.2, L * 0.03), b], [-h, b * 0.9]];
@@ -4591,8 +4608,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function mapAnalysis() {
     var cfg = mapCfg(), obs = obstacles(cfg), items = [], bad = {}, pairs = [];
     S.mezzi.forEach(function (m) { var d = mezzoDims(m), p = mezzoPos(m); if (d && p) items.push({ id: 'm:' + m.id, mezzo: true, m: m, d: d, p: p, poly: toWorld(mezzoLocal(d, m), p) }); });
-    placedBoats().forEach(function (b) { var d = boatDims(b), p = boatPos(b); items.push({ id: b.id, b: b, d: d, p: p, poly: toWorld(hullLocal(d.L, d.B), p) }); });
-    if (M.ghost) items.push({ id: '__ghost', ghost: true, d: { L: M.ghost.L, B: M.ghost.B, est: false }, p: M.ghost, poly: toWorld(hullLocal(M.ghost.L, M.ghost.B), M.ghost) });
+    placedBoats().forEach(function (b) { var d = boatDims(b), p = boatPos(b); items.push({ id: b.id, b: b, d: d, p: p, poly: toWorld(shapeLocal(d.L, d.B, b), p) }); });
+    if (M.ghost) items.push({ id: '__ghost', ghost: true, d: { L: M.ghost.L, B: M.ghost.B, est: false }, p: M.ghost, poly: toWorld(shapeLocal(M.ghost.L, M.ghost.B, null), M.ghost) });
     for (var i = 0; i < items.length; i++) {
       for (var j = i + 1; j < items.length; j++) if (!linked(items[i], items[j]) && satHit(items[i].poly, items[j].poly)) { bad[items[i].id] = bad[items[j].id] = true; pairs.push([items[i].id, items[j].id]); }
       for (var k = 0; k < obs.length; k++) if (satHit(items[i].poly, obs[k].p)) { bad[items[i].id] = true; pairs.push([items[i].id, null]); break; }
@@ -4675,7 +4692,22 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     h += '<g transform="translate(0,' + (H + fs * 1.2).toFixed(2) + ')"><rect x="0" y="0" width="' + bar + '" height="' + (fs * .3).toFixed(2) + '" fill="#e9ebef"/><rect x="0" y="0" width="' + (bar / 2) + '" height="' + (fs * .3).toFixed(2) + '" fill="#6e717a"/><text x="' + (bar + fs * .5).toFixed(2) + '" y="' + (fs * .5).toFixed(2) + '" font-size="' + fs.toFixed(2) + '" fill="#e9ebef">' + bar + ' m</text></g>';
     return h;
   }
+  // Officina e Impianti: il ponte sollevatore con le due pedane, gli altri mezzi pieni del loro colore (furgoni e piattaforme con la cabina davanti)
+  function mezzoSvgSett(it, an) {
+    var d = it.d, p = it.p, m = it.m, sel = M.sel === it.id, bad = an.bad[it.id] === true, h = d.L / 2, b = d.B / 2, t = String((m.tipo || '') + ' ' + (m.nome || '')).toLowerCase();
+    var stroke = bad ? '#F2473D' : sel ? '#ffffff' : 'rgba(0,0,0,.55)', sw = bad || sel ? 2.5 : 1, rot = num(p.rot) || 0, nr = ((rot % 360) + 360) % 360, flip = nr > 90 && nr < 270;
+    var ponte = /ponte|sollevator/.test(t), col = ponte ? 'rgba(70,75,85,.55)' : mezzoColor(m, '#5b6b8c'), cargo = m.barcaId && boatById(m.barcaId);
+    var rgb = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(col), chiaro = rgb && (parseInt(rgb[1], 16) * 0.299 + parseInt(rgb[2], 16) * 0.587 + parseInt(rgb[3], 16) * 0.114) > 160;
+    var dentro = ponte ? '<rect x="' + (-h).toFixed(2) + '" y="' + (-b * 0.82).toFixed(2) + '" width="' + d.L.toFixed(2) + '" height="' + (b * 0.3).toFixed(2) + '" fill="#9aa0aa"/>' +
+      '<rect x="' + (-h).toFixed(2) + '" y="' + (b * 0.52).toFixed(2) + '" width="' + d.L.toFixed(2) + '" height="' + (b * 0.3).toFixed(2) + '" fill="#9aa0aa"/>'
+      : /furgon|carro|auto|camion|piattaform/.test(t) && d.L > 2.5 ? '<rect x="' + (h - Math.min(1.5, d.L * 0.24)).toFixed(2) + '" y="' + (-b * 0.8).toFixed(2) + '" width="' + Math.min(1.1, d.L * 0.17).toFixed(2) + '" height="' + (b * 1.6).toFixed(2) + '" fill="rgba(255,255,255,.28)"/>' : '';
+    var fs = Math.max(0.3, Math.min(d.B * 0.3, d.L * 0.13, 0.9)), tx = !ponte && dentro ? (-Math.min(1.5, d.L * 0.24) / 2).toFixed(2) : '0';
+    return '<g data-b="' + esc(it.id) + '" transform="translate(' + p.x.toFixed(3) + ',' + p.y.toFixed(3) + ') rotate(' + rot.toFixed(2) + ')" style="cursor:pointer">' +
+      '<rect x="' + (-h).toFixed(3) + '" y="' + (-b).toFixed(3) + '" width="' + d.L.toFixed(3) + '" height="' + d.B.toFixed(3) + '" rx="' + Math.min(0.25, d.B * 0.12).toFixed(2) + '" fill="' + col + '" stroke="' + stroke + '" stroke-width="' + sw + '"' + (ponte ? ' stroke-dasharray="5 3"' : '') + ' vector-effect="non-scaling-stroke"/>' + dentro +
+      (cargo ? '' : '<text x="' + tx + '" y="' + (fs * 0.36).toFixed(2) + '" font-size="' + fs.toFixed(2) + '" fill="' + (chiaro ? '#14161a' : '#f3f4f6') + '" text-anchor="middle" font-weight="700"' + (flip ? ' transform="rotate(180 ' + tx + ' 0)"' : '') + ' style="pointer-events:none">' + esc(m.nome || 'Mezzo') + '</text>') + '</g>';
+  }
   function mezzoSvg(it, an) {
+    if (!naut()) return mezzoSvgSett(it, an);
     var d = it.d, p = it.p, sel = M.sel === it.id, bad = an.bad[it.id] === true, h = d.L / 2, b = d.B / 2, db = drawbarLen(d, it.m);
     var pts = mezzoLocal(d, it.m).map(function (q) { return q[0].toFixed(3) + ',' + q[1].toFixed(3); }).join(' ');
     var stroke = bad ? '#F2473D' : sel ? '#ffffff' : '#c8ccd4', sw = bad || sel ? 2.5 : 1.2, rot = num(p.rot) || 0, nr = ((rot % 360) + 360) % 360, flip = nr > 90 && nr < 270;
@@ -4693,16 +4725,18 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (it.mezzo) return mezzoSvg(it, an);
     var d = it.d, p = it.p, sel = M.sel === it.id, bad = an.bad[it.id] === true;
     var col = it.ghost ? 'rgba(255,255,255,.18)' : statoCol(it.b.stato);
-    var pts = hullLocal(d.L, d.B).map(function (q) { return q[0].toFixed(3) + ',' + q[1].toFixed(3); }).join(' ');
+    var pts = shapeLocal(d.L, d.B, it.b).map(function (q) { return q[0].toFixed(3) + ',' + q[1].toFixed(3); }).join(' ');
     var stroke = bad ? '#F2473D' : sel ? '#ffffff' : 'rgba(0,0,0,.55)', sw = bad || sel ? 2.5 : 1;
     var rot = num(p.rot) || 0, nr = ((rot % 360) + 360) % 360, flip = nr > 90 && nr < 270;
     var name = it.ghost ? 'Prova ' + fmtNum(d.L, 2) + ' m' : (it.b.nome || '');
     var fs = Math.max(0.35, Math.min(d.B * 0.36, d.L * 0.13, 1.1));
     return '<g data-b="' + esc(it.id) + '" transform="translate(' + p.x.toFixed(3) + ',' + p.y.toFixed(3) + ') rotate(' + rot.toFixed(2) + ')" style="cursor:pointer">' +
       '<polygon points="' + pts + '" fill="' + col + '" fill-opacity="' + (it.ghost ? 1 : .88) + '" stroke="' + stroke + '" stroke-width="' + sw + '" vector-effect="non-scaling-stroke"' + (it.ghost ? ' stroke-dasharray="6 4"' : '') + '/>' +
-      '<polygon points="' + toLocalCabin(d) + '" fill="rgba(255,255,255,.28)"/>' +
+      '<polygon points="' + (veicolo() ? vehCabin(d, it.b && it.b.tipo) : toLocalCabin(d)) + '" fill="rgba(255,255,255,.28)"/>' +
       '<text x="' + (-d.L * 0.06).toFixed(2) + '" y="' + (fs * 0.36).toFixed(2) + '" font-size="' + fs.toFixed(2) + '" fill="#fff" text-anchor="middle" font-weight="700"' + (flip ? ' transform="rotate(180 ' + (-d.L * 0.06).toFixed(2) + ' 0)"' : '') + ' style="pointer-events:none">' + esc(name) + '</text></g>';
   }
+  // veicoli: il tetto (moto: la sella), un po' indietro rispetto al davanti
+  function vehCabin(d, tipo) { var a = tipo === 'Moto' ? -d.L * 0.2 : -d.L * 0.3, b2 = tipo === 'Moto' ? d.L * 0.12 : tipo === 'Camper' || tipo === 'Furgone' ? d.L * 0.3 : d.L * 0.12, w = d.B * (tipo === 'Moto' ? 0.3 : 0.4); return [[a, -w], [b2, -w], [b2, w], [a, w]].map(function (q) { return q[0].toFixed(2) + ',' + q[1].toFixed(2); }).join(' '); }
   function toLocalCabin(d) { var a = -d.L * 0.18, b2 = d.L * 0.16, w = d.B * 0.3; return [[a, -w], [b2, -w * 0.8], [b2, w * 0.8], [a, w]].map(function (q) { return q[0].toFixed(2) + ',' + q[1].toFixed(2); }).join(' '); }
 
   function viewMappa() {
@@ -4710,15 +4744,16 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var seg = !sezOn('porto') ? '' : '<div class="seg2 area-seg" role="group" aria-label="Cantiere o porto"><button type="button" data-act="m-area" data-a="cantiere" aria-pressed="' + (M.area !== 'porto') + '">Cantiere</button><button type="button" data-act="m-area" data-a="porto" aria-pressed="' + (M.area === 'porto') + '">Porto</button></div>';
     if (M.area === 'porto') return seg + Porto.view();
     var un = unplacedBoats().length, cfg0 = mapCfg(), lib = cfg0.libera;
-    if (lib && M.mode !== '2d') { M.mode = '2d'; dispose3D(); M.mounted = null; } // pianta libera: solo vista dall'alto
+    if ((lib || !naut()) && M.mode !== '2d') { M.mode = '2d'; dispose3D(); M.mounted = null; } // pianta libera (e Officina, Impianti): solo vista dall'alto
+    var cli = naut() || veicolo(); // Impianti: sulla mappa solo i mezzi
     return seg + '<div class="map-ctrl">' + (lib ? '' : '<div class="seg2" role="group" aria-label="Vista"><button type="button" data-act="m-mode" data-m="2d" aria-pressed="' + (M.mode === '2d') + '">Pianta</button><button type="button" data-act="m-mode" data-m="3d" aria-pressed="' + (M.mode === '3d') + '">3D</button></div>') +
-      (S.canWrite ? '<button type="button" class="chip-b" data-act="m-place-list">Da posizionare <b id="m-un">' + un + '</b></button>' : '') +
-      '<button type="button" class="chip-b" data-act="m-mezzi">Mezzi <b>' + S.mezzi.length + '</b></button>' + (lib ? '' : '<button type="button" class="chip-b" data-act="m-ingombri">Ingombri <b>' + cfg0.ostacoli.length + '</b></button>') + '<button type="button" class="chip-b" data-act="m-try">Prova misure</button></div>' +
-      (lib && !cfg0.pianta ? '<div class="notice" style="margin:0 0 10px">' + (S.canWrite && S.status === 'ready' ? 'Carica la planimetria del cantiere (foto, immagine o PDF) e mettila in scala: <button type="button" class="link" data-act="m-cfg">carica la planimetria</button>. Intanto puoi già sistemare le barche sul rettangolo.' : 'La planimetria del cantiere non è ancora stata caricata.') + '</div>' : '') +
-      mlStrip('Cerca una barca sulla mappa', mlBoats()) +
+      (S.canWrite && cli ? '<button type="button" class="chip-b" data-act="m-place-list">Da posizionare <b id="m-un">' + un + '</b></button>' : '') +
+      '<button type="button" class="chip-b" data-act="m-mezzi">Mezzi <b>' + S.mezzi.length + '</b></button>' + (lib ? '' : '<button type="button" class="chip-b" data-act="m-ingombri">Ingombri <b>' + cfg0.ostacoli.length + '</b></button>') + '' + (naut() || veicolo() ? '<button type="button" class="chip-b" data-act="m-try">Prova misure</button>' : '') + '</div>' +
+      (lib && !cfg0.pianta ? '<div class="notice" style="margin:0 0 10px">' + (S.canWrite && S.status === 'ready' ? 'Carica la planimetria del cantiere (foto, immagine o PDF) e mettila in scala: <button type="button" class="link" data-act="m-cfg">carica la planimetria</button>. Intanto puoi già sistemare ' + (settore() === 'impianti' ? 'i mezzi' : 'le barche') + ' sul rettangolo.' : 'La planimetria del cantiere non è ancora stata caricata.') + '</div>' : '') +
+      (cli ? mlStrip('Cerca una barca sulla mappa', mlBoats()) : '') +
       '<div class="map-box" id="map-root"></div>' +
       '<p class="cap" style="margin:10px 2px 0">' + (cfg0.stimate ? 'Misure del cantiere stimate dalla foto dall’alto: correggile con il righello in alto a destra. ' : '') +
-      'Le barche sono disegnate con lunghezza e larghezza massima (baglio): la distanza mostrata è tra i punti più vicini.</p>';
+      (naut() ? 'Le barche sono disegnate con lunghezza e larghezza massima (baglio): la distanza mostrata è tra i punti più vicini.' : cli ? 'I veicoli sono disegnati come auto, moto, camper o furgoni, con le misure tipiche del loro tipo: la distanza mostrata è tra i punti più vicini.' : 'Sulla pianta ci sono i vostri mezzi, con le loro misure: aggiungili da «Mezzi».') + '</p>';
   }
   // elenco sopra la mappa (solo computer): una casella per cercare e un bottone per barca o posto, tocchi e la mappa ci va
   function mlStrip(ph, chips) {
@@ -4756,7 +4791,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       mount3D();
     } else {
       var cfg = mapCfg();
-      root.innerHTML = '<svg id="m-svg" xmlns="http://www.w3.org/2000/svg" aria-label="Pianta del cantiere"><g id="m-world"><g id="m-static">' + mapStatic(cfg) + '</g><g id="m-boats"></g><g id="m-gap"></g></g></svg>' +
+      root.innerHTML = '<svg id="m-svg" xmlns="http://www.w3.org/2000/svg" aria-label="Pianta ' + (naut() ? 'del cantiere' : veicolo() ? 'dell’officina' : 'dell’azienda') + '"><g id="m-world"><g id="m-static">' + mapStatic(cfg) + '</g><g id="m-boats"></g><g id="m-gap"></g></g></svg>' +
         '<button type="button" class="map-chip" id="m-chip" data-act="m-overlap" hidden></button>' +
         '<div class="map-tools"><button type="button" data-act="m-zoom" data-z="1.5" aria-label="Ingrandisci">+</button><button type="button" data-act="m-zoom" data-z="0.67" aria-label="Riduci">−</button>' +
         '<button type="button" data-act="m-fit" aria-label="Mostra tutto il cantiere">' + I.fit + '</button><button type="button" data-act="m-foto" aria-pressed="' + M.foto + '" aria-label="' + (cfg.libera ? 'Planimetria' : 'Foto dall’alto') + '">' + I.photo + '</button></div>' +
@@ -4833,7 +4868,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (it.mezzo) return mezzoCard(card, it, an, nb, gl);
     var carr = !it.ghost && carrierOf(it.id);
     var title = it.ghost ? 'Barca di prova' : esc(it.b.nome || 'Barca');
-    var sub = (it.ghost || !it.b.modello ? '' : esc(it.b.modello) + ' · ') + fmtNum(d.L, 2) + ' × ' + fmtNum(d.B, 2) + ' m' + (d.est ? ' (larghezza stimata)' : '') + ' · ' + zoneOf(it.p, an.cfg);
+    var sub = (it.ghost || !it.b.modello ? '' : esc(it.b.modello) + ' · ') + fmtNum(d.L, 2) + ' × ' + fmtNum(d.B, 2) + ' m' + (d.est ? ' (larghezza stimata)' : d.tip ? ' (misure tipiche)' : '') + ' · ' + zoneOf(it.p, an.cfg);
     var acts = '';
     if (M.mode === '3d') acts = '<button type="button" class="btn sec" data-act="m-to2d">Sposta in pianta</button>' + (it.ghost ? '' : '<button type="button" class="btn sec" data-act="open-boat" data-id="' + esc(it.id) + '">Scheda</button>');
     else if (it.ghost || S.canWrite) {
@@ -4854,12 +4889,12 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (M.mode === '3d') acts = '<button type="button" class="btn sec" data-act="m-to2d">Sposta in pianta</button>';
     else if (S.canWrite) acts = '<button type="button" class="btn' + (M.move ? '' : ' sec') + '" data-act="m-move">' + (M.move ? 'Fine' : 'Sposta') + '</button>' +
       '<button type="button" class="mb" data-act="m-rot" data-d="-5" aria-label="Ruota 5 gradi a sinistra">↺5°</button><button type="button" class="mb" data-act="m-rot" data-d="5" aria-label="Ruota 5 gradi a destra">↻5°</button><button type="button" class="mb" data-act="m-rot" data-d="90" aria-label="Ruota di 90 gradi">90°</button>' +
-      (cargo ? '<button type="button" class="mb" data-act="m-unload" data-id="' + esc(m.id) + '">Scarica</button>' : '<button type="button" class="mb" data-act="m-load" data-id="' + esc(m.id) + '">Carica barca</button>') +
+      (cargo ? '<button type="button" class="mb" data-act="m-unload" data-id="' + esc(m.id) + '">Scarica</button>' : naut() || veicolo() ? '<button type="button" class="mb" data-act="m-load" data-id="' + esc(m.id) + '">Carica barca</button>' : '') + // Impianti: niente da caricare
       '<button type="button" class="mb" data-act="m-mezzo-edit" data-id="' + esc(m.id) + '">Modifica</button>';
     card.hidden = false;
-    card.innerHTML = '<div class="hd"><span class="ic-circle grey" style="width:28px;height:28px;background:var(--card-2)">' + I.updown + '</span><span class="title">' + esc(m.nome || 'Carrello') + '</span><span class="pill">' + esc(m.tipo || 'Mezzo') + '</span><button type="button" class="x" data-act="m-desel" aria-label="Chiudi">×</button></div>' +
-      '<div class="sub">' + fmtNum(it.d.L, 2) + ' × ' + fmtNum(it.d.B, 2) + ' m' + (m.misureStimate ? ' (misure stimate)' : '') + ' · ' + zoneOf(it.p, an.cfg) + ' · ' + (cargo ? 'a bordo: ' + esc(cargo.nome || 'una barca') : 'vuoto') + '</div>' + gl +
-      (M.move && M.mode === '2d' ? '<div class="cap">Trascina il carrello: ' + (cargo ? 'la barca a bordo si sposta con lui.' : 'la posizione si salva quando lo lasci.') + '</div>' : '') + '<div class="m-acts">' + acts + '</div>' +
+    card.innerHTML = '<div class="hd"><span class="ic-circle grey" style="width:28px;height:28px;background:var(--card-2)">' + I.updown + '</span><span class="title">' + esc(m.nome || (naut() ? 'Carrello' : 'Mezzo')) + '</span><span class="pill">' + esc(m.tipo || 'Mezzo') + '</span><button type="button" class="x" data-act="m-desel" aria-label="Chiudi">×</button></div>' +
+      '<div class="sub">' + fmtNum(it.d.L, 2) + ' × ' + fmtNum(it.d.B, 2) + ' m' + (m.misureStimate ? ' (misure stimate)' : '') + ' · ' + zoneOf(it.p, an.cfg) + (naut() || veicolo() || cargo ? ' · ' + (cargo ? 'a bordo: ' + esc(cargo.nome || 'una barca') : 'vuoto') : '') + '</div>' + gl +
+      (M.move && M.mode === '2d' ? '<div class="cap">Trascina ' + (naut() ? 'il carrello' : 'il mezzo') + ': ' + (cargo ? 'la barca a bordo si sposta con lui.' : 'la posizione si salva quando lo lasci.') + '</div>' : '') + '<div class="m-acts">' + acts + '</div>' +
       (S.canWrite && M.mode === '2d' ? '<button type="button" class="link" data-act="m-remove" style="align-self:flex-start;color:var(--muted);font-size:.85rem">Togli dalla mappa</button>' : '');
   }
   function posOf(id) { if (id === '__ghost') return M.ghost; if (id.indexOf('m:') === 0) { var m = mezzoById(id.slice(2)); return m ? mezzoPos(m) : null; } var b = boatById(id); return b ? boatPos(b) : null; }
@@ -4949,7 +4984,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       body: list.length ? '<p class="context">Tocca una barca: compare al centro della mappa e la trascini al suo posto.</p><div class="menu">' + list.map(function (b) {
         var d = boatDims(b);
         return '<button type="button" data-act="m-place" data-id="' + esc(b.id) + '"><span class="ic-circle" style="background:' + statoCol(b.stato) + '">' + I.boat + '</span><span class="main"><span class="title">' + esc(b.nome || 'Senza nome') + '</span><span class="sub">' +
-          (d ? fmtNum(d.L, 2) + ' × ' + fmtNum(d.B, 2) + ' m' + (d.est ? ' · larghezza stimata' : '') : 'Manca la lunghezza: la inserisci al prossimo passo') + ' · ' + esc(b.stato || '') + '</span></span></button>';
+          (d ? fmtNum(d.L, 2) + ' × ' + fmtNum(d.B, 2) + ' m' + (d.est ? ' · larghezza stimata' : d.tip ? ' · misure tipiche' : '') : 'Manca la lunghezza: la inserisci al prossimo passo') + ' · ' + esc(b.stato || '') + '</span></span></button>';
       }).join('') + '</div>' : '<p class="context">Tutte le barche sono già sulla mappa.</p>'
     });
   }
@@ -4976,12 +5011,12 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     openSheet({
       title: 'Prova misure', submitLabel: 'Prova',
       body: '<p class="context">Metti sulla mappa una barca di prova per vedere se ci sta. Non viene salvata.</p><div class="grid2">' +
-        field(lab('f-tl', 'Lunghezza (m)'), inp('f-tl', M.ghost ? String(M.ghost.L).replace('.', ',') : '', 'type="text" inputmode="decimal" required placeholder="es. 9,50"')) +
-        field(lab('f-tb', 'Larghezza (m)'), inp('f-tb', M.ghost ? String(M.ghost.B).replace('.', ',') : '', 'type="text" inputmode="decimal" placeholder="es. 3,20"')) + '</div>',
+        field(lab('f-tl', 'Lunghezza (m)'), inp('f-tl', M.ghost ? String(M.ghost.L).replace('.', ',') : '', 'type="text" inputmode="decimal" required placeholder="es. ' + (veicolo() ? '4,30' : '9,50') + '"')) +
+        field(lab('f-tb', 'Larghezza (m)'), inp('f-tb', M.ghost ? String(M.ghost.B).replace('.', ',') : '', 'type="text" inputmode="decimal" placeholder="es. ' + (veicolo() ? '1,80' : '3,20') + '"')) + '</div>',
       onSubmit: async function (f) {
         var L = parseDec(val(f, 'f-tl')), B = parseDec(val(f, 'f-tb'));
         if (!L || L <= 0 || L > 60) { formErr('Scrivi la lunghezza in metri.'); return false; }
-        if (!B || B <= 0) B = r2(L * 0.29 + 0.5);
+        if (!B || B <= 0) B = veicolo() ? (L <= 2.5 ? 0.8 : L <= 5 ? 1.8 : 2.3) : r2(L * 0.29 + 0.5);
         var c = viewCenter();
         M.ghost = { L: L, B: B, x: M.ghost ? M.ghost.x : c[0], y: M.ghost ? M.ghost.y : c[1], rot: M.ghost ? M.ghost.rot : -90 };
         M.sel = '__ghost'; M.move = true;
@@ -5209,13 +5244,14 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function mezziList() {
     var list = S.mezzi.filter(function (m) { return !m.attrezzo; }).sort(function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || ''), 'it'); });
     openSheet({
-      title: 'Mezzi e carrelli', menu: true,
+      title: naut() ? 'Mezzi e carrelli' : 'Mezzi', menu: true,
       body: (list.length ? '<div class="menu">' + list.map(function (m) {
         var d = mezzoDims(m), c = m.barcaId && boatById(m.barcaId);
         return '<button type="button" data-act="m-mezzo-go" data-id="' + esc(m.id) + '"><span class="ic-circle" style="background:var(--card-2);color:var(--ink)">' + I.updown + '</span><span class="main"><span class="title">' + esc(m.nome || 'Carrello') + '</span><span class="sub">' +
           (m.fermo && ctrlOn() ? '<b class="t-late">FERMO</b> · ' : '') + esc(m.tipo || 'Mezzo') + (d ? ' · ' + fmtNum(d.L, 2) + ' × ' + fmtNum(d.B, 2) + ' m' : '') + ' · ' + (mezzoPos(m) ? (c ? 'a bordo ' + esc(c.nome) : 'sulla mappa') : 'da posizionare') + '</span></span></button>';
-      }).join('') + '</div>' : '<p class="context">Nessun mezzo. Aggiungi carrelli, muletti e gli altri mezzi che si muovono nel cantiere.</p>') +
-        (S.canWrite ? '<button type="button" class="btn sec self-start" data-act="m-mezzo-new">' + I.plus + 'Nuovo mezzo</button>' + (naut() ? '<button type="button" class="link" data-act="mz-seed" style="align-self:flex-start">Aggiungi i mezzi del cantiere (BoatLift, motrice, trattore…)</button>' : '') + '<button type="button" class="link" data-act="perc-edit" style="align-self:flex-start">' + (mapLibera() ? 'Percorso del trasporto' : 'Percorso MSV → cantiere e portoni') + '</button>' : '')
+      }).join('') + '</div>' : '<p class="context">' + (naut() ? 'Nessun mezzo. Aggiungi carrelli, muletti e gli altri mezzi che si muovono nel cantiere.' : veicolo() ? 'Nessun mezzo. Aggiungi ponti sollevatori, carro attrezzi, furgoni e gli altri mezzi dell’officina.' : 'Nessun mezzo. Aggiungi furgoni, piattaforme, trabattelli e gli altri mezzi.') + '</p>') +
+        (S.canWrite ? '<button type="button" class="btn sec self-start" data-act="m-mezzo-new">' + I.plus + 'Nuovo mezzo</button>' + (naut() ? '<button type="button" class="link" data-act="mz-seed" style="align-self:flex-start">Aggiungi i mezzi del cantiere (BoatLift, motrice, trattore…)</button>' +
+          '<button type="button" class="link" data-act="perc-edit" style="align-self:flex-start">' + (mapLibera() ? 'Percorso del trasporto' : 'Percorso MSV → cantiere e portoni') + '</button>' : '') : '')
     });
   }
   var TIPI_MEZZO = ['BoatLift (semovente)', 'Carrello autotaccante con timone snodato', 'Carrello autolivellante', 'Carrello stradale', 'Carrello', 'Motrice', 'Trattore', 'Furgone', 'Muletto', 'Altro'];
@@ -5241,13 +5277,18 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       }
     });
   }
+  // Officina e Impianti: i mezzi del mestiere, con le misure tipiche (lunghezza × larghezza in metri) proposte quando si sceglie il tipo
+  var MEZZI_SETT = { officina: [['Ponte sollevatore', 4.5, 3.4], ['Carro attrezzi', 6.5, 2.3], ['Furgone', 5.4, 2], ['Auto di cortesia', 4, 1.75], ['Compressore', 1.2, 0.6], ['Altro', 2, 1]],
+    impianti: [['Furgone', 5.4, 2], ['Auto', 4, 1.75], ['Piattaforma aerea', 5.5, 2], ['Trabattello', 2, 0.8], ['Scala', 2.5, 0.6], ['Altro', 2, 1]] };
   function mezzoSheet(m) {
-    var isNew = !m; m = m || { tipo: 'Carrello' };
-    var body = field(lab('f-mzn', 'Nome'), inp('f-mzn', m.nome, 'type="text" required placeholder="es. Zenti"')) +
-      field(lab('f-mzt', 'Tipo'), '<select id="f-mzt">' + opts(TIPI_MEZZO.indexOf(m.tipo) >= 0 || !m.tipo ? TIPI_MEZZO : TIPI_MEZZO.concat([m.tipo]), m.tipo) + '</select>') +
-      '<div class="grid2">' + field(lab('f-mzh', 'Altezza del piano di carico (m)'), inp('f-mzh', num(m.altezzaCarico) != null ? String(m.altezzaCarico).replace('.', ',') : '', 'type="text" inputmode="decimal" placeholder="dove poggia la chiglia"')) +
-      field(lab('f-mzc', 'Colore'), '<input id="f-mzc" type="color" value="' + esc(/^#[0-9a-f]{6}$/i.test(m.colore || '') ? m.colore : '#23306e') + '">') + '</div>' +
-      '<div class="grid2">' + field(lab('f-mzl', 'Lunghezza con timone (m)'), inp('f-mzl', num(m.lunghezza) != null ? String(m.lunghezza).replace('.', ',') : '', 'type="text" inputmode="decimal" required')) +
+    var MS = !naut() && MEZZI_SETT[settore()], TM = MS ? MS.map(function (x) { return x[0]; }) : TIPI_MEZZO;
+    var isNew = !m; m = m || (MS ? { tipo: MS[0][0], lunghezza: MS[0][1], larghezza: MS[0][2] } : { tipo: 'Carrello' });
+    var body = field(lab('f-mzn', 'Nome'), inp('f-mzn', m.nome, 'type="text" required placeholder="' + (MS ? (settore() === 'officina' ? 'es. Ponte 1' : 'es. Furgone Ducato') : 'es. Zenti') + '"')) +
+      field(lab('f-mzt', 'Tipo'), '<select id="f-mzt">' + opts(TM.indexOf(m.tipo) >= 0 || !m.tipo ? TM : TM.concat([m.tipo]), m.tipo) + '</select>') +
+      '<div class="grid2"' + (MS ? ' style="display:none"' : '') + '>' + field(lab('f-mzh', 'Altezza del piano di carico (m)'), inp('f-mzh', num(m.altezzaCarico) != null ? String(m.altezzaCarico).replace('.', ',') : '', 'type="text" inputmode="decimal" placeholder="dove poggia la chiglia"')) +
+      (MS ? '' : field(lab('f-mzc', 'Colore'), '<input id="f-mzc" type="color" value="' + esc(/^#[0-9a-f]{6}$/i.test(m.colore || '') ? m.colore : '#23306e') + '">')) + '</div>' +
+      (MS ? '<input type="color" id="f-mzc" value="' + esc(/^#[0-9a-f]{6}$/i.test(m.colore || '') ? m.colore : '#23306e') + '" hidden>' : '') +
+      '<div class="grid2">' + field(lab('f-mzl', MS ? 'Lunghezza (m)' : 'Lunghezza con timone (m)'), inp('f-mzl', num(m.lunghezza) != null ? String(m.lunghezza).replace('.', ',') : '', 'type="text" inputmode="decimal" required')) +
       field(lab('f-mzb', 'Larghezza (m)'), inp('f-mzb', num(m.larghezza) != null ? String(m.larghezza).replace('.', ',') : '', 'type="text" inputmode="decimal" required')) + '</div>' +
       field(lab('f-mznote', 'Note'), '<textarea id="f-mznote" placeholder="es. portata massima, numero pistoni, targa">' + esc(m.note || '') + '</textarea>') +
       (ctrlOn() ? '<label class="check" style="margin-top:4px"><input type="checkbox" id="f-mzctrl"' + (m.controllo ? ' checked' : '') + '> Controllo prima dell’uso</label>' +
@@ -5255,7 +5296,16 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         '<span class="hint" style="margin-top:-6px">Vuoto = le voci di base per il tipo di mezzo (quelle in grigio).</span>' : '');
     openSheet({
       title: isNew ? 'Nuovo mezzo' : 'Modifica mezzo', body: body, deleteLabel: 'Elimina mezzo',
-      deleteText: 'Elimini ' + (m.nome || 'questo mezzo') + '. Se ha una barca a bordo, la barca resta sulla mappa.',
+      deleteText: 'Elimini ' + (m.nome || 'questo mezzo') + (MS ? '.' : '. Se ha una barca a bordo, la barca resta sulla mappa.'),
+      onOpen: MS ? function (f) { // scelto il tipo, propone le sue misure se quelle scritte sono ancora quelle proposte (o vuote)
+        var t = f.querySelector('#f-mzt'), prev = t.value;
+        t.addEventListener('change', function () {
+          var a = MS.find(function (x) { return x[0] === prev; }), z = MS.find(function (x) { return x[0] === t.value; }), l = f.querySelector('#f-mzl'), w2 = f.querySelector('#f-mzb');
+          var com = function (el, v) { var n = parseDec(el.value); return !el.value || (v != null && n === v); };
+          if (z && com(l, a && a[1]) && com(w2, a && a[2])) { l.value = String(z[1]).replace('.', ','); w2.value = String(z[2]).replace('.', ','); }
+          prev = t.value;
+        });
+      } : null,
       item: m, onDelete: isNew ? null : async function () { if (await delSeq([S.db.collection('mezzi').doc(m.id)])) { closeSheet(); if (M.sel === 'm:' + m.id) M.sel = null; toast('Mezzo eliminato'); } },
       onSubmit: async function (f) {
         var L = parseDec(val(f, 'f-mzl')), B = parseDec(val(f, 'f-mzb')), nome = val(f, 'f-mzn');
@@ -5274,7 +5324,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var list = S.boats.slice().sort(byName).filter(function (b) { return boatDims(b); });
     openSheet({
       title: 'Carica su ' + (mz.nome || 'carrello'), menu: true,
-      body: list.length ? '<p class="context">Scegli la barca da mettere sul carrello: si sposterà insieme a lui.</p><div class="menu">' + list.map(function (b) {
+      body: list.length ? '<p class="context">' + (naut() ? 'Scegli la barca da mettere sul carrello' : 'Scegli il veicolo da mettere sul mezzo (ponte sollevatore, carro attrezzi…)') + ': si sposterà insieme a lui.</p><div class="menu">' + list.map(function (b) {
         var d = boatDims(b), c = carrierOf(b.id);
         return '<button type="button" data-act="m-load-pick" data-mz="' + esc(mz.id) + '" data-id="' + esc(b.id) + '"><span class="ic-circle" style="background:' + statoCol(b.stato) + '">' + I.boat + '</span><span class="main"><span class="title">' + esc(b.nome || 'Barca') + '</span><span class="sub">' +
           fmtNum(d.L, 2) + ' × ' + fmtNum(d.B, 2) + ' m' + (c ? ' · ora su ' + esc(c.nome) : boatPos(b) ? '' : ' · non ancora sulla mappa') + '</span></span></button>';
@@ -5288,7 +5338,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var mref = S.db.collection('mezzi').doc(mz.id);
     if (!(await w(function () { return mref.update({ barcaId: boatId }); }))) return;
     if (mezzoPos(mz) && mezzoDims(mz)) { var cp = cargoPose(Object.assign({}, mz, { barcaId: boatId })), bref = S.db.collection('barche').doc(boatId); await w(function () { return bref.update({ mappa: { x: r2(cp.x), y: r2(cp.y), rot: r2(cp.rot) } }); }); }
-    M.sel = 'm:' + mz.id; M.move = false; toast(b.nome + ' caricata su ' + mz.nome);
+    M.sel = 'm:' + mz.id; M.move = false; toast(b.nome + (naut() ? ' caricata su ' : ' caricato su ') + mz.nome);
   }
 
   /* Vista 3D (three.js caricato solo quando serve) */
@@ -5555,6 +5605,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   /* Carrelli e mezzi */
   function mezzoKind(m) {
     var t = String((m.tipo || '') + ' ' + (m.nome || '')).toLowerCase();
+    if (!naut()) return /rimorchi|carrell/.test(t) ? 'carrello' : /furgon|carro|auto|camion/.test(t) ? 'furgone' : 'mezzo';
     return /boat ?lift|bl ?20/.test(t) ? 'boatlift' : /stradal/.test(t) ? 'stradale' : /autotacc|zenti|autoliv|idraulic/.test(t) ? 'idraulico' : /motrice/.test(t) ? 'motrice' : /trattor|john ?deere/.test(t) ? 'trattore' : /furgon|citro/.test(t) ? 'furgone' : /muletto/.test(t) ? 'muletto' : 'carrello';
   }
   function isTrailer(m) { var k = m ? mezzoKind(m) : 'carrello'; return k === 'idraulico' || k === 'stradale' || k === 'carrello'; }
@@ -7870,7 +7921,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function fuList() { return S.mezzi.filter(function (m) { return !m._del; }).sort(function (a, b) { return (b.fermo ? 1 : 0) - (a.fermo ? 1 : 0) || String(a.nome || '').localeCompare(String(b.nome || ''), 'it'); }); }
   function fuFermo(nome) { var n = String(nome || '').trim().toLowerCase(); return n ? S.mezzi.find(function (m) { return m.fermo && !m._del && String(m.nome || '').trim().toLowerCase() === n; }) || null : null; }
   function viewFuoriUso() {
-    var l = fuList(), h = '<p class="context" style="margin-top:12px">Gru, travel lift, muletto, furgone e attrezzi. Se uno non va, segnalo «fuori uso» con cosa non va: nel programma risulta fermo finché non lo rimettete in uso. Le revisioni restano in Scadenze del cantiere.</p>';
+    var l = fuList(), h = '<p class="context" style="margin-top:12px">' + (naut() ? 'Gru, travel lift, muletto, furgone e attrezzi.' : veicolo() ? 'Ponte sollevatore, carro attrezzi, furgone e attrezzi.' : 'Furgone, piattaforma, scale e attrezzi.') + ' Se uno non va, segnalo «fuori uso» con cosa non va: nel programma risulta fermo finché non lo rimettete in uso. Le revisioni restano in Scadenze del cantiere.</p>';
     if (S.canWrite) h += '<button type="button" class="btn sec" data-act="fu-new" style="width:100%;margin-top:12px">' + I.plus + 'Aggiungi un attrezzo</button>';
     if (!l.length) return h + '<div class="notice" style="margin-top:12px">Nessun mezzo. I mezzi si aggiungono da Mappa › Mezzi, gli attrezzi (smerigliatrice, saldatrice…) da qui.</div>';
     var fe = l.filter(function (m) { return m.fermo; }), ok = l.filter(function (m) { return !m.fermo; });
@@ -12102,10 +12153,18 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     boatlift: ['Nessuna perdita d’olio da tubi e pistoni', 'Livello olio idraulico', 'Gomme e ruote', 'Fasce e cinghie di sollevamento integre', 'Radiocomando e arresto d’emergenza', 'Freni', 'Luci e lampeggiante'],
     muletto: ['Forche e catene', 'Nessuna perdita d’olio', 'Freni', 'Clacson, luci e cicalino retromarcia', 'Cintura e sedile', 'Gomme'],
     strada: ['Gomme', 'Luci e frecce', 'Freni', 'Olio motore e liquidi', 'Gancio di traino e spinotto luci', 'Specchi e vetri'],
-    carrello: ['Gomme e ruote', 'Luci e catarifrangenti', 'Gancio e sicura', 'Cinghie e cavalletti', 'Freno']
+    carrello: ['Gomme e ruote', 'Luci e catarifrangenti', 'Gancio e sicura', 'Cinghie e cavalletti', 'Freno'],
+    // Officina e Impianti
+    ponte: ['Bracci e tamponi integri', 'Nessuna perdita d’olio', 'Blocchi di sicurezza', 'Pulsanti e arresto d’emergenza', 'Nessuno sotto il ponte quando sale o scende'],
+    piattaforma: ['Stabilizzatori', 'Nessuna perdita d’olio', 'Comandi e arresto d’emergenza', 'Cestello e cancelletto', 'Imbracatura'],
+    scala: ['Piedini antiscivolo', 'Gradini e montanti integri', 'Blocchi e ganci di sicurezza'],
+    compressore: ['Pressione e manometro', 'Tubi e innesti', 'Scarico della condensa', 'Valvola di sicurezza'],
+    altro: ['Integro e pulito', 'Funziona', 'Protezioni al loro posto']
   };
   function ctrlOn() { return sezOn('controllo'); }
-  function ctrlTipo(t) { t = String(t || '').toLowerCase(); return /boatlift|semovente/.test(t) ? 'boatlift' : /muletto/.test(t) ? 'muletto' : /motrice|trattore|furgone/.test(t) ? 'strada' : 'carrello'; }
+  function ctrlTipo(t) { t = String(t || '').toLowerCase();
+    if (!naut()) return /ponte|sollevator/.test(t) ? 'ponte' : /piattaform|cestell/.test(t) ? 'piattaforma' : /scala|trabattell/.test(t) ? 'scala' : /compressor/.test(t) ? 'compressore' : /furgon|auto|carro|camion|motrice|trattore/.test(t) ? 'strada' : /muletto/.test(t) ? 'muletto' : 'altro';
+    return /boatlift|semovente/.test(t) ? 'boatlift' : /muletto/.test(t) ? 'muletto' : /motrice|trattore|furgone/.test(t) ? 'strada' : 'carrello'; }
   function ctrlVoci(m) { var v = String(m.vociControllo || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); return v.length ? v : CTRL_VOCI[ctrlTipo(m.tipo)]; }
   function ctrlList() { return S.mezzi.filter(function (m) { return m.controllo; }).sort(function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || ''), 'it'); }); }
   function ctrlOggi(m) { var t = todayISO(); return (S.ctrlMz || []).filter(function (c) { return c.mezzoId === m.id && c.data === t && !c._del; }).sort(function (a, b) { return String(b.ora).localeCompare(String(a.ora)); })[0] || null; }
@@ -12637,7 +12696,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   var GUIDA_VIA = ['Meteo della Marina', 'L’icona a sinistra dice dove si trova', '«Dove si trova» nella matita', '«Dotazioni e documenti obbligatori»', '«Piano tagliandi pronto»',
     'I tasti mappa e porto', 'Contratti del porto in scadenza', 'Porto e posti:', 'Confermando un varo', 'In «Dove si trova il cantiere»',
     '«Trasporto: passa?»', '«Scegli la strada del trasporto»', 'Ogni passaggio ha altezza e larghezza dal cartello'];
-  var GUIDA_PEZZI = [[', vari di oggi,', ','], [', batterie, ricambi', ', ricambi'], ['Scadenze, Magazzino, Porto, Rifiuti e Batterie', 'Scadenze, Magazzino e Rifiuti'],
+  var GUIDA_PEZZI = [['mostra le distanze dalle vicine.', 'mostra le distanze da quelli vicini.'], ['con una casella per cercarle:', 'con una casella per cercarli:'],
+    ['Puoi mettere anche mezzi e carrelli: una barca caricata su un carrello si sposta con lui.', 'Puoi mettere anche i mezzi (ponte sollevatore, carro attrezzi…): un veicolo caricato su un mezzo si sposta con lui.'], [', vari di oggi,', ','], [', batterie, ricambi', ', ricambi'], ['Scadenze, Magazzino, Porto, Rifiuti e Batterie', 'Scadenze, Magazzino e Rifiuti'],
     ['Scadenze, Porto, Rifiuti e Batterie', 'Scadenze e Rifiuti'], [', vari e alaggi, scadenze (', ', scadenze ('], ['programma, vari, scadenze, assenti e meteo', 'programma, scadenze e assenti'],
     ['lavori, scadenze, vari e ricambi', 'lavori, scadenze e ricambi'], ['i tasti sopra per vedere solo quelle a terra, in acqua, con scadenze o con lavori aperti', 'i tasti sopra mostrano solo chi ha scadenze o lavori aperti'],
     ['(scadenze vicine, batterie, attrezzatura da sistemare, lavori in ritardo, vari e alaggi dei prossimi 30 giorni), il programma dei lavori con i giorni al varo,', '(scadenze vicine e lavori in ritardo), il programma dei lavori,'],
@@ -12646,9 +12706,14 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['senza lavori né vari da 12 mesi, contratti del posto scaduti,', 'senza lavori da 12 mesi,'], ['Barche senza misure o senza proprietario', 'Barche senza proprietario'], [', posti al porto senza contratto.', '.'],
     ['(porto, rifiuti, batterie…)', '(rifiuti, preventivi, magazzino…)'], ['(preventivi, servizi, scadenze del cantiere e giro di controllo anche', '(preventivi e scadenze del cantiere anche'],
     [', servizio, varo, programma', ', programma']];
+  // Impianti: la mappa ha solo i mezzi (le righe sui clienti da sistemare si tolgono o si riscrivono)
+  var GUIDA_IMP = [['con le barche disegnate con le loro misure', 'con i vostri mezzi disegnati con le loro misure'], ['Trascina una barca dove si trova davvero', 'Trascina un mezzo dove si trova davvero'],
+    ['L’app segnala barche sovrapposte', 'L’app segnala mezzi sovrapposti'], ['Puoi mettere anche mezzi e carrelli', null], ['«barca di prova»', null], ['L’elenco «Da posizionare»', null],
+    ['puoi già sistemare le barche', 'puoi già sistemare i mezzi'], ['nasconde o mostra la planimetria sotto le barche', 'nasconde o mostra la planimetria sotto i mezzi'], ['l’elenco delle barche già sistemate', null]];
   function guidaSett(s) {
     if (s == null || naut()) return s;
     if (GUIDA_VIA.some(function (x) { return s.indexOf(x) >= 0; })) return null;
+    if (settore() === 'impianti') for (var gi = 0; gi < GUIDA_IMP.length; gi++) if (s.indexOf(GUIDA_IMP[gi][0]) >= 0) { if (GUIDA_IMP[gi][1] == null) return null; s = s.split(GUIDA_IMP[gi][0]).join(GUIDA_IMP[gi][1]); }
     GUIDA_PEZZI.forEach(function (x) { s = s.split(x[0]).join(x[1]); });
     return s;
   }
