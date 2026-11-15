@@ -86,7 +86,7 @@ window.NM_MARCA = (function () {
     var lp = typeof d.lat === 'number' && typeof d.lon === 'number' ? d : typeof b.lat === 'number' && typeof b.lon === 'number' ? b : {};
     r.luogo = lp.luogo || ''; r.lat = typeof lp.lat === 'number' ? lp.lat : null; r.lon = typeof lp.lon === 'number' ? lp.lon : null; r.sigla = lp === b ? b.sigla || '' : '';
     r.colore1 = scuro(hex(r.colore1) || DEF.colore1, .2); r.colore2 = scuro(hex(r.colore2) || DEF.colore2, .06);
-    r.nome = String(r.nome).trim().slice(0, 60) || DEF.nome;
+    r.nome = String(r.nome === DEF.nome && SETT ? '' : r.nome).trim().slice(0, 60) || (SETT ? 'Gestionale' : DEF.nome); // officina e impianti: senza nome scelto niente «Rimessaggio» nella scritta
     if (!r.logo) r.logo = logoNeutro(r.nome);
     if (!r.scritta) r.scritta = scrittaNeutra(r.nome);
     return r;
@@ -103,7 +103,7 @@ window.NM_MARCA = (function () {
     Object.keys(v).forEach(function (k) { if (base) st.removeProperty(k); else st.setProperty(k, v[k]); });
     var tc = document.querySelector('meta[name="theme-color"]');
     if (tc) { if (!tc.hasAttribute('data-orig')) tc.setAttribute('data-orig', tc.content); tc.content = base ? tc.getAttribute('data-orig') : cur.colore2; }
-    document.title = cur.nome + ' – Gestionale cantiere';
+    document.title = cur.nome + ' – ' + (SETT === 'officina' ? 'Gestionale officina' : SETT === 'impianti' ? 'Gestionale lavori' : 'Gestionale cantiere'); // il nome nella scheda del browser parla il mestiere
     var at = document.querySelector('meta[name="apple-mobile-web-app-title"]'); if (at) at.content = cur.nome; // nome dell'app aggiunta alla Home dell'iPhone
     img('logo-src', cur.logo); img('scritta-src', cur.scritta);
     try { document.dispatchEvent(new CustomEvent('nm-marca')); } catch (e) { }
@@ -112,6 +112,7 @@ window.NM_MARCA = (function () {
   return {
     DEF: DEF, hex: hex, colori: colori, scuro: scuro,
     nome: function () { return cur.nome; },
+    scelto: function () { return !!String((db && db.nome) || (window.NM_ASPETTO || {}).nome || '').trim(); }, // l'azienda ha scritto il suo nome in Aspetto
     get: function () { return cur; },
     logo: function () { var el = document.getElementById('logo-src'); return el ? el.getAttribute('src') : ''; },
     // nuove scelte dal database (o null = nessuna): si applicano e si ricordano sul dispositivo
@@ -2113,7 +2114,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       posto: function (r) { return String(r.b.posto || '~'); }, nome: function (r) { return String(r.b.nome || ''); }, modello: function (r) { return String(r.b.modello || '~'); }, lung: function (r) { return num(r.b.lunghezza); }, prop: function (r) { return String(r.b.proprietario || '~'); },
       ore: function (r) { return num(r.b.oreMotore); }, scad: function (r) { return r.n ? r.n.i.rank * 1e6 + r.n.i.key : null; }, lav: function (r) { return r.lav; } }[k];
     rows.sort(function (a, c) { var x = key(a), y = key(c); if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1; return (typeof x === 'number' ? x - y : x.localeCompare(y, 'it', { numeric: true, sensitivity: 'base' })) * dir; });
-    var cols = SX === 'officina' ? [['posto', 'Posto'], ['nome', 'Targa o nome'], ['modello', 'Marca e modello'], ['km', 'Km', 1], ['prop', 'Proprietario'], ['anno', 'Anno', 1], ['scad', 'Prossima scadenza'], ['lav', 'Lavori aperti', 1]]
+    var cols = SX === 'officina' ? (PORTO_ON() ? [['posto', 'Posto']] : []).concat([['nome', 'Targa o nome'], ['modello', 'Marca e modello'], ['km', 'Km', 1], ['prop', 'Proprietario'], ['anno', 'Anno', 1], ['scad', 'Prossima scadenza'], ['lav', 'Lavori aperti', 1]])
       : SX === 'impianti' ? [['nome', 'Cliente'], ['ind', 'Indirizzo'], ['tel', 'Telefono'], ['scad', 'Prossima scadenza'], ['lav', 'Lavori aperti', 1]]
       : [['posto', 'Posto'], ['nome', 'Barca'], ['modello', 'Modello'], ['lung', 'Lungh.', 1], ['prop', 'Proprietario'], ['ore', 'Ore motore', 1], ['scad', 'Prossima scadenza'], ['lav', 'Lavori aperti', 1]];
     var h = chips + '<div class="group tb-wrap" style="margin-top:12px"><table class="tb tb-click"><thead><tr>' + cols.map(function (c) {
@@ -2121,7 +2122,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     }).join('') + '</tr></thead><tbody>' + rows.map(function (r) {
       var b = r.b, n = r.n;
       return '<tr data-act="open-boat" data-id="' + esc(b.id) + '">' + (SX === 'impianti' ? '<td><b>' + esc(b.nome || 'Senza nome') + '</b></td><td>' + esc(b.indirizzo || '') + '</td><td>' + esc(b.telefono || '') + '</td>'
-        : '<td><span class="posto' + (b.posto ? '' : ' empty') + '">' + esc(b.posto || '–') + '</span></td><td><b>' + esc(b.nome || 'Senza nome') + '</b></td><td>' + esc(b.modello || '') + '</td>' +
+        : (SX === 'officina' && !PORTO_ON() ? '' : '<td><span class="posto' + (b.posto ? '' : ' empty') + '">' + esc(b.posto || '–') + '</span></td>') + '<td><b>' + esc(b.nome || 'Senza nome') + '</b></td><td>' + esc(b.modello || '') + '</td>' +
         (SX === 'officina' ? '<td class="n">' + (num(b.km) != null ? fmtNum(b.km) : '') + '</td><td>' + esc(b.proprietario || '') + '</td><td class="n">' + esc(b.anno || '') + '</td>'
           : '<td class="n">' + (num(b.lunghezza) != null ? fmtNum(b.lunghezza, 2) + ' m' : '') + '</td><td>' + esc(b.proprietario || '') + '</td><td class="n">' + (num(b.oreMotore) != null ? fmtNum(b.oreMotore) : '') + '</td>')) +
         '<td>' + (n ? '<span class="pill ' + n.i.level + '" title="' + esc(n.s.tipo || '') + '">' + esc(n.i.level === 'late' ? 'Scaduta' : n.i.text) + '</span> <span class="cap">' + esc(n.s.tipo || '') + '</span>' : '') + '</td><td class="n">' + (r.lav || '') + '</td></tr>';
@@ -2229,9 +2230,12 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (S.dl === undefined) { try { S.dl = (await CLD().use('downloads')) || null; } catch (e) { S.dl = null; } }
     if (!S.dl) { toast('Da qui non si possono scaricare file.', true); return; }
     var cp = cpList(), col = function (i) { return (i >= 26 ? String.fromCharCode(64 + Math.floor(i / 26)) : '') + String.fromCharCode(65 + i % 26); };
-    var H = ['Nome della barca', 'Modello', 'Tipo', 'Lunghezza (m)', 'Anno', 'Matricola o targa', 'Posto', 'Stato', 'Proprietario (cliente)', 'Telefono', 'Email'].concat(cp.map(function (c) { return c.nome; })).map(vocT);
+    var SX = settore(), CO = SX === 'officina' ? [['Targa o nome del veicolo', 'nome'], ['Marca e modello', 'modello'], ['Tipo', 'tipo'], ['Km', 'km', 'n'], ['Alimentazione', 'alim'], ['Telaio', 'telaio'], ['Prossima revisione', 'revisione', 'd'], ['Anno', 'anno'], ['Stato', 'stato'], ['Proprietario (cliente)', 'proprietario'], ['Telefono', 'telefono'], ['Email', 'email']]
+      : SX === 'impianti' ? [['Nome del cliente', 'nome'], ['Tipo di cliente', 'tipo'], ['Indirizzo', 'indirizzo'], ['Codice fiscale o partita IVA', 'piva'], ['Telefono', 'telefono'], ['Email', 'email'], ['Impianti e apparecchi', 'impianti']] : null;
+    var H = (CO ? CO.map(function (c) { return c[0]; }) : ['Nome della barca', 'Modello', 'Tipo', 'Lunghezza (m)', 'Anno', 'Matricola o targa', 'Posto', 'Stato', 'Proprietario (cliente)', 'Telefono', 'Email']).concat(cp.map(function (c) { return c.nome; })).map(vocT);
     var rows = [H].concat(S.boats.slice().sort(byName).map(function (b) {
-      return [b.nome || '', b.modello || '', b.tipo || '', num(b.lunghezza) != null ? num(b.lunghezza) : '', b.anno || '', b.immatricolazione || '', Porto.berthLabel(b.id) || b.posto || '', b.stato || '', b.proprietario || '', b.telefono || '', b.email || '']
+      return (CO ? CO.map(function (c) { var v = b[c[1]]; return c[2] === 'n' ? (num(v) != null ? num(v) : '') : c[2] === 'd' ? (v ? fmtDate(v) : '') : v == null ? '' : String(v); })
+        : [b.nome || '', b.modello || '', b.tipo || '', num(b.lunghezza) != null ? num(b.lunghezza) : '', b.anno || '', b.immatricolazione || '', Porto.berthLabel(b.id) || b.posto || '', b.stato || '', b.proprietario || '', b.telefono || '', b.email || ''])
         .concat(cp.map(function (c) { var v = cpVal(b, c); return c.tipo === 'numero' && typeof v === 'number' ? v : cpTxt(c, v); }));
     }));
     var xml = rows.map(function (r, i) {
@@ -2607,7 +2611,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     function media(l) { return l.length ? Math.round(l.reduce(function (a, x) { return a + x; }, 0) / l.length) : null; }
     var lvl = function (x) { return x.i.level === 'late' ? 0 : x.i.level === 'soon' ? 60 : 100; };
     var isT = function (x) { return num(x.s.oreScadenza) != null || num(x.s.ricorrenzaOre) != null || /tagliand|olio|filtr|girant|motor|generator/i.test(x.s.tipo || ''); };
-    var t = media(sc.filter(isT).map(lvl)); if (t != null) v.push(['Tagliandi motori', t, 'mo']);
+    var t = media(sc.filter(isT).map(lvl)); if (t != null) v.push(naut() ? ['Tagliandi motori', t, 'mo'] : ['Tagliandi', t, 'sc']); // fuori dalla Nautica la scheda Motori non c'è
     var d = media(sc.filter(function (x) { return !isT(x); }).map(lvl)); if (d != null) v.push(['Scadenze e documenti', d, 'sc']);
     var oggi = todayISO(), la = S.lavori.filter(function (l) { return l.barcaId === b.id && l.stato !== 'fatto' && !l.annullata && l.fonte !== 'scheda'; });
     if (la.length) v.push(['Lavori nei tempi', Math.round(100 * la.filter(function (l) { var z = sbLavDate(l).z; return !z || z >= oggi; }).length / la.length), 'la']);
@@ -2906,7 +2910,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       batt: bi && bi.n > 0 ? { n: bi.n, d: bi.d, late: !!bi.late } : null,
       scad: openScad(bid).slice(0, 20).map(function (x) { return { t: x.s.tipo || 'Scadenza', m: x.s.modello || '', txt: x.i.text, lv: x.i.level }; }),
       foto: (b.foto || []).slice(0, 30),
-      verbali: vbOn() ? vbOf(bid).slice(0, 10).map(function (v) { return { t: v.tipo === 'uscita' ? 'uscita' : 'ingresso', d: v.data || '', o: v.oreMotore != null && v.oreMotore !== '' ? String(v.oreMotore) : '', foto: (v.foto || []).slice(0, 6) }; }) : [],
+      verbali: vbOn() ? vbOf(bid).slice(0, 10).map(function (v) { return { t: v.tipo === 'uscita' ? 'uscita' : 'ingresso', d: v.data || '', o: v.oreMotore != null && v.oreMotore !== '' ? String(v.oreMotore) : '', k: v.km != null && v.km !== '' ? String(v.km) : '', foto: (v.foto || []).slice(0, 6) }; }) : [],
       vari: S.vari.filter(function (v) { return v.barcaId === bid && v.fatto; }).sort(function (x, y) { return String(y.fattoIl || y.data || '').localeCompare(String(x.fattoIl || x.data || '')); }).slice(0, 12)
         .map(function (v) { return { t: TIPI_V[v.tipo] || 'Movimento', d: v.fattoIl || v.data || '' }; })
     };
@@ -3041,8 +3045,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     }
 
     var vb = variOpen(b.id);
+    if (sezOn('vari') || vb.length) {
     P.sc += secH('Vari e alaggi', S.canWrite ? 'new-vari' : '', '+ Programma', ' data-boat="' + esc(b.id) + '"');
     P.sc += vb.length ? '<div class="group">' + vb.map(function (v) { return variRow(v, false); }).join('') + '</div>' : '<div class="notice">Nessun varo o alaggio in programma.</div>';
+    }
 
     var sc = openScad(b.id), scDone = S.scadenze.filter(function (s) { return s.fatta && s.barcaId === b.id; });
     P.sc += secH('Scadenze', S.canWrite ? 'new-scad' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
@@ -3074,7 +3080,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     } else P.la += '<div class="notice">Nessun lavoro registrato.</div>';
     if (vbOn()) P.fo += '<button type="button" class="btn sec" data-act="vb-list" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">' + I.camera + 'Verbale di presa in carico' + (vbOf(b.id).length ? ' · ' + vbOf(b.id).length : '') + '</button>';
     if (sezOn('qrbarca')) P.da += '<button type="button" class="btn sec" data-act="boat-qr" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">' + I.doc + 'Etichetta QR da attaccare alla barca</button>';
-    if (S.canWrite) P.da += '<button type="button" class="btn sec" data-act="boat-sold" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">Barca venduta: cambia proprietario</button>' + (b.proprietari && b.proprietari.length ? '<p class="cap" style="margin:6px 4px 0">Proprietari di prima: ' + esc(b.proprietari.map(function (x) { return x.nome + (x.fino ? ' (fino al ' + fmtDate(x.fino) + ')' : ''); }).join(', ')) + '</p>' : '');
+    if (S.canWrite && settore() !== 'impianti') P.da += '<button type="button" class="btn sec" data-act="boat-sold" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">Barca venduta: cambia proprietario</button>' + (b.proprietari && b.proprietari.length ? '<p class="cap" style="margin:6px 4px 0">Proprietari di prima: ' + esc(b.proprietari.map(function (x) { return x.nome + (x.fino ? ' (fino al ' + fmtDate(x.fino) + ')' : ''); }).join(', ')) + '</p>' : '');
     if (S.isOwner && S.canWrite && S.boats.length > 1) P.da += '<button type="button" class="btn sec" data-act="boat-merge" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">Unisci con un’altra barca</button><p class="cap" style="margin:6px 4px 0">Solo per l’amministratore: se questa barca ha una scheda doppia.</p>';
     return h + sbHtml(b, P);
   }
@@ -3536,7 +3542,14 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   var CAT_DEF = CATEGORIE.slice();
   /* Pacchetto di partenza (idea N12): al primo ingresso dell'amministratore di un'azienda vuota mette categorie, checklist,
      tipi di scadenze e rifiuti preparati dal gestore (pacchetto/attuale, in nm-fb.js). Una volta sola: lo segna in impostazioni/pacchetto. */
-  function tipiScad() { var x = S.pacCfg && !S.pacCfg._del && Array.isArray(S.pacCfg.tipiScadenza) ? S.pacCfg.tipiScadenza : []; return TIPI_SCADENZA.concat(x.filter(function (t) { return TIPI_SCADENZA.indexOf(t) < 0; })); }
+  // negli altri settori i tipi proposti sono i loro (quelli nautici restano solo se già scritti in una scadenza)
+  var TIPI_SCAD_SETT = { officina: ['Tagliando', 'Revisione', 'Cambio gomme', 'Assicurazione', 'Bollo', 'Cinghia di distribuzione', 'Ricarica clima', 'Fine deposito gomme'],
+    impianti: ['Manutenzione caldaia', 'Controllo fumi', 'Manutenzione condizionatore', 'Verifica impianto elettrico', 'Verifica messa a terra', 'Estintori', 'Fine contratto di manutenzione', 'Garanzia'] };
+  function tipiScad() {
+    var x = S.pacCfg && !S.pacCfg._del && Array.isArray(S.pacCfg.tipiScadenza) ? S.pacCfg.tipiScadenza : [], base = TIPI_SCAD_SETT[settore()];
+    if (base) return base.concat(x.filter(function (t) { return base.indexOf(t) < 0 && TIPI_SCADENZA.indexOf(t) < 0; }));
+    return TIPI_SCADENZA.concat(x.filter(function (t) { return TIPI_SCADENZA.indexOf(t) < 0; }));
+  }
   async function pacCheck() {
     var FB = window.__NM_FB;
     if (S.pacRun || !FB || !FB.pacchetto || !S.isOwner || !S.canWrite || S.status !== 'ready' || !S.got.impostazioni || !S.got.modelli || (S.pacCfg && !S.pacCfg._del)) return;
@@ -4047,7 +4060,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   var EM_BASE = [['Numero unico di emergenza', '112'], ['Ambulanza', '118'], ['Vigili del fuoco', '115'], ['Guardia costiera (emergenze in mare)', '1530']];
   function emCfg() { var c = S.emCfg; return c && !c._del ? c : {}; }
   function emNumeri() {
-    var c = emCfg(), l = Array.isArray(c.numeri) ? c.numeri.slice() : EM_BASE.map(function (x) { return { n: x[0], t: x[1] }; });
+    var c = emCfg(), l = Array.isArray(c.numeri) ? c.numeri.slice() : EM_BASE.filter(function (x) { return naut() || x[1] !== '1530'; }).map(function (x) { return { n: x[0], t: x[1] }; });
     if (!Array.isArray(c.numeri) && sezOn('rifiuti')) { var dt = rifDittaTel('d1'); if (dt) l.push({ n: 'Ditta dei rifiuti (' + rifDittaNome('d1') + ')', t: dt }); }
     return l.filter(function (x) { return x && x.t; });
   }
@@ -5172,7 +5185,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         return '<button type="button" data-act="m-mezzo-go" data-id="' + esc(m.id) + '"><span class="ic-circle" style="background:var(--card-2);color:var(--ink)">' + I.updown + '</span><span class="main"><span class="title">' + esc(m.nome || 'Carrello') + '</span><span class="sub">' +
           (m.fermo && ctrlOn() ? '<b class="t-late">FERMO</b> · ' : '') + esc(m.tipo || 'Mezzo') + (d ? ' · ' + fmtNum(d.L, 2) + ' × ' + fmtNum(d.B, 2) + ' m' : '') + ' · ' + (mezzoPos(m) ? (c ? 'a bordo ' + esc(c.nome) : 'sulla mappa') : 'da posizionare') + '</span></span></button>';
       }).join('') + '</div>' : '<p class="context">Nessun mezzo. Aggiungi carrelli, muletti e gli altri mezzi che si muovono nel cantiere.</p>') +
-        (S.canWrite ? '<button type="button" class="btn sec self-start" data-act="m-mezzo-new">' + I.plus + 'Nuovo mezzo</button><button type="button" class="link" data-act="mz-seed" style="align-self:flex-start">Aggiungi i mezzi del cantiere (BoatLift, motrice, trattore…)</button><button type="button" class="link" data-act="perc-edit" style="align-self:flex-start">' + (mapLibera() ? 'Percorso del trasporto' : 'Percorso MSV → cantiere e portoni') + '</button>' : '')
+        (S.canWrite ? '<button type="button" class="btn sec self-start" data-act="m-mezzo-new">' + I.plus + 'Nuovo mezzo</button>' + (naut() ? '<button type="button" class="link" data-act="mz-seed" style="align-self:flex-start">Aggiungi i mezzi del cantiere (BoatLift, motrice, trattore…)</button>' : '') + '<button type="button" class="link" data-act="perc-edit" style="align-self:flex-start">' + (mapLibera() ? 'Percorso del trasporto' : 'Percorso MSV → cantiere e portoni') + '</button>' : '')
     });
   }
   var TIPI_MEZZO = ['BoatLift (semovente)', 'Carrello autotaccante con timone snodato', 'Carrello autolivellante', 'Carrello stradale', 'Carrello', 'Motrice', 'Trattore', 'Furgone', 'Muletto', 'Altro'];
@@ -7740,10 +7753,16 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
 
   // 7.01 Controllo dei dati: un elenco corto di cose incomplete, da sistemare a fine mese
   function cdOn() { return strOn('controllodati'); }
+  function cdCampi() { // i campi della scheda che di solito si riempiono, settore per settore
+    var x = settore();
+    return x === 'officina' ? [['modello', 'marca e modello'], ['anno', 'anno'], ['km', 'km'], ['telefono', 'telefono del cliente'], ['email', 'email del cliente']]
+      : x === 'impianti' ? [['indirizzo', 'indirizzo'], ['telefono', 'telefono'], ['email', 'email']]
+      : [['modello', 'cantiere e modello'], ['anno', 'anno'], ['telefono', 'telefono del cliente'], ['immatricolazione', 'immatricolazione'], ['email', 'email del cliente']];
+  }
   function cdVoci() {
     var t = todayISO(), da = addDays(t, -60), g = [];
     function add(k, tit, its) { if (its.length) g.push({ k: k, t: tit, its: its }); }
-    add('misure', 'Barche senza misure', S.boats.filter(function (b) { return num(b.lunghezza) == null; }).map(function (b) { return { act: 'open-boat', id: b.id, t: b.nome || 'Barca', s: 'manca la lunghezza' }; }));
+    if (naut()) add('misure', 'Barche senza misure', S.boats.filter(function (b) { return num(b.lunghezza) == null; }).map(function (b) { return { act: 'open-boat', id: b.id, t: b.nome || 'Barca', s: 'manca la lunghezza' }; }));
     add('prop', 'Barche senza proprietario', S.boats.filter(function (b) { return !String(b.proprietario || '').trim(); }).map(function (b) { return { act: 'open-boat', id: b.id, t: b.nome || 'Barca', s: 'manca il cliente' }; }));
     add('ore', 'Mansioni senza barca o senza ore', S.lavori.filter(function (l) { return l.fonte === 'scheda' && l.data && l.data >= da && l.data < t && ((l.barcaId && l.barcaId !== '__cantiere' && !boatById(l.barcaId)) || l.daSegnare); })
       .map(function (l) { return { act: 'edit-entry', id: l.id, t: l.titolo || 'Mansione', s: nameOf(l.utente) + ' · ' + fmtDate(l.data) + ' · ' + (l.daSegnare ? 'tempo da segnare' : 'la barca è stata eliminata') }; }));
@@ -7754,7 +7773,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (typeof S.posti === 'object' && S.posti && (typeof sezOn !== 'function' || sezOn('porto'))) add('posti', 'Posti al porto senza contratto', Object.keys(S.posti).filter(function (k) { var p = S.posti[k]; return p && !p._del && p.barcaId && boatById(p.barcaId) && !p.fino; })
       .map(function (k) { var b = boatById(S.posti[k].barcaId); return { act: 'open-boat', id: b.id, t: (Porto.berthLabel(b.id) || k) + ' · ' + (b.nome || 'Barca'), s: 'manca la scadenza del contratto' }; }));
     var vuoti = [];
-    if (S.boats.length >= 5) [['modello', 'cantiere e modello'], ['anno', 'anno'], ['telefono', 'telefono del cliente'], ['immatricolazione', 'immatricolazione'], ['email', 'email del cliente']].forEach(function (c) {
+    if (S.boats.length >= 5) cdCampi().forEach(function (c) {
       var n = S.boats.filter(function (b) { return !String(b[c[0]] == null ? '' : b[c[0]]).trim(); }).length, pc = Math.round(100 * n / S.boats.length);
       if (pc >= 70) vuoti.push({ act: '', t: cap(c[1]), s: 'vuoto in ' + n + ' barche su ' + S.boats.length + ' (' + pc + '%)' });
     });
@@ -8083,7 +8102,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       { id: 'conf', t: 'Giornate da confermare', z: tl, d: 's', h: fn(panTile('tab', 'ore', I.check, pend ? 'soon' : 'ok', 'Giornate da confermare', String(pend), pend ? 'fino a ieri' : 'Tutte confermate')) },
       { id: 'lav', t: 'Lavorazioni aperte', z: tl, d: 's', h: fn(panTile('tab', 'lavori', I.wrench, 'acc', 'Lavorazioni aperte', String(lavOpen.length), inCorso + ' in corso' + (opsOn() ? ' · ' + opsOpen + (opsOpen === 1 ? ' servizio aperto' : ' servizi aperti') : ''))) },
       { id: 'contr', t: 'Contratti in scadenza', z: tl, d: 's', h: fn(panTile('go-porto-tab', '', I.map, ps.due ? 'soon' : 'ok', 'Contratti in scadenza', String(ps.due), 'entro 30 giorni al porto')) },
-      { id: 'riord', t: 'Da riordinare · batterie', z: tl, d: 's', h: fn(panTile('tab', low ? 'magazzino' : 'batterie', I.box, low || bd ? 'soon' : 'ok', 'Da riordinare · batterie', low + ' <small>· ' + bd + '</small>', 'articoli sotto scorta · barche da caricare')) }
+      sezOn('batterie') ? { id: 'riord', t: 'Da riordinare · batterie', z: tl, d: 's', h: fn(panTile('tab', low ? 'magazzino' : 'batterie', I.box, low || bd ? 'soon' : 'ok', 'Da riordinare · batterie', low + ' <small>· ' + bd + '</small>', 'articoli sotto scorta · barche da caricare')) }
+        : { id: 'riord', t: 'Da riordinare', z: tl, d: 's', h: fn(panTile('tab', 'magazzino', I.box, low ? 'soon' : 'ok', 'Da riordinare', String(low), 'articoli sotto scorta')) }
     ];
     // Ore
     var r = panRange(V.panPer), E = panEntries(r), tot = E.reduce(function (a, l) { return a + num(l.oreLavoro); }, 0), cant = E.filter(function (l) { return !l.barcaId && !l.clienteNome; }).reduce(function (a, l) { return a + num(l.oreLavoro); }, 0);
@@ -8207,9 +8227,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       rpKpi('Entro 90 giorni', String(d90.length), 'a data', ''), rpKpi('Fatte questo mese', String(fatte), '', fatte ? 'ok' : '')];
     B.push(rpCols('Scadenze per mese', 'prossimi 6 mesi', ms, byM), rpBars('Per tipo', 'prossimi 90 giorni', tr, 'Nessuna scadenza nei prossimi 90 giorni'));
     var h = secH('Da avvisare (' + (late.length + soon.length) + ')');
-    h += rpTable([['Cliente'], ['Barca'], ['Scadenza'], ['Data'], ['Stato'], ['Telefono']], late.concat(soon).map(function (x) {
+    var IMR = settore() === 'impianti';
+    h += rpTable([['Cliente'], [IMR ? 'Indirizzo' : 'Barca'], ['Scadenza'], ['Data'], ['Stato'], ['Telefono']], late.concat(soon).map(function (x) {
       var b = x.i.boat;
-      return { act: b ? ' data-act="open-boat" data-id="' + esc(b.id) + '"' : '', c: ['<b>' + esc(b && b.proprietario || '–') + '</b>', esc(boatLabel(b)), esc(x.s.tipo || ''), esc(x.s.data ? fmtDate(x.s.data) : ''), '<span class="pill ' + x.i.level + '">' + esc(x.i.text) + '</span>', esc(b && b.telefono || '')] };
+      return { act: b ? ' data-act="open-boat" data-id="' + esc(b.id) + '"' : '', c: ['<b>' + esc(b && b.proprietario || '–') + '</b>', esc(IMR ? (b && b.indirizzo) || '' : boatLabel(b)), esc(x.s.tipo || ''), esc(x.s.data ? fmtDate(x.s.data) : ''), '<span class="pill ' + x.i.level + '">' + esc(x.i.text) + '</span>', esc(b && b.telefono || '')] };
     }), 'Nessun cliente da avvisare: niente di scaduto o in scadenza nei prossimi 30 giorni.');
     B.push(rpTab('avvisa', 'Da avvisare', h));
     return B;
@@ -8331,8 +8352,13 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
 
   /* ---------- Programma: chi fa cosa, giorno per giorno, con orari, persone, mezzi e materiali ---------- */
-  var PROG_DOVE = ['Capannone', 'Piazzale', 'Porto', 'Marina (MSV)', 'Fuori sede'];
-  var PROG_MEZZI_BASE = ['Travel lift MSV', 'Gru', 'Muletto', 'Carrello', 'Furgone', 'Idropulitrice', 'Compressore', 'Lucidatrice'];
+  var PROG_DOVE_N = ['Capannone', 'Piazzale', 'Porto', 'Marina (MSV)', 'Fuori sede'];
+  var PROG_MEZZI_N = ['Travel lift MSV', 'Gru', 'Muletto', 'Carrello', 'Furgone', 'Idropulitrice', 'Compressore', 'Lucidatrice'];
+  var PROG_SETT = { officina: { dove: ['Officina', 'Piazzale', 'Fuori sede'], mezzi: ['Ponte sollevatore', 'Carro attrezzi', 'Furgone', 'Compressore', 'Diagnosi', 'Equilibratrice', 'Smontagomme'] },
+    impianti: { dove: ['Magazzino', 'Dal cliente', 'Fuori sede'], mezzi: ['Furgone', 'Piattaforma aerea', 'Scala', 'Trapano', 'Saldatrice', 'Analizzatore fumi'] } };
+  // si leggono quando servono: il settore arriva dopo il caricamento della pagina
+  function progDove() { var x = PROG_SETT[settore()]; return x ? x.dove : PROG_DOVE_N; }
+  function progMezziBase() { var x = PROG_SETT[settore()]; return x ? x.mezzi : PROG_MEZZI_N; }
   function addDays(iso, n) { return utcToISO(isoToUTC(iso) + n * 86400000); }
   function progDayLabel(d) { var t = todayISO(); return d === t ? 'Oggi' : d === addDays(t, 1) ? 'Domani' : d === addDays(t, -1) ? 'Ieri' : cap(fmtDayLong(d)); }
   function progOf(day) { return S.prog.filter(function (x) { return x.data === day; }); }
@@ -8345,7 +8371,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     S.prog.forEach(function (x) { progPers(x).forEach(function (id) { if (ids.indexOf(id) < 0) ids.push(id); }); });
     return ids.sort(byPerson);
   }
-  function progMezzi() { var m = PROG_MEZZI_BASE.slice(); S.mezzi.forEach(function (z) { if (z.nome && m.indexOf(z.nome) < 0) m.push(z.nome); }); S.prog.forEach(function (x) { (x.mezzi || []).forEach(function (n) { if (m.indexOf(n) < 0) m.push(n); }); }); return m; }
+  function progMezzi() { var m = progMezziBase().slice(); S.mezzi.forEach(function (z) { if (z.nome && m.indexOf(z.nome) < 0) m.push(z.nome); }); S.prog.forEach(function (x) { (x.mezzi || []).forEach(function (n) { if (m.indexOf(n) < 0) m.push(n); }); }); return m; }
   function hm(s) { var m = String(s || '').match(/^(\d{1,2}):(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; }
   function hmStr(min) { min = Math.round(min); return pad(Math.floor(min / 60) % 24) + ':' + pad(min % 60); }
   function progSpan(x) { var a = hm(x.ora); if (a == null) return null; var d = num(x.durata); return { a: a, b: a + (d > 0 ? d * 60 : 60) }; }
@@ -8452,7 +8478,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         '<button type="button" class="link self-start" id="f-pmoreB"' + (more ? ' hidden' : '') + '>＋ Mezzi, dove, materiali, urgenza, cliente da avvisare</button>' +
         '<div id="f-pmore"' + (more ? '' : ' hidden') + '>' +
           '<div class="lbl">Mezzi e attrezzature</div><div class="chips wrap" id="f-pm">' + mezzi.map(function (m) { return '<button type="button" data-pm="' + esc(m) + '" aria-pressed="' + ((x.mezzi || []).indexOf(m) >= 0) + '">' + esc(m) + '</button>'; }).join('') + '</div>' +
-          '<div class="grid2" style="margin-top:12px">' + field(lab('f-pmx', 'Altro mezzo'), inp('f-pmx', '', 'type="text" placeholder="es. Gommone di servizio"')) + field(lab('f-pdv', 'Dove'), '<select id="f-pdv"><option value="">—</option>' + opts(PROG_DOVE, x.dove || '') + '</select>') + '</div>' +
+          '<div class="grid2" style="margin-top:12px">' + field(lab('f-pmx', 'Altro mezzo'), inp('f-pmx', '', 'type="text" placeholder="es. Gommone di servizio"')) + field(lab('f-pdv', 'Dove'), '<select id="f-pdv"><option value="">—</option>' + opts(progDove(), x.dove || '') + '</select>') + '</div>' +
           rcBlock(x.materiali, { lbl: 'Materiali da preparare (facoltativi)', add: 'Aggiungi materiale', more: 'Aggiungi un altro materiale', hint: 'Dal magazzino: nel programma vedi subito se ne mancano. Qui non si scala niente.' }) +
           '<label class="check" style="margin-top:12px"><input type="checkbox" id="f-pu"' + (x.urgente ? ' checked' : '') + '> Urgente</label>' +
           '<label class="check"><input type="checkbox" id="f-pa"' + (x.avvisare ? ' checked' : '') + '> Avvisare il cliente</label>' +
@@ -8736,7 +8762,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       ((r.foto || []).length ? '<div class="thumbs">' + r.foto.map(function (id) { return '<span class="thumb-w"><img class="thumb" alt="" src="' + esc(blobSrc(id)) + '" data-blob="' + esc(id) + '" data-act="photo" data-id="' + esc(id) + '"></span>'; }).join('') + '</div>' : '');
     if (puo) body += field(lab('f-rqr', 'Risposta al cliente'), '<textarea id="f-rqr" maxlength="1000" placeholder="' + (r.tipo === 'varo' ? 'es. va bene, alle 9 in banchina' : 'es. passiamo a vederla giovedì') + '">' + esc(r.risposta || '') + '</textarea>') +
       field(lab('f-rqs', 'Esito'), '<select id="f-rqs">' + opts([['vista', 'Ricevuta (ci stiamo lavorando)'], ['confermata', 'Confermata'], ['no', 'Non possibile']], r.stato === 'inviata' ? 'vista' : r.stato) + '</select>') +
-      (r.tipo === 'varo' && !r.varoId ? '<label class="chk"><input type="checkbox" id="f-rqv" checked> Se confermata, metti il varo in Vari e alaggi</label>' : '') +
+      (r.tipo === 'varo' && !r.varoId && sezOn('vari') ? '<label class="chk"><input type="checkbox" id="f-rqv" checked> Se confermata, metti il varo in Vari e alaggi</label>' : '') +
       (r.tipo === 'lavoro' && !r.lavId ? '<label class="chk"><input type="checkbox" id="f-rql" checked> Se confermata, metti il lavoro tra le lavorazioni da fare</label>' : '') +
       (r.risposta && r.rispostoDa ? '<p class="cap">Ultima risposta di ' + esc(nameOf(r.rispostoDa)) + ' il ' + esc(fmtDate(String(r.rispostoIl || '').slice(0, 10))) + '.</p>' : '');
     openSheet({ title: r.tipo === 'varo' ? 'Richiesta di varo' : r.tipo === 'lavoro' ? 'Lavoro chiesto dal cliente' : 'Problema segnalato', menu: !puo, submitLabel: 'Rispondi', item: r, body: body,
@@ -9938,9 +9964,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   // Collegamento facoltativo da lavorazione o mansione a un pezzo di attrezzatura
   function attrLinkBlock(curId) {
     var open = !!curId;
-    return '<button type="button" class="link self-start" id="f-atBtn"' + (open ? ' hidden' : '') + '>＋ Collega a un pezzo dell’attrezzatura di bordo</button>' +
+    var no = !naut() && !open; // negli altri settori la scheda Attrezzatura non c'è
+    return (no ? '<div hidden>' : '') + '<button type="button" class="link self-start" id="f-atBtn"' + (open ? ' hidden' : '') + '>＋ Collega a un pezzo dell’attrezzatura di bordo</button>' +
       '<div id="f-atW"' + (open ? '' : ' hidden') + '>' + field(lab('f-at', 'Attrezzatura di bordo (facoltativa)'), '<select id="f-at"><option value="' + esc(curId || '') + '"></option></select>') +
-      '<div id="f-atNew" hidden>' + attrFields({}, 'fn-', false) + '</div></div>';
+      '<div id="f-atNew" hidden>' + attrFields({}, 'fn-', false) + '</div></div>' + (no ? '</div>' : '');
   }
   function attrLinkBind(f, getBoat, getCat, curId) {
     var wr = f.querySelector('#f-atW'), btn = f.querySelector('#f-atBtn'), sel = f.querySelector('#f-at'), nw = f.querySelector('#f-atNew');
@@ -10543,6 +10570,37 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['nessun lavoro né varo', 'nessun lavoro'], ['chiede il varo', set === 'officina' ? 'chiede la riconsegna' : 'chiede un intervento'], ['conferma prima del varo', set === 'officina' ? 'conferma prima della riconsegna' : 'conferma prima di chiudere'],
     ['cosa resta a bordo', set === 'officina' ? 'cosa resta nel veicolo' : 'cosa resta'], ['motore, carena, coperta…', set === 'officina' ? 'Tagliando, freni, gomme…' : 'Manutenzione, installazione…']
     ]);
+    // esempi, segnaposti e descrizioni: negli altri settori parlano del loro mestiere (15/11/2026)
+    var OF = set === 'officina';
+    F = [
+      ['\\(velaio, tappezziere…\\)', OF ? '(carrozziere, elettrauto…)' : '(muratore, fabbro…)'],
+      ['velaio, tappezziere, elettricista…', OF ? 'carrozziere, elettrauto, gommista…' : 'muratore, fabbro, idraulico…'],
+      ['es\\. vele e tendalini', OF ? 'es. carrozzeria e verniciatura' : 'es. opere murarie'],
+      ['motore, zattera, estintore…', OF ? 'motore, gomme, impianto a gas…' : 'caldaia, condizionatore, estintore…'],
+      ['es\\. Yamaha F150, zattera Eurovinil 6 posti', OF ? 'es. Fiat Panda 1.2, gomme Michelin Alpin' : 'es. caldaia Vaillant ecoTEC, estintore 6 kg'],
+      ['es\\. Alaggio Lulu con il travel lift', OF ? 'es. Tagliando della Panda di Rossi' : 'es. Manutenzione caldaia al condominio Le Querce'],
+      ['es\\. Gommone di servizio', OF ? 'es. Carro attrezzi' : 'es. Piattaforma aerea'],
+      ['es\\. Nautica Rossi', OF ? 'es. Ricambi Rossi' : 'es. Termoidraulica Rossi'],
+      ['es\\. Filtro olio Yamaha F200, Antivegetativa nera 2,5 l, Guanti nitrile', OF ? 'es. Filtro olio Mann W 712, Pastiglie freno anteriori, Guanti nitrile' : 'es. Raccordo in rame 15 mm, Silicone bianco, Guanti nitrile'],
+      ['Lavoro, es\\. Antivegetativa carena', OF ? 'Lavoro, es. Tagliando completo' : 'Lavoro, es. Sostituzione caldaia'],
+      ['es\\. Tagliando fuoribordo', OF ? 'es. Tagliando auto' : 'es. Manutenzione caldaia'],
+      ['il paese o il porto', 'il paese o la città'], ['paese o del porto', 'paese o della città'], ['paese o porto', 'paese o città'],
+      ['uno sul pontile', 'uno nel furgone'], ['solo urgenze in porto', 'solo urgenze'],
+      ['es\\. anodi asse elica 30 mm', OF ? 'es. pastiglie freno anteriori' : 'es. valvola di sicurezza 3 bar'],
+      ['es\\. 2 cuscini prendisole, tendalino', OF ? 'es. centralina motore, 4 cerchi' : 'es. scheda della caldaia'],
+      ['attrezzatura di bordo', 'attrezzatura'], ['attrezzature di bordo', 'attrezzature'],
+      ['tender, cuscini, tendalini con foto', OF ? 'gomme, portapacchi, seggiolini con foto' : 'apparecchi e materiale del cliente con foto'],
+      ['Tagliando, antivegetativa, assicurazione…', OF ? 'Tagliando, revisione, assicurazione…' : 'Manutenzione, controllo fumi, contratto…'],
+      ['\\(BoatLift, muletto, trattore…\\)', OF ? '(ponte sollevatore, carro attrezzi…)' : '(furgone, piattaforma…)'],
+      ['Programma lavori e varo', 'Programma lavori'], ['larghezza massima \\(baglio\\)', 'larghezza massima'],
+      ['tagliandi, varo, invernaggio, lavaggio', OF ? 'tagliandi, cambio gomme, revisione, lavaggio' : 'manutenzioni, collaudi, consegna al cliente'],
+      ['motore, impianti di bordo, carena, coperta…', OF ? 'tagliando, freni, gomme, carrozzeria…' : 'manutenzione, installazione, riparazione…'],
+      ['\\(tagliando, rimessaggio, carena\\)', OF ? '(tagliando, cambio gomme, revisione)' : '(manutenzione caldaia, installazione, collaudo)'],
+      ['\\(tagliando, estintori, zattera…\\)', OF ? '(tagliando, revisione, bollo…)' : '(caldaia, estintori, contratto…)'],
+      ['Vari chiesti', OF ? 'Riconsegne chieste' : 'Interventi chiesti'], ['Richiesta di varo', OF ? 'Richiesta di riconsegna' : 'Richiesta di intervento'],
+      ['Varo il', OF ? 'Riconsegna il' : 'Intervento il'], ['chiedono il varo per un giorno', OF ? 'chiedono di riprendere il veicolo un giorno' : 'chiedono un intervento per un giorno'],
+      ['alle 9 in banchina', OF ? 'alle 9 in officina' : 'alle 9 da lei']
+    ].concat(F); // prima delle altre frasi: qui sono scritte come nella Nautica
     var G = set === 'officina' ? 'Lavoro, Veicoli e clienti, Officina e Amministrazione' : 'Lavoro, Clienti, Azienda e Amministrazione';
     F = [
       ['diviso in Officina, Barche e clienti, Cantiere e Amministrazione', 'diviso in ' + G], ['scheda della barca creata', 'scheda del' + (N[0] === 'veicolo' ? ' veicolo' : ' cliente') + ' creata'],
@@ -10622,7 +10680,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   function vocApplica(regole, s) { for (var i = 0; i < regole.length; i++) s = s.replace(regole[i][0], regole[i][1]); return s; }
   var VOC = { set: 'nautica', R: null, obs: null };
-  var VOC_T = /barc|cantier|rimessagg|antivegetativ|travel lift|a bordo|ore motore|ore dei motori|alaggio|collegati a lei|tendalini|chiedere il varo|onsegnat|comprata|ripartita|trovi qui|varo|vari del giorno|porto e rifiuti|carena|porto spento/i;
+  var VOC_T = /barc|cantier|rimessagg|antivegetativ|travel lift|a bordo|ore motore|ore dei motori|alaggio|collegati a lei|tendalini|chiedere il varo|onsegnat|comprata|ripartita|trovi qui|varo|vari del giorno|porto e rifiuti|carena|porto spento|fuoribordo|velaio|zattera|gommone|nautica rossi|yamaha|vele e|porto|pontile|elica|prendisole|di bordo|tender|boatlift|baglio|invernaggio|vari chiesti/i;
   var VOC_ATTR = ['placeholder', 'aria-label', 'title', 'alt'];
   var VOC_SKIP = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, NOSCRIPT: 1, CODE: 1, svg: 1, SVG: 1 };
   function vocT(t) { return VOC.R && t && VOC_T.test(t) ? vocApplica(VOC.R, String(t)) : t; } // anche per Excel, finestre e titoli
@@ -10818,7 +10876,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (!(S.isOwner && S.canWrite)) return '<div class="notice" style="margin-top:14px">L’aspetto dell’app lo cambia l’amministratore.</div>';
     aspDraft();
     var h = '<p class="context" style="margin-top:12px">Il nome dell’azienda, i due colori dello sfondo sfumato, i loghi, il luogo del meteo e le sezioni che usate. Mentre scegli vedi subito come viene, solo tu; per tutti cambia quando premi «Salva per tutti».</p>';
-    h += '<div class="group asp-box">' + aspNomeHtml() + aspColoriHtml() + aspLoghiHtml() + aspLuogoHtml() + '</div>';
+    h += '<div class="group asp-box">' + aspNomeHtml() + aspColoriHtml() + aspLoghiHtml() + (luogoServe() ? aspLuogoHtml() : '') + '</div>';
     h += secH('Che lavoro fate') + aspSettHtml();
     h += secH('Sezioni dell’app') + aspSezHtml();
     h += '<div class="asp-acts" style="margin-top:12px"><button type="button" class="btn" data-act="asp-save">Salva per tutti</button>' +
@@ -10848,11 +10906,16 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['Il luogo', 'Cerca il paese o il porto del cantiere: serve per il meteo.', aspLuogoHtml],
     ['Le sezioni', 'Lascia accese le sezioni che usate. Le altre si possono riaccendere quando vuoi.', aspSezHtml]
   ];
+  function luogoServe() { return naut() || sezOn('meteo') || sezOn('giro'); }
+  function wizPassi() { // senza meteo né giro il passo del luogo non serve
+    if (luogoServe()) return WIZ;
+    return WIZ.filter(function (x) { return x[2] !== aspLuogoHtml; }).map(function (x, i) { return i ? x : [x[0], x[1].replace('cinque passi', 'quattro passi'), x[2]]; });
+  }
   function wizOn() { return S.status === 'ready' && S.isOwner && S.canWrite && aspNuovo() && !V.wizDopo && !(window.__NM_FB && __NM_FB.azienda && __NM_FB.azienda().assist); } // il gestore in assistenza non la vede
   function viewWizard() {
-    aspDraft(); var n = Math.max(0, Math.min(WIZ.length - 1, V.wizStep || 0)), st = WIZ[n], last = n === WIZ.length - 1;
-    return '<div class="wiz"><div class="wiz-dots" aria-label="Passo ' + (n + 1) + ' di ' + WIZ.length + '">' + WIZ.map(function (x, i) { return '<i' + (i <= n ? ' class="on"' : '') + '></i>'; }).join('') + '</div>' +
-      '<div class="eyebrow">Passo ' + (n + 1) + ' di ' + WIZ.length + '</div><h2>' + esc(st[0]) + '</h2><p class="context">' + esc(st[1]) + '</p>' +
+    aspDraft(); var WZ = wizPassi(), n = Math.max(0, Math.min(WZ.length - 1, V.wizStep || 0)), st = WZ[n], last = n === WZ.length - 1;
+    return '<div class="wiz"><div class="wiz-dots" aria-label="Passo ' + (n + 1) + ' di ' + WZ.length + '">' + WZ.map(function (x, i) { return '<i' + (i <= n ? ' class="on"' : '') + '></i>'; }).join('') + '</div>' +
+      '<div class="eyebrow">Passo ' + (n + 1) + ' di ' + WZ.length + '</div><h2>' + esc(st[0]) + '</h2><p class="context">' + esc(st[1]) + '</p>' +
       '<div class="group asp-box">' + st[2]() + '</div>' +
       '<div class="asp-acts wiz-acts">' + (n ? '<button type="button" class="btn sec" data-act="wiz-go" data-d="-1">Indietro</button>' : '') +
       '<button type="button" class="btn" data-act="' + (last ? 'asp-save' : 'wiz-go') + '" data-d="1">' + (last ? 'Inizia' : 'Avanti') + '</button></div>' +
@@ -11143,14 +11206,15 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       ? '<p class="cap" style="margin:6px 0 0">Da qui non si possono scaricare file: apri l’app da claude.ai o dall’app Claude.</p>'
       : '<div class="acts"><button type="button" class="btn" data-act="bk-save"' + (BK.busy ? ' disabled' : '') + '>' + I.dl + (BK.busy === 'save' ? 'Preparo la copia…' : 'Scarica la copia') + '</button></div>';
     h += '<div class="empty" style="margin-top:14px"><span class="ic-circle">' + I.dl + '</span><h3>Copia di tutti i dati</h3>' +
-      '<p>Un unico file con barche, lavorazioni, scheda lavoro, programma, scadenze, magazzino, rifiuti, vari e alaggi, servizi, porto, attrezzatura, batterie, mezzi e mappa.</p>' + save +
+      '<p>' + (naut() ? 'Un unico file con barche, lavorazioni, scheda lavoro, programma, scadenze, magazzino, rifiuti, vari e alaggi, servizi, porto, attrezzatura, batterie, mezzi e mappa.' : 'Un unico file con barche, lavorazioni, scheda lavoro, programma, scadenze, magazzino, rifiuti, preventivi, mezzi e attrezzi.') + '</p>' + save +
       (inf && inf.ultima ? '<p class="cap" style="margin-top:6px">Ultima copia: ' + esc(fmtWhen(inf.ultima)) + (inf.nome ? ' · ' + esc(inf.nome) : '') + '</p>' : '') + '</div>';
     var au = inf && inf.auto;
     h += '<div class="empty" style="margin-top:14px"><span class="ic-circle">' + I.restore + '</span><h3>Copia automatica</h3>' +
       '<p>Ogni domenica notte il servizio salva da solo una copia dei dati dell’azienda, chiusa con una password. Le copie restano 8 settimane: se ti serve, chiedila al gestore del servizio e recuperala qui sotto.</p>' +
       '<p class="cap" style="margin:6px 0 0">' + (au && au.ultima ? 'Ultima copia automatica: ' + esc(fmtWhen(au.ultima)) + (au.voci ? ' · ' + esc(nVoci(au.voci)) : '') : 'Nessuna copia automatica ancora.') + '</p></div>';
 
-    var rows = BK_COLL.filter(function (x) { return x[0] !== 'impostazioni' && (c[x[0]] || BK_OLD.indexOf(x[0]) < 0); }).map(function (x) {
+    var BK_SEZ = { vari: 'vari', posti: 'porto', operazioni: 'operazioni', opModelli: 'operazioni', barattoli: 'vernice', deposito: 'deposito', verbali: 'verbale' }; // fuori dalla Nautica: le sezioni che non ci sono, se vuote, non si elencano
+    var rows = BK_COLL.filter(function (x) { return x[0] !== 'impostazioni' && (c[x[0]] || (BK_OLD.indexOf(x[0]) < 0 && (naut() || !BK_SEZ[x[0]] || sezOn(BK_SEZ[x[0]])))); }).map(function (x) {
       return '<div class="kv-row"><span class="k">' + esc(x[1]) + '</span><span class="v">' + fmtNum(c[x[0]] || 0) + '</span></div>';
     });
     rows.push('<div class="kv-row"><span class="k">Misure della mappa e posizioni</span><span class="v">' + (S.mapCfg ? 'Sì' : '—') + '</span></div>');
@@ -11613,15 +11677,16 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       if (l.fonte !== 'scheda' || !l.utente || !l.data || String(l.data).slice(0, 7) !== key) return;
       (per[l.utente] = per[l.utente] || []).push(l);
     });
-    var rows = [], breaks = [], ids = Object.keys(per).sort(function (a, b) { return nameOf(a).localeCompare(nameOf(b), 'it'); });
+    var rows = [], breaks = [], IMX = settore() === 'impianti', ids = Object.keys(per).sort(function (a, b) { return nameOf(a).localeCompare(nameOf(b), 'it'); });
     ids.forEach(function (uid, n) {
       var list = per[uid].map(function (l) {
         var b = l.barcaId ? boatById(l.barcaId) : null, altre = (l.altreBarche || []).map(boatById).filter(Boolean);
         var pm = schPermInfo(l);
         if (pm) return { d: l.data, t: l.titolo || 'Permesso', c: 'Permesso', b: '—', o: pm.ore, pm: true };
+        if (IMX) return { d: l.data, t: l.titolo || 'Lavoro', c: l.barcaId ? [b ? b.nome || 'Cliente' : 'Cliente eliminato'].concat(altre.map(function (x) { return x.nome || 'Cliente'; })).join(', ') : l.clienteNome ? l.clienteNome + ' (di passaggio)' : 'Lavori del cantiere', b: (b && b.indirizzo) || '—', o: num(l.oreLavoro) || 0 };
         return { d: l.data, t: l.titolo || 'Lavoro', c: l.barcaId ? (b && b.proprietario) || '' : l.clienteNome ? l.clienteNome + ' (di passaggio)' : 'Lavori del cantiere', b: l.barcaId ? [b ? b.nome || 'Barca' : 'Barca eliminata'].concat(altre.map(function (x) { return x.nome || 'Barca'; })).join(', ') : '—', o: num(l.oreLavoro) || 0 };
       }).sort(function (a, b) { return a.d.localeCompare(b.d) || a.t.localeCompare(b.t, 'it') || a.c.localeCompare(b.c, 'it'); });
-      rows.push(['t', NOME() + ' · Schede lavoro · ' + cap(monthLabel(key))], ['n', nameOf(uid)], ['v'], ['h', 'Data', 'Lavorazione', 'Cliente', 'Barca', 'Ore']);
+      rows.push(['t', NOME() + ' · Schede lavoro · ' + cap(monthLabel(key))], ['n', nameOf(uid)], ['v'], ['h', 'Data', 'Lavorazione', 'Cliente', IMX ? 'Indirizzo' : 'Barca', 'Ore']);
       var last = '', band = true, tot = 0, ptot = 0;
       list.forEach(function (x) {
         var first = x.d !== last; if (first) band = !band;
@@ -11830,7 +11895,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       return '<button type="button" data-act="st-filtro" data-f="' + o[0] + '" aria-pressed="' + (f === o[0]) + '">' + o[1] + ' (' + (o[0] === 'tutto' ? all.length : n[o[0]]) + ')</button>';
     }).join('') + '</div>';
     var list = all.filter(function (e) { return f === 'tutto' || e.k === f; });
-    if (!list.length) return h + '<div class="notice" style="margin-top:12px">Ancora niente da raccontare: la storia si riempie da sola con lavori, ricambi, vari e alaggi, cariche delle batterie e scadenze fatte.</div>';
+    if (!list.length) return h + '<div class="notice" style="margin-top:12px">' + (naut() ? 'Ancora niente da raccontare: la storia si riempie da sola con lavori, ricambi, vari e alaggi, cariche delle batterie e scadenze fatte.' : 'Ancora niente da raccontare: la storia si riempie da sola con lavori, ricambi e scadenze fatte.') + '</div>';
     var MAX = 80, shown = V.stTutto ? list : list.slice(0, MAX), mese = '', rows = [];
     function chiudi() { if (rows.length) { h += '<div class="group">' + rows.join('') + '</div>'; rows = []; } }
     shown.forEach(function (e) {
@@ -12537,11 +12602,30 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var k = GUIDA[V.tab] ? V.tab : 'inizio';
     return GUIDA[k].rif || k;
   }
+  // Officina e Impianti: le righe delle cose che lì non ci sono (porto, vari, meteo, motori e attrezzatura di bordo) spariscono,
+  // dalle altre si tolgono i pezzi delle sezioni spente; la Nautica resta com'è
+  var GUIDA_VIA = ['Meteo della Marina', 'L’icona a sinistra dice dove si trova', '«Dove si trova» nella matita', '«Dotazioni e documenti obbligatori»', '«Piano tagliandi pronto»',
+    'I tasti mappa e porto', 'Contratti del porto in scadenza', 'Porto e posti:', 'Confermando un varo', 'In «Dove si trova il cantiere»'];
+  var GUIDA_PEZZI = [[', vari di oggi,', ','], [', batterie, ricambi', ', ricambi'], ['Scadenze, Magazzino, Porto, Rifiuti e Batterie', 'Scadenze, Magazzino e Rifiuti'],
+    ['Scadenze, Porto, Rifiuti e Batterie', 'Scadenze e Rifiuti'], [', vari e alaggi, scadenze (', ', scadenze ('], ['programma, vari, scadenze, assenti e meteo', 'programma, scadenze e assenti'],
+    ['lavori, scadenze, vari e ricambi', 'lavori, scadenze e ricambi'], ['i tasti sopra per vedere solo quelle a terra, in acqua, con scadenze o con lavori aperti', 'i tasti sopra mostrano solo chi ha scadenze o lavori aperti'],
+    ['(scadenze vicine, batterie, attrezzatura da sistemare, lavori in ritardo, vari e alaggi dei prossimi 30 giorni), il programma dei lavori con i giorni al varo,', '(scadenze vicine e lavori in ritardo), il programma dei lavori,'],
+    ['i prossimi tagliandi e i numeri', 'le prossime scadenze e i numeri'], [', con il giorno del varo: «In tempo» o «A rischio» se un lavoro finisce dopo il varo.', '.'],
+    [', vari e alaggi, cariche delle batterie, scadenze fatte, servizi, preventivi, giri dopo il vento e lavori dati fuori', ', scadenze fatte, preventivi e lavori dati fuori'],
+    ['senza lavori né vari da 12 mesi, contratti del posto scaduti,', 'senza lavori da 12 mesi,'], ['Barche senza misure o senza proprietario', 'Barche senza proprietario'], [', posti al porto senza contratto.', '.'],
+    ['(porto, rifiuti, batterie…)', '(rifiuti, preventivi, magazzino…)'], ['(preventivi, servizi, scadenze del cantiere e giro di controllo anche', '(preventivi e scadenze del cantiere anche'],
+    [', servizio, varo, programma', ', programma']];
+  function guidaSett(s) {
+    if (s == null || naut()) return s;
+    if (GUIDA_VIA.some(function (x) { return s.indexOf(x) >= 0; })) return null;
+    GUIDA_PEZZI.forEach(function (x) { s = s.split(x[0]).join(x[1]); });
+    return s;
+  }
   function guidaBody(k) {
     var g = GUIDA[k], adm = !!S.isOwner;
     var lib = mapLibera(); // N| solo con il capannone di Nautica Mare, L| solo con la planimetria
-    var li = g.li.filter(function (s) { var k = s.slice(0, 2); return k === 'A|' ? adm : k === 'D|' ? !adm : k === 'N|' ? !lib : k === 'L|' ? lib : true; }).map(function (s) { return '<li>' + esc(s.replace(/^[ADNL]\|/, '')) + '</li>'; }).join('');
-    var gp = lib && g.pL ? g.pL : g.p;
+    var li = g.li.filter(function (s) { var k = s.slice(0, 2); return k === 'A|' ? adm : k === 'D|' ? !adm : k === 'N|' ? !lib : k === 'L|' ? lib : true; }).map(guidaSett).filter(function (s) { return s != null; }).map(function (s) { return '<li>' + esc(s.replace(/^[ADNL]\|/, '')) + '</li>'; }).join('');
+    var gp = guidaSett(lib && g.pL ? g.pL : g.p);
     return (gp ? '<p class="gd-p">' + esc(gp) + '</p>' : '') + '<ul class="gd-list">' + li + '</ul>' +
       '<div class="lbl">Altre sezioni</div><div class="group">' + GUIDA_ORD.filter(function (x) { return x !== k && (x !== 'aspetto' || adm) && sezOn(x); }).map(function (x) {
         return '<button type="button" class="row" data-act="guida" data-k="' + x + '"><span class="main"><span class="title">' + esc(GUIDA[x].t) + '</span></span><span style="color:var(--dim);width:18px;flex:none">' + I.right + '</span></button>';
@@ -12890,7 +12974,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         (S.myId && !date ? '<button type="button" data-act="new-entry"><span class="ic-circle">' + I.clip + '</span><span class="main"><span class="title">Mansione</span><span class="sub">Segna sulla scheda lavoro cosa hai fatto oggi</span></span></button>' : '') +
         '<button type="button" data-act="new-scad"' + dA + bA + (none ? ' disabled' : '') + '><span class="ic-circle soon">' + I.alarm + '</span><span class="main"><span class="title">Scadenza</span><span class="sub">Tagliando, antivegetativa, assicurazione…</span></span></button>' +
         '<button type="button" data-act="new-lav"' + dA + bA + (none ? ' disabled' : '') + '><span class="ic-circle">' + I.wrench + '</span><span class="main"><span class="title">Lavorazione</span><span class="sub">Da fare, in corso o già fatta</span></span></button>' +
-        '<button type="button" data-act="new-vari"' + dA + bA + (none ? ' disabled' : '') + '><span class="ic-circle vio">' + I.updown + '</span><span class="main"><span class="title">Varo o alaggio</span><span class="sub">Uscita o rientro in acqua di una barca</span></span></button>' +
+        (sezOn('vari') ? '<button type="button" data-act="new-vari"' + dA + bA + (none ? ' disabled' : '') + '><span class="ic-circle vio">' + I.updown + '</span><span class="main"><span class="title">Varo o alaggio</span><span class="sub">Uscita o rientro in acqua di una barca</span></span></button>' : '') +
         (date || cliMansione() ? '' : '<button type="button" data-act="new-boat"><span class="ic-circle ok">' + I.boat + '</span><span class="main"><span class="title">Barca</span><span class="sub">' + (naut() ? 'Nuova scheda con motore, posto e cliente' : settore() === 'officina' ? 'Nuova scheda con targa, km e cliente' : 'Nuova scheda con indirizzo e impianti') + '</span></span></button>') +
         '</div>' + (none ? '<p class="context">Prima aggiungi una barca: lavori e scadenze sono collegati a una barca.</p>' : '')
     });
@@ -13431,10 +13515,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       field(lab('f-titolo', 'Lavorazione'), inp('f-titolo', l.titolo, 'type="text" required placeholder="es. Tagliando 100 ore"')) +
       '<div class="grid2">' + '<div class="field" id="f-dataW"' + (l.stato === 'fatto' ? '' : ' hidden') + '>' + lab('f-data', 'Fatta il') + inp('f-data', l.stato === 'fatto' ? l.data : '', 'type="date"') + '</div>' + field(lab('f-statoL', 'Stato'), '<select id="f-statoL">' + opts([['da_fare', 'Da fare'], ['in_corso', 'In corso'], ['fatto', 'Fatto']], l.stato) + '</select>') + '</div>' +
       '<div id="f-pianW"' + (l.stato === 'fatto' ? ' hidden' : '') + '><div class="grid2">' + field(lab('f-inizio', 'Inizio'), inp('f-inizio', l.inizio, 'type="date"')) + field(lab('f-entro', 'Entro il'), inp('f-entro', l.entro, 'type="date"')) + '</div>' +
-        '<span class="hint" style="margin-top:-8px">Facoltative: con le date il lavoro compare nel Programma lavori della barca, accanto al varo.</span></div>' +
+        '<span class="hint" style="margin-top:-8px">Facoltative: con le date il lavoro compare nel Programma lavori della barca' + (sezOn('vari') ? ', accanto al varo' : '') + '.</span></div>' +
       field(lab('f-categoria', 'Categoria'), '<select id="f-categoria">' + opts(CATEGORIE, l.categoria) + '</select>' + (isNew ? '<span class="hint" id="f-catHint">' + catHintTxt({ cat: '', src: '' }) + '</span>' : '')) +
       attrLinkBlock(l.attrId) + lfBlock(l.fuori) + attBlock(l) +
-      (effOn() ? field(lab('f-eff', 'Effetto sulla barca'), '<select id="f-eff">' + opts([['', 'Nessun effetto']].concat(Object.keys(EFF_T).map(function (k) { return [k, EFF_T[k]]; })), l.effetto || '') + '</select>', 'Finché il lavoro è aperto: le barche ferme o che non possono uscire sono in rosso in Home e in Barche, e prima del varo l’app chiede conferma.') : '') +
+      (effOn() ? field(lab('f-eff', 'Effetto sulla barca'), '<select id="f-eff">' + opts([['', 'Nessun effetto']].concat(Object.keys(EFF_T).map(function (k) { return [k, EFF_T[k]]; })), l.effetto || '') + '</select>', 'Finché il lavoro è aperto: le barche ferme o che non possono uscire sono in rosso in Home e in Barche' + (sezOn('vari') ? ', e prima del varo l’app chiede conferma' : '') + '.') : '') +
       (nrOn() ? field(lab('f-notaRL', 'Nota riservata'), inp('f-notaRL', l.notaRis, 'type="text" maxlength="300" placeholder="es. non dire al cliente che è il secondo intervento"'), 'Non compare mai nel portale del cliente.') : '') +
       field(lab('f-descr', 'Dettagli e ricambi'), '<textarea id="f-descr" placeholder="es. olio 15W-40, filtro olio, girante, anodi">' + esc(l.descr || '') + '</textarea>') +
       '<div class="grid2">' + field(lab('f-oreStima', 'Tempo stimato (ore)'), inp('f-oreStima', num(l.oreStima) != null ? String(l.oreStima).replace('.', ',') : '', 'type="text" inputmode="decimal" placeholder="es. 3"') + '<span class="hint" id="f-stimaHint" hidden></span>') + field(lab('f-oreLavoro', 'Ore di manodopera'), inp('f-oreLavoro', num(l.oreLavoro) != null ? String(l.oreLavoro).replace('.', ',') : '', 'type="text" inputmode="decimal"')) + '</div>' +
@@ -14151,6 +14235,24 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     rifiuto: 'Olio esausto, venti litri, dalla barca Libeccio',
     ferie: 'Ferie dal 10 al 14 agosto'
   };
+  var DT_ES_SETT = {
+    officina: {
+      mansione: 'Oggi due ore sulla Panda di Rossi, tagliando con cambio olio e filtri', lavorazione: 'Panda di Rossi, cambio delle pastiglie dei freni, da fare entro venerdì',
+      barca: 'AB123CD, Fiat Panda 1.2 del 2017, 84500 chilometri, cliente Mario Rossi', scadenza: 'Panda di Rossi, revisione, scade il 15 marzo',
+      servizio: 'Ritiro della Panda di Rossi domani alle nove, mezz’ora', prog: 'Domani tagliando sulla Panda di Rossi', articolo: 'Filtro olio Mann W 712, ricambio, minimo due pezzi',
+      carico: 'Da Ricambi Rossi, bolla 1234: quattro filtri olio e due taniche di olio motore', preventivo: 'Panda di Rossi: tagliando due ore, cambio pastiglie un’ora',
+      verbale: '84500 chilometri, serbatoio a metà, due chiavi, nel bagagliaio restano il seggiolino e le catene', deposito: 'Quattro gomme invernali della Panda di Rossi, scaffale due',
+      rifiuto: 'Olio esausto, venti litri, dalla Panda di Rossi'
+    },
+    impianti: {
+      mansione: 'Oggi tre ore al condominio Le Querce, manutenzione della caldaia', lavorazione: 'Bar Centrale, sostituzione del condizionatore in sala, da fare entro venerdì',
+      barca: 'Mario Rossi, via Roma 12 a Cecina, caldaia Vaillant del 2019, telefono 333 1234567', scadenza: 'Condominio Le Querce, controllo fumi della caldaia, scade il 15 marzo',
+      servizio: 'Sopralluogo da Mario Rossi domani alle nove, un’ora', prog: 'Domani manutenzione della caldaia al condominio Le Querce', articolo: 'Raccordo in rame da 15, ricambio, minimo dieci pezzi',
+      carico: 'Dalla Termoidraulica Rossi, bolla 1234: dieci raccordi e due silicone bianco', preventivo: 'Bar Centrale: smontaggio del vecchio condizionatore due ore, installazione del nuovo quattro ore',
+      rifiuto: 'Cavi elettrici, cinque chili, dal Bar Centrale'
+    }
+  };
+  function dtEs(t) { var m = DT_ES_SETT[settore()]; if (!m) return t; for (var k in DT_ES) if (DT_ES[k] === t && m[k]) return m[k]; return t; }
   var DT_RIGHE = {
     carico: { nome: 'articoli arrivati', box: '#car-rows', row: '.car-row', add: '#car-add', list: '#car-list', cols: [['.car-n', 'articolo', 'nome dell’articolo'], ['.car-q', 'quantita', 'numero']] },
     preventivo: { nome: 'lavori previsti', box: '.pv-box', row: '.pv-row', add: '[data-act="pv-add"]', cols: [['.pv-t', 'lavoro', 'testo'], ['.pv-o', 'ore', 'numero']] }
@@ -14175,7 +14277,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   function dettaScrivi(form, o, msg) {
     var p = dettaPan((msg ? '<p class="cap t-soon" style="margin:0 0 8px">' + esc(msg) + '</p>' : '') +
-      '<textarea id="dt-txt" rows="3" placeholder="Oppure scrivilo qui (anche col microfono della tastiera), es. ' + esc(o.detta) + '"></textarea>' +
+      '<textarea id="dt-txt" rows="3" placeholder="Oppure scrivilo qui (anche col microfono della tastiera), es. ' + esc(dtEs(o.detta)) + '"></textarea>' +
       '<div class="acts"><button type="button" class="btn sec" id="dt-x">Chiudi</button><button type="button" class="btn" id="dt-go">Riempi i campi</button></div>');
     if (!p) return;
     p.querySelector('#dt-x').onclick = function () { dettaPan(''); };
@@ -14195,7 +14297,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       dettaManda(form, o, blob, '');
     };
     var p = dettaPan('<div class="dt-rec"><span class="dt-dot"></span><b>Ti ascolto…</b><span class="dt-t" id="dt-t">0:00</span></div>' +
-      '<p class="cap" style="margin:6px 0 0">Di’ tutto di seguito, per esempio: «' + esc(o.detta) + '». Al massimo un minuto.</p>' +
+      '<p class="cap" style="margin:6px 0 0">Di’ tutto di seguito, per esempio: «' + esc(dtEs(o.detta)) + '». Al massimo un minuto.</p>' +
       '<div class="acts"><button type="button" class="btn sec" id="dt-no">Annulla</button><button type="button" class="btn" id="dt-ok">Fine</button></div>');
     p.querySelector('#dt-no').onclick = function () { dettaStop(true); dettaPan(''); };
     p.querySelector('#dt-ok').onclick = function () { dettaStop(false); };
@@ -14896,7 +14998,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'ai-key': aiKeySave(); break;
       case 'asp-geo': aspGeo(); break;
       case 'asp-geo-ok': if (V.asp && Array.isArray(V.aspGeo)) { var gg = V.aspGeo[+t.getAttribute('data-i')]; if (gg) { V.asp.luogo = gg.name; V.asp.lat = Math.round(gg.latitude * 1e4) / 1e4; V.asp.lon = Math.round(gg.longitude * 1e4) / 1e4; V.aspGeo = null; render(); } } break;
-      case 'wiz-go': if (V.asp) { var wd = +t.getAttribute('data-d'); if (wd > 0 && !(V.wizStep || 0) && !String(V.asp.nome || '').trim()) { toast('Scrivi il nome dell’azienda.', true); break; } V.wizStep = Math.max(0, Math.min(WIZ.length - 1, (V.wizStep || 0) + wd)); render(); window.scrollTo(0, 0); } break;
+      case 'wiz-go': if (V.asp) { var wd = +t.getAttribute('data-d'); if (wd > 0 && !(V.wizStep || 0) && !String(V.asp.nome || '').trim()) { toast('Scrivi il nome dell’azienda.', true); break; } V.wizStep = Math.max(0, Math.min(wizPassi().length - 1, (V.wizStep || 0) + wd)); render(); window.scrollTo(0, 0); } break;
       case 'wiz-dopo': V.wizDopo = true; V.asp = null; V.aspGeo = null; NM_MARCA.applica(); render(); toast('La trovi in Altro › Aspetto dell’app'); break;
       case 'asp-undo': V.asp = null; NM_MARCA.applica(); render(); break;
       case 'asp-base': if (S.isOwner) aspBase(); break;
