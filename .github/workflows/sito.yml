@@ -1,12 +1,11 @@
-# Sito su Firebase Hosting: quando una modifica viene unita su main, pubblica il gestionale
-# su https://kardan.web.app (sito «kardan» del progetto Firebase gestionale-rimessaggio, al posto di GitHub Pages, che non si può usare per vendere un servizio in abbonamento).
-# Usa lo stesso segreto FIREBASE_SERVICE_ACCOUNT delle regole: al suo account serve il ruolo «Firebase Hosting Admin».
+# Sito su Firebase Hosting: pubblica il gestionale su https://kardan.web.app (sito «kardan» del progetto Firebase
+# gestionale-rimessaggio, al posto di GitHub Pages, che non si può usare per vendere un servizio in abbonamento).
+# Oggi il sito si pubblica dal Terminale del Mac (npx firebase-tools deploy --only hosting --project gestionale-rimessaggio).
+# Questo lavoro parte solo a mano (Actions › Sito su Firebase › Run workflow) e serve che all'account del segreto
+# FIREBASE_SERVICE_ACCOUNT sia dato il ruolo «Firebase Hosting Admin».
 name: Sito su Firebase
 
 on:
-  push:
-    branches: [main]
-    paths-ignore: ['.github/notifiche/**', 'README.md', 'firestore.rules']
   workflow_dispatch:
 
 permissions:
