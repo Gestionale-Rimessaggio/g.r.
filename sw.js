@@ -3,7 +3,7 @@
    Librerie esterne (Firebase, mappa 3D, caratteri): la copia salvata, aggiornata in background.
    I dati non passano di qui: li gestisce Firebase. */
 var V = 'nm-v5'; // v4: librerie con l'impronta (integrity), le copie vecchie salvate senza vanno buttate; v5: anche Firebase
-var CORE = ['./', './index.html', './nm-fb.js', './prova.js', './config.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-180.png', './trasloco.js'];
+var CORE = ['./', './index.html', './nm-fb.js', './prova.js', './config.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-180.png', './trasloco.js', './kardan/logo.svg', './kardan/scritta-chiara.svg', './favicon.svg'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(V).then(function (c) { return c.addAll(CORE); }).then(function () { return self.skipWaiting(); }));
 });
@@ -37,7 +37,7 @@ self.addEventListener('fetch', function (e) {
 self.addEventListener('push', function (e) {
   var p = {}; try { p = e.data ? e.data.json() : {}; } catch (err) { p = { data: { body: e.data ? e.data.text() : '' } }; }
   var d = p.data || {}, n = p.notification || {};
-  var title = d.title || n.title || 'Gestionale cantiere', body = d.body || n.body || '';
+  var title = d.title || n.title || 'Kardan', body = d.body || n.body || '';
   e.waitUntil(self.registration.showNotification(title, { body: body, icon: './icon-192.png', badge: './icon-192.png', tag: d.tag || 'nm-riepilogo', data: { url: d.url || './' } }));
 });
 self.addEventListener('notificationclick', function (e) {

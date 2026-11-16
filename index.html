@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <script src="trasloco.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gestionale cantiere</title>
-<meta name="description" content="Il gestionale del cantiere: barche, lavori, programma, porto e magazzino.">
+<title>Kardan</title>
+<meta name="description" content="Kardan, il gestionale per cantieri nautici, officine e impianti: lavori, programma, scadenze e magazzino.">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Gestionale cantiere">
-<meta property="og:title" content="Gestionale cantiere">
-<meta property="og:description" content="Il gestionale del cantiere: barche, lavori, programma, porto e magazzino.">
+<meta property="og:site_name" content="Kardan">
+<meta property="og:title" content="Kardan">
+<meta property="og:description" content="Kardan, il gestionale per cantieri nautici, officine e impianti: lavori, programma, scadenze e magazzino.">
 <meta property="og:image" content="anteprima.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -17,12 +17,13 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#0b1238">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="Gestionale">
+<meta name="apple-mobile-web-app-title" content="Kardan">
 <!-- Firebase con l'impronta (integrity): se il file sul CDN cambiasse, il browser non lo esegue. «?i=1» = indirizzo nuovo, così non si usano le copie salvate senza impronta -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js?i=1" integrity="sha384-ZaR6mWzmJtrRibZ1Vm7SoHFr8OXjyAuGAXalGDKqbxFT18oi/z+oZLIRFkpeNor1" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js?i=1" integrity="sha384-I1LYojsZ5RM1cOda44Z2h42Qa6YfsQ1XkXxREnhp4ueYBR/4d1pG1K+NZM537Vsj" crossorigin="anonymous"></script>
@@ -57,7 +58,10 @@ window.NM_MARCA = (function () {
     return svgUrl('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="72" viewBox="0 0 600 72"><g transform="translate(' + x.toFixed(0) + ' 2) scale(.7)">' + emblema() + '</g>' +
       '<text x="' + (x + 62).toFixed(0) + '" y="' + (36 + fs * .38).toFixed(1) + '" font-family="Helvetica,Arial,sans-serif" font-size="' + fs.toFixed(1) + '" font-weight="700" fill="#E6EEF6">' + xml(t) + '</text></svg>');
   }
-  var DEF = { nome: 'Gestionale Rimessaggio', colore1: '#263442', colore2: '#0D131A' };
+  var DEF = { nome: 'Kardan', colore1: '#263442', colore2: '#0D131A' };
+  // nomi del prodotto (Kardan, prima «Gestionale Rimessaggio»), non dell'azienda: chi li ha salvati con «Aspetto di base» conta come senza nome
+  var PRODOTTO = /^\s*(kardan|gestionale rimessaggio|gestionale)\s*$/i, K_LOGO = 'kardan/logo.svg';
+  function nomeAzienda(n) { n = String(n || '').trim(); return PRODOTTO.test(n) ? '' : n; }
   var CSS1 = '#16304F', CSS2 = '#06002E', KEY = 'nm-aspetto', db = null, cur = {}; // CSS1/CSS2: i colori scritti nel foglio di stile
   try { db = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { db = null; }
   function hex(c) { c = String(c || '').trim(); return /^#[0-9a-f]{6}$/i.test(c) ? c.toUpperCase() : ''; }
@@ -87,9 +91,10 @@ window.NM_MARCA = (function () {
     var lp = typeof d.lat === 'number' && typeof d.lon === 'number' ? d : typeof b.lat === 'number' && typeof b.lon === 'number' ? b : {};
     r.luogo = lp.luogo || ''; r.lat = typeof lp.lat === 'number' ? lp.lat : null; r.lon = typeof lp.lon === 'number' ? lp.lon : null; r.sigla = lp === b ? b.sigla || '' : '';
     r.colore1 = scuro(hex(r.colore1) || DEF.colore1, .2); r.colore2 = scuro(hex(r.colore2) || DEF.colore2, .06);
-    r.nome = String(r.nome === DEF.nome && SETT ? '' : r.nome).trim().slice(0, 60) || (SETT ? 'Gestionale' : DEF.nome); // officina e impianti: senza nome scelto niente «Rimessaggio» nella scritta
-    if (!r.logo) r.logo = logoNeutro(r.nome);
-    if (!r.scritta) r.scritta = scrittaNeutra(r.nome);
+    var az = nomeAzienda(r.nome).slice(0, 60);
+    r.kardan = !az; r.nome = az || DEF.nome; // senza nome dell'azienda: marchio Kardan (icona con la k e scritta)
+    if (!r.logo) r.logo = r.kardan ? K_LOGO : logoNeutro(r.nome);
+    if (!r.scritta) r.scritta = r.kardan ? K_LOGO : scrittaNeutra(r.nome);
     return r;
   }
   function img(id, src) {
@@ -113,7 +118,8 @@ window.NM_MARCA = (function () {
   return {
     DEF: DEF, hex: hex, colori: colori, scuro: scuro,
     nome: function () { return cur.nome; },
-    scelto: function () { return !!String((db && db.nome) || (window.NM_ASPETTO || {}).nome || '').trim(); }, // l'azienda ha scritto il suo nome in Aspetto
+    scelto: function () { return !!nomeAzienda((db && db.nome) || (window.NM_ASPETTO || {}).nome); }, // l'azienda ha scritto il suo nome in Aspetto
+    kardan: function () { return !!cur.kardan; }, // si vede il marchio Kardan (nessun nome d'azienda)
     get: function () { return cur; },
     logo: function () { var el = document.getElementById('logo-src'); return el ? el.getAttribute('src') : ''; },
     // nuove scelte dal database (o null = nessuna): si applicano e si ricordano sul dispositivo
@@ -13261,7 +13267,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     return q.createSvgTag({ cellSize: cell, margin: cell * 4, scalable: true });
   }
   function qrEtichetta(b, svg) {
-    return '<div class="et"><div class="qr">' + svg + '</div><div class="tx"><b>' + esc(b.nome || 'Barca') + '</b><span>' + esc([b.modello, (PORTO_ON() && Porto.berthLabel(b.id)) || b.posto].filter(Boolean).join(' · ')) + '</span><small>Inquadra con il telefono per aprire la scheda</small></div></div>';
+    return '<div class="et"><div class="qr">' + svg + '</div><div class="tx"><b>' + esc(b.nome || 'Barca') + '</b><span>' + esc([b.modello, (PORTO_ON() && Porto.berthLabel(b.id)) || b.posto].filter(Boolean).join(' · ')) + '</span><small>Inquadra con il telefono per aprire la scheda</small><small class="kf">gestito con Kardan</small></div></div>';
   }
   /* ---------- Verbale di presa in carico (idea 1, Aspetto dell’app › sezioni) ----------
      All'alaggio (ingresso) e al varo (uscita): foto, danni già presenti, ore motore e cosa resta a bordo, con data e chi l'ha fatto.
@@ -13375,6 +13381,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       r('Barca', [b.nome, b.modello, b.immatricolazione].filter(Boolean).join(' · ')) + r('Proprietario', [b.proprietario, b.telefono].filter(Boolean).join(' · ')) + r('Km', vbKmTxt(v)) + r('Ore', vbOreTxt(v)) + r('Carburante', vbCarbTxt(v)) + r('Chiavi consegnate', vbChiaviTxt(v)) +
       r(vbOf_() ? 'Nel veicolo' : 'A bordo', (v.bordo || []).concat(v.bordoAltro ? [v.bordoAltro] : []).join(', ') || '—') + r(v.tipo === 'uscita' ? 'Danni o differenze' : 'Danni già presenti', v.danni || 'nessuno') + r('Note', v.note) + '</table>' +
       (ids.length ? '<div class="fg">' + ids.map(function (id) { var s = blobSrc(id); return vuota.test(s) ? '' : '<img src="' + s + '" alt="">'; }).join('') + '</div>' : '') +
+      '<p style="margin:6mm 0 0;text-align:right;font-size:8pt;color:#888">gestito con Kardan</p>' +
       '<script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script></body></html>'));
     win.document.close();
   }
@@ -13386,7 +13393,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       win.document.open();
       win.document.write(vocHtml('<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Etichette QR</title><style>@page{size:A4;margin:10mm}body{margin:0;font-family:Arial,sans-serif;color:#000}' +
         '.fg{display:grid;grid-template-columns:1fr 1fr;gap:6mm}.et{border:1px dashed #999;border-radius:3mm;padding:4mm;display:flex;gap:4mm;align-items:center;break-inside:avoid;height:58mm;box-sizing:border-box}' +
-        '.qr{width:48mm;height:48mm;flex:none}.qr svg{width:100%;height:100%}.tx{display:flex;flex-direction:column;gap:2mm;min-width:0}.tx b{font-size:16pt;word-break:break-word}.tx span{font-size:10pt}.tx small{font-size:8pt;color:#444}</style></head><body><div class="fg">' + parts.join('') + '</div><script>setTimeout(function(){print()},300)<\/script></body></html>'));
+        '.qr{width:48mm;height:48mm;flex:none}.qr svg{width:100%;height:100%}.tx{display:flex;flex-direction:column;gap:2mm;min-width:0}.tx b{font-size:16pt;word-break:break-word}.tx span{font-size:10pt}.tx small{font-size:8pt;color:#444}.tx small.kf{font-size:6.5pt;color:#999}</style></head><body><div class="fg">' + parts.join('') + '</div><script>setTimeout(function(){print()},300)<\/script></body></html>'));
       win.document.close();
     } catch (e) { win.close(); toast('Non riesco a preparare il QR: controlla di avere internet.', true); }
   }

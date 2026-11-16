@@ -78,7 +78,7 @@
 
   /* ---------- schermata di accesso ---------- */
   var CSS = '#nmfb{position:fixed;inset:0;z-index:99999;background:var(--bg,#06002e);color:#f4f5f7;font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;overflow-y:auto;padding:calc(env(safe-area-inset-top) + 28px) 18px 32px}' +
-    '#nmfb .box{width:100%;max-width:400px}#nmfb .logo{display:block;width:78%;max-width:300px;margin:22px auto 26px}#nmfb.load{justify-content:center;padding:24px}#nmfb.load .box{position:relative;max-width:none}#nmfb.load .logo{width:84%;max-width:440px;margin:0 auto}#nmfb.load .spin{position:absolute;left:50%;top:100%;margin:28px 0 0 -17px}' +
+    '#nmfb .box{width:100%;max-width:400px}#nmfb .logo{display:block;width:78%;max-width:300px;margin:22px auto 26px}#nmfb .kfirma{display:flex;align-items:center;justify-content:center;gap:6px;margin:22px 0 4px;font-size:12px;opacity:.55}#nmfb .kfirma img{height:12px;width:auto;display:block}#nmfb.load{justify-content:center;padding:24px}#nmfb.load .box{position:relative;max-width:none}#nmfb.load .logo{width:84%;max-width:440px;margin:0 auto}#nmfb.load .spin{position:absolute;left:50%;top:100%;margin:28px 0 0 -17px}' +
     '#nmfb h2{font-size:1.35rem;margin:0 0 6px}#nmfb p{color:#b9bccb;margin:0 0 14px}#nmfb label{display:block;font-size:.9rem;color:#b9bccb;margin:12px 0 6px}' +
     '#nmfb input{width:100%;box-sizing:border-box;font:inherit;font-size:17px;padding:13px 14px;border-radius:12px;border:1px solid #33355a;background:#12114a;color:#fff;outline:none}' +
     '#nmfb input:focus{border-color:#2f8ff0}#nmfb .btn{display:block;width:100%;margin-top:18px;padding:14px;border:0;border-radius:12px;background:#2f8ff0;color:#fff;font:inherit;font-weight:600;font-size:17px;cursor:pointer}' +
@@ -175,14 +175,15 @@
   function nomeAz() { // nome dell'azienda (Altro › Aspetto); se non è stato scelto, quello dell'azienda (sul telefono del cliente l'aspetto non arriva)
     var n = window.NM_MARCA ? NM_MARCA.nome() : '';
     if (AZD && AZD.nome && (!n || (window.NM_MARCA && NM_MARCA.scelto && !NM_MARCA.scelto()))) return String(AZD.nome);
-    return n || 'Gestionale cantiere';
+    return n || 'Kardan';
   }
   function overlay(html) {
     if (!document.body) { document.addEventListener('DOMContentLoaded', function () { overlay(html); }, { once: true }); return null; }
     ensureCss();
     var o = $('#nmfb'); if (!o) { o = document.createElement('div'); o.id = 'nmfb'; document.body.appendChild(o); }
     o.className = html === '<div class="spin"></div>' ? 'load' : ''; // caricamento: logo al centro dello schermo come nella schermata d'avvio, rotellina sotto
-    o.innerHTML = '<div class="box">' + (logoSrc() ? '<img class="logo" alt="' + esc(nomeAz()) + '" src="' + logoSrc() + '">' : '<h2>' + esc(nomeAz()) + '</h2>') + html + '</div>';
+    var firma = o.className !== 'load' && window.NM_MARCA && NM_MARCA.kardan && !NM_MARCA.kardan() ? '<div class="kfirma">con <img src="kardan/scritta-chiara.svg" alt="Kardan"></div>' : ''; // il nome dell'azienda in alto, Kardan firma in piccolo
+    o.innerHTML = '<div class="box">' + (logoSrc() ? '<img class="logo" alt="' + esc(nomeAz()) + '" src="' + logoSrc() + '">' : '<h2>' + esc(nomeAz()) + '</h2>') + html + firma + '</div>';
     return o;
   }
   function hideOverlay() { var o = $('#nmfb'); if (o) o.remove(); }
