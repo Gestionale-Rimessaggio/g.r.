@@ -30,6 +30,9 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .hero h1 { font-size: clamp(2rem, 4.4vw, 3.2rem); letter-spacing: -.01em; }
 .hero p { color: var(--muted); font-size: 1.1rem; margin: 18px 0 26px; max-width: 34em; }
 .acts { display: flex; flex-wrap: wrap; gap: 10px; }
+.scopri { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line); }
+.scopri .tit { display: block; font-weight: 600; margin-bottom: 10px; }
+.btn .ic { width: 1.15em; height: 1.15em; vertical-align: -.22em; margin-right: 7px; }
 .shot { border-radius: 16px; border: 1px solid var(--line); box-shadow: 0 24px 60px rgba(0,0,0,.45); width: 100%; height: auto; display: block; }
 .duo { position: relative; }
 .duo .tel { position: absolute; width: 30%; right: -10px; bottom: -34px; border-radius: 22px; }
@@ -83,6 +86,14 @@ footer { padding: 30px 0 44px; color: var(--muted); font-size: .9rem; border-top
       <div class="acts">
         <a class="btn" href="./#registra">Registra la tua azienda</a>
         <a class="btn sec" href="#come">Come si comincia</a>
+      </div>
+      <div class="scopri">
+        <span class="tit">Guarda come funziona in 4 scene:</span>
+        <div class="acts">
+          <a class="btn sec small" href="./scopri.html#nautica"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 14.5h19l-2.6 4.3a1.6 1.6 0 0 1-1.4.8H6.4a1.6 1.6 0 0 1-1.3-.7z"/><path d="M6.5 14.5V11h6.5l3 3.5"/><path d="M9 11V8.5h3"/></svg>Nautica</a>
+          <a class="btn sec small" href="./scopri.html#officina"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>Officina</a>
+          <a class="btn sec small" href="./scopri.html#impianti"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M12 11.5v3M10 14.5h4v2.5a2 2 0 0 1-4 0z"/></svg>Impianti</a>
+        </div>
       </div>
     </div>
     <div class="duo">
@@ -161,7 +172,7 @@ footer { padding: 30px 0 44px; color: var(--muted); font-size: .9rem; border-top
 </section>
 
 <footer>
-  <div class="wrap">Kardan · <a href="./">Entra nell’app</a></div>
+  <div class="wrap">Kardan · <a href="./">Entra nell’app</a> · <a href="./scopri.html">Come funziona in 4 scene</a></div>
 </footer>
 </body>
 </html>
