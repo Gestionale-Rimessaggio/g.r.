@@ -3,6 +3,9 @@
     "site": "kardan",
     "public": ".",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "README.md", "firestore.rules"],
+    "rewrites": [
+      { "source": "/scopri", "destination": "/scopri.html" }
+    ],
     "headers": [
       {
         "source": "**",
