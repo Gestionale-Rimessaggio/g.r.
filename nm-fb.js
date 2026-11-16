@@ -172,7 +172,11 @@
     '#nmtoast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 90px);transform:translateX(-50%);z-index:100000;background:#2b2c33;color:#fff;padding:10px 16px;border-radius:12px;font:15px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;max-width:90vw;box-shadow:0 6px 20px rgba(0,0,0,.4)}';
   function ensureCss() { if (!$('#nmfb-css')) { var st = document.createElement('style'); st.id = 'nmfb-css'; st.textContent = CSS; document.head.appendChild(st); } }
   function logoSrc() { var l = document.getElementById('logo-src'); return l ? l.getAttribute('src') : ''; }
-  function nomeAz() { return window.NM_MARCA ? NM_MARCA.nome() : 'Gestionale cantiere'; } // nome dell'azienda (Altro › Aspetto)
+  function nomeAz() { // nome dell'azienda (Altro › Aspetto); se non è stato scelto, quello dell'azienda (sul telefono del cliente l'aspetto non arriva)
+    var n = window.NM_MARCA ? NM_MARCA.nome() : '';
+    if (AZD && AZD.nome && (!n || (window.NM_MARCA && NM_MARCA.scelto && !NM_MARCA.scelto()))) return String(AZD.nome);
+    return n || 'Gestionale cantiere';
+  }
   function overlay(html) {
     if (!document.body) { document.addEventListener('DOMContentLoaded', function () { overlay(html); }, { once: true }); return null; }
     ensureCss();
@@ -1756,19 +1760,22 @@
      «Vorrei il varo il…» e «Segnala un problema» (con foto): vanno in richiesteCliente; il cantiere le vede in
      Altro › Richieste dei clienti e risponde. Il cliente vede inviata → ricevuta → confermata (o non possibile). */
   var RQ_ST = { inviata: ['Inviata', ''], vista: ['Ricevuta', 'lav'], confermata: ['Confermata', 'acqua'], no: ['Non possibile', ''] };
+  // il portale parla il mestiere dell'azienda: pt(nautica, officina, impianti); quello che non è qui lo traducono le parole del settore (index.html)
+  function setCl() { return AZD && settOk(AZD.settore) ? AZD.settore : 'nautica'; }
+  function pt(n, o, i) { var x = setCl(); return x === 'officina' ? o : x === 'impianti' ? (i == null ? o : i) : n; }
   function rqCard(bid) {
     var mie = CL.req.filter(function (r) { return r.barcaId === bid && r.tipo !== 'lavoro'; }).slice(0, 6);
-    return '<h5>Chiedi al cantiere</h5><div class="rqb"><button class="rqbtn" data-cl="rq" data-t="varo" data-id="' + esc(bid) + '">Vorrei il varo il…</button><button class="rqbtn" data-cl="rq" data-t="problema" data-id="' + esc(bid) + '">Segnala un problema</button></div>' +
+    return '<h5>Chiedi al cantiere</h5><div class="rqb"><button class="rqbtn" data-cl="rq" data-t="varo" data-id="' + esc(bid) + '">' + pt('Vorrei il varo il…', 'Vorrei ritirarlo il…', 'Vorrei un intervento il…') + '</button><button class="rqbtn" data-cl="rq" data-t="problema" data-id="' + esc(bid) + '">Segnala un problema</button></div>' +
       mie.map(function (r) {
         var st = RQ_ST[r.stato] || RQ_ST.inviata;
-        return '<div class="lv" style="align-items:flex-start"><span style="flex:1">' + esc(r.tipo === 'varo' ? 'Varo il ' + dataLunga(r.data) : r.tipo === 'lavoro' ? 'Lavoro: ' + String(r.testo || '').slice(0, 60) : 'Problema: ' + String(r.testo || '').slice(0, 60)) +
+        return '<div class="lv" style="align-items:flex-start"><span style="flex:1">' + esc(r.tipo === 'varo' ? pt('Varo il ', 'Ritiro il ', 'Intervento il ') + dataLunga(r.data) : r.tipo === 'lavoro' ? 'Lavoro: ' + String(r.testo || '').slice(0, 60) : 'Problema: ' + String(r.testo || '').slice(0, 60)) +
           (r.risposta ? '<br><small>Il cantiere: ' + esc(r.risposta) + '</small>' : '') + '</span><span class="st ' + st[1] + '">' + st[0] + '</span></div>';
       }).join('');
   }
   function scCard(bid, d) {
     var L = d.scadenze || []; if (!L.length) return '';
     var mie = CL.req.filter(function (r) { return r.barcaId === bid && r.tipo === 'lavoro'; });
-    return '<h5>Scadenze della tua barca</h5>' + L.map(function (s) {
+    return '<h5>' + pt('Scadenze della tua barca', 'Scadenze della tua barca', 'Le tue scadenze') + '</h5>' + L.map(function (s) {
       var gia = mie.find(function (r) { return r.scadId === s.id && r.stato !== 'no'; }), st = gia ? RQ_ST[gia.stato] || RQ_ST.inviata : null;
       return '<div class="lv" style="align-items:center"><span style="flex:1">' + esc(s.tipo) + (s.modello ? ' <small>(' + esc(s.modello) + ')</small>' : '') + '<br><small' + (s.scaduta ? ' style="color:#ff8a80"' : '') + '>' + esc((s.scaduta ? 'Scaduta il ' : 'Scade il ') + dataLunga(s.data)) + '</small>' + (gia && gia.risposta ? '<br><small>Il cantiere: ' + esc(gia.risposta) + '</small>' : '') + '</span>' +
         (gia ? '<span class="st ' + st[1] + '">' + st[0] + '</span>' : '<button class="rqbtn" style="flex:0 0 auto;min-width:0" data-cl="rqs" data-id="' + esc(bid) + '" data-s="' + esc(s.id) + '">Richiedi il lavoro</button>') + '</div>';
@@ -1785,9 +1792,9 @@
   function rqForm(bid, tipo) {
     var d = CL.docs[bid] || {}, o = document.createElement('div'); o.id = 'nmrc'; var x = $('#nmrc'); if (x) x.remove();
     var oggi = new Date().toISOString().slice(0, 10);
-    o.innerHTML = '<div class="box"><h3>' + esc(tipo === 'varo' ? 'Vorrei il varo' : 'Segnala un problema') + ' · ' + esc(d.nome || 'Barca') + '</h3>' +
+    o.innerHTML = '<div class="box"><h3>' + esc(tipo === 'varo' ? pt('Vorrei il varo', 'Vorrei ritirarlo', 'Vorrei un intervento') : 'Segnala un problema') + ' · ' + esc(d.nome || 'Barca') + '</h3>' +
       (tipo === 'varo' ? '<label>Il giorno<input id="rq-d" type="date" min="' + oggi + '"></label>' : '') +
-      '<label>' + (tipo === 'varo' ? 'Note (facoltative)' : 'Cosa succede') + '<textarea id="rq-t" rows="4" maxlength="1500" placeholder="' + (tipo === 'varo' ? 'es. mattina presto, serve anche il pieno' : 'es. la pompa di sentina parte da sola') + '"></textarea></label>' +
+      '<label>' + (tipo === 'varo' ? 'Note (facoltative)' : 'Cosa succede') + '<textarea id="rq-t" rows="4" maxlength="1500" placeholder="' + (tipo === 'varo' ? pt('es. mattina presto, serve anche il pieno', 'es. in mattinata, dopo le 10', 'es. di pomeriggio, citofono 3') : pt('es. la pompa di sentina parte da sola', 'es. si accende la spia del motore', 'es. la caldaia va in blocco')) + '"></textarea></label>' +
       (tipo === 'problema' ? '<label>Foto (fino a 3, facoltative)<input id="rq-f" type="file" accept="image/*" multiple></label>' : '') +
       '<p id="rq-e" class="err" hidden></p><div class="row2"><button class="lnk" data-rq="x">Annulla</button><button class="pri" data-rq="ok">Invia</button></div></div>';
     document.body.appendChild(o);
@@ -1813,6 +1820,7 @@
   var DOVE_I = { msv: '<svg aria-hidden="true" viewBox="0 0 48 48"><g fill="currentColor"><path d="M22.6 5.5v27H10.3c-.6 0-.9-.6-.6-1.1z"/><path d="M25.4 10.5v22H36c.6 0 .9-.6.6-1.1z"/><path d="M7.6 35h32.8c.7 0 1.1.8.6 1.3l-3.2 3.7c-.4.5-1 .7-1.6.7H11.8c-.6 0-1.2-.3-1.6-.7L7 36.3c-.5-.5-.1-1.3.6-1.3z"/></g><path fill="none" stroke="currentColor" stroke-width="1.6" d="M24 4v31"/><g fill="none" stroke="currentColor" stroke-linecap="round"><path stroke-width="1.9" d="M5 43.6c2 0 2-1.6 4-1.6s2 1.6 4 1.6 2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6"/><path stroke-width="1.5" opacity=".55" d="M11 46.8c1.6 0 1.6-1.3 3.2-1.3s1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3"/></g></svg>', nm: '<svg aria-hidden="true" viewBox="0 0 48 48"><path fill="currentColor" fill-rule="evenodd" d="M4.5 20.8 23.2 7.7c.5-.3 1.1-.3 1.6 0l18.7 13.1c.4.3.5.7.5 1.2v18.5c0 .8-.6 1.5-1.4 1.5H5.9c-.8 0-1.4-.7-1.4-1.5V22c0-.5.1-.9.5-1.2zM13 42V28.6c0-.8.6-1.4 1.4-1.4h19.2c.8 0 1.4.6 1.4 1.4V42z"/><g fill="none" stroke="currentColor" stroke-width="1.5" opacity=".75"><path d="M15 31h18M15 35h18M15 39h18"/></g><path fill="currentColor" d="M2 43h44v2.2H2z" opacity=".55"/></svg>', porto: '<svg aria-hidden="true" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="6.4" r="3.2" stroke-width="2.4"/><path stroke-width="2.8" d="M24 9.6v27"/><path stroke-width="2.6" d="M17.6 15.2h12.8"/><path stroke-width="2.8" d="M11 26.4c.6 6.4 6.3 10.4 13 10.4s12.4-4 13-10.4"/></g><g fill="currentColor"><path d="M8.2 28.2l2.6-5.4 3.4 5z"/><path d="M39.8 28.2l-2.6-5.4-3.4 5z"/></g><g fill="none" stroke="currentColor" stroke-linecap="round"><path stroke-width="1.9" d="M5 43.6c2 0 2-1.6 4-1.6s2 1.6 4 1.6 2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6"/><path stroke-width="1.5" opacity=".55" d="M11 46.8c1.6 0 1.6-1.3 3.2-1.3s1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3"/></g></svg>', terzi: '<svg aria-hidden="true" viewBox="0 0 48 48"><path fill="currentColor" fill-rule="evenodd" d="M4.5 40.5V24.2C4.5 13.6 13.2 6 24 6s19.5 7.6 19.5 18.2v16.3c0 .8-.6 1.5-1.4 1.5H5.9c-.8 0-1.4-.7-1.4-1.5zM12.5 42V27.2c0-.8.6-1.4 1.4-1.4h20.2c.8 0 1.4.6 1.4 1.4V42z"/><g fill="none" stroke="currentColor" stroke-width="1.5" opacity=".75"><path d="M14.5 30h19M14.5 34h19M14.5 38h19"/></g><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".45" d="M9.6 19.4C12.4 13.6 17.8 10.4 24 10.4s11.6 3.2 14.4 9"/><path fill="currentColor" d="M2 43h44v2.2H2z" opacity=".55"/></svg>' }, DOVE_N = 0;
   function doveIcoCl(k) { var m = 'dvc' + (++DOVE_N); return '<span class="dv-ic ' + k + '">' + DOVE_I[k].replace(/MSK/g, m) + '</span>'; }
   function doveCl(d) {
+    if (setCl() === 'impianti') return '';
     var st = d.stato || 'In rimessaggio', terra = st === 'In rimessaggio' || st === 'In lavorazione';
     var k = ['msv', 'nm', 'porto', 'terzi'].indexOf(d.dove) >= 0 ? d.dove : (st === 'In acqua' || (d.porto && !terra)) ? 'msv' : 'nm';
     var pz = (d.porto && d.porto.posto) || d.posto || '', t, sub = '';
@@ -1831,7 +1839,7 @@
   function crBody(id, d, cs, img, x) {
     var c = d.cr, scC = scCard(id, d), scL = (c.scad || []).filter(function (s) { return !(d.scadenze || []).some(function (y) { return y.tipo === s.t && (y.modello || '') === s.m; }); });
     var foto = (c.foto || []).length || (c.verbali || []).length || (c.vari || []).length;
-    var tabs = CR_TABS.filter(function (t) { return t[0] === 'sc' ? c.scadOn && (scC || scL.length) : t[0] === 'de' ? c.deOn : t[0] === 'fo' ? foto : true; });
+    var tabs = CR_TABS.filter(function (t) { return t[0] === 'sc' ? c.scadOn && (scC || scL.length) : t[0] === 'de' ? c.deOn : t[0] === 'fo' ? foto : t[0] === 'mo' || t[0] === 'at' ? setCl() === 'nautica' : true; });
     var cur = CL.st[id]; if (!tabs.some(function (t) { return t[0] === cur; })) cur = 'cr';
     var h = '<div class="crt" role="tablist">' + tabs.map(function (t) { return '<button role="tab" data-cl="st" data-id="' + esc(id) + '" data-t="' + t[0] + '" aria-selected="' + (t[0] === cur) + '">' + t[1] + '</button>'; }).join('') + '</div>';
     var nf = function (n) { return n == null ? '–' : String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
@@ -1840,9 +1848,9 @@
       (c.oreAgg ? '<div class="upd" style="margin-top:6px">Ore lette il ' + esc(dataLunga(c.oreAgg)) + '</div>' : '') : '';
     var cVaro = '';
     if (c.varo) { var dv = Math.round((Date.parse(c.varo) - Date.parse(new Date().toISOString().slice(0, 10))) / 864e5); cVaro = '<div class="crv"><div><small>Varo</small><b>' + esc(dataLunga(c.varo)) + '</b></div><div class="n"><b>' + (dv < 0 ? '–' : dv) + '</b><small>' + (dv === 1 ? 'giorno' : 'giorni') + '</small></div></div>'; }
-    var cStato = c.stato ? '<h5>Stato della barca</h5><div class="crs"><div class="r" style="border-color:' + crPct(c.stato.tot) + '"><b>' + c.stato.tot + '</b><small>su 100</small></div><div class="l">' +
+    var cStato = c.stato ? '<h5>' + pt('Stato della barca', 'Stato della barca', 'Stato degli impianti') + '</h5><div class="crs"><div class="r" style="border-color:' + crPct(c.stato.tot) + '"><b>' + c.stato.tot + '</b><small>su 100</small></div><div class="l">' +
       c.stato.voci.map(function (v) { return '<div><span>' + esc(v.t) + '</span><span>' + v.p + '%</span></div><i class="bar"><i style="width:' + v.p + '%;background:' + crPct(v.p) + '"></i></i>'; }).join('') + '</div></div>' : '';
-    var cTag = (c.tagliandi || []).length ? '<h5>Prossimi tagliandi</h5>' + c.tagliandi.map(function (t) { return '<div class="crg"><div><span>' + esc(t.t) + (t.m ? ' <small>(' + esc(t.m) + ')</small>' : '') + '</span><span style="color:' + crCol(t.lv) + '">' + esc(t.txt) + '</span></div><i class="bar"><i style="width:' + t.u + '%;background:' + crCol(t.lv) + '"></i></i></div>'; }).join('') : '';
+    var cTag = (c.tagliandi || []).length ? '<h5>' + pt('Prossimi tagliandi', 'Prossimi tagliandi', 'Prossime manutenzioni') + '</h5>' + c.tagliandi.map(function (t) { return '<div class="crg"><div><span>' + esc(t.t) + (t.m ? ' <small>(' + esc(t.m) + ')</small>' : '') + '</span><span style="color:' + crCol(t.lv) + '">' + esc(t.txt) + '</span></div><i class="bar"><i style="width:' + t.u + '%;background:' + crCol(t.lv) + '"></i></i></div>'; }).join('') : '';
     var cMot = '<h5>Motori e generatore</h5>' + (tiles.length ? (c.motori || []).map(function (m) { return '<div class="lv"><span style="flex:1">' + esc(m.n) + '<br><small>' + esc([m.m, m.cv != null ? m.cv + ' cv' : ''].filter(Boolean).join(' · ')) + '</small></span><b>' + nf(m.o) + ' h</b></div>'; }).join('') +
       (c.gen || []).map(function (g) { return '<div class="lv"><span style="flex:1">Generatore<br><small>' + esc(g.m) + '</small></span><b>' + nf(g.o) + ' h</b></div>'; }).join('') : '<p style="margin:4px 0 0">Nessun motore segnato.</p>');
     var cSto = '';
@@ -1857,12 +1865,12 @@
     var cAttr = (c.attr || []).length ? '<h5>Attrezzatura di bordo</h5>' + c.attr.map(function (a) { var s = ST[a.st]; return '<div class="lv" style="align-items:center"><span style="flex:1">' + esc(a.t) + (a.s ? '<br><small>' + esc(a.s) + '</small>' : '') + '</span>' + (s ? '<span class="st ' + s[1] + '">' + s[0] + '</span>' : '') + '</div>'; }).join('') : '';
     var cComp = (c.comp || []).length ? '<h5>Componenti a bordo</h5>' + c.comp.map(function (a) { return '<div class="lv"><span style="flex:1">' + esc(a.t) + (a.s || a.g ? '<br><small>' + esc([a.s, a.g ? 'garanzia fino al ' + dataLunga(a.g) : ''].filter(Boolean).join(' · ')) + '</small>' : '') + '</span></div>'; }).join('') : '';
     var cBatt = c.batt ? '<h5>Batterie</h5><div class="lv" style="align-items:center"><span style="flex:1">' + c.batt.n + (c.batt.n === 1 ? ' batteria' : ' batterie') + '<br><small>' + (c.batt.d == null ? 'carica non ancora segnata' : 'caricate ' + (c.batt.d === 0 ? 'oggi' : c.batt.d === 1 ? 'ieri' : c.batt.d + ' giorni fa')) + '</small></span>' + (c.batt.late ? '<span class="st lav">Da caricare</span>' : '<span class="st acqua">Cariche</span>') + '</div>' : '';
-    var cScL = scL.length ? '<h5>' + (scC ? 'Più avanti' : 'Scadenze della tua barca') + '</h5>' + scL.map(function (s) { return '<div class="lv"><span style="flex:1">' + esc(s.t) + (s.m ? ' <small>(' + esc(s.m) + ')</small>' : '') + '<br><small style="color:' + crCol(s.lv) + '">' + esc(s.txt) + '</small></span></div>'; }).join('') : '';
-    var cFoto = (c.foto || []).length ? '<h5>Foto della barca</h5><div class="dfo crf">' + c.foto.map(img).join('') + '</div>' : '';
-    var cVb = (c.verbali || []).length ? '<h5>Verbali di ingresso e uscita</h5>' + c.verbali.map(function (v) { return '<div class="lv" style="flex-wrap:wrap"><span class="d">' + esc(dataCorta(v.d)) + '</span><span style="flex:1">' + (v.t === 'uscita' ? 'Uscita (varo)' : 'Ingresso (alaggio)') + (v.o ? ' · ' + esc(v.o) + ' ore motore' : '') + '</span>' + ((v.foto || []).length ? '<span class="dfo" style="width:100%">' + v.foto.map(img).join('') + '</span>' : '') + '</div>'; }).join('') : '';
+    var cScL = scL.length ? '<h5>' + (scC ? 'Più avanti' : pt('Scadenze della tua barca', 'Scadenze della tua barca', 'Le tue scadenze')) + '</h5>' + scL.map(function (s) { return '<div class="lv"><span style="flex:1">' + esc(s.t) + (s.m ? ' <small>(' + esc(s.m) + ')</small>' : '') + '<br><small style="color:' + crCol(s.lv) + '">' + esc(s.txt) + '</small></span></div>'; }).join('') : '';
+    var cFoto = (c.foto || []).length ? '<h5>' + pt('Foto della barca', 'Foto della barca', 'Foto dei lavori') + '</h5><div class="dfo crf">' + c.foto.map(img).join('') + '</div>' : '';
+    var cVb = (c.verbali || []).length ? '<h5>Verbali di ingresso e uscita</h5>' + c.verbali.map(function (v) { return '<div class="lv" style="flex-wrap:wrap"><span class="d">' + esc(dataCorta(v.d)) + '</span><span style="flex:1">' + (v.t === 'uscita' ? pt('Uscita (varo)', 'Riconsegna', 'Uscita') : pt('Ingresso (alaggio)', 'Accettazione', 'Ingresso')) + (setCl() === 'officina' ? (v.k ? ' · ' + esc(v.k) + ' km' : '') : v.o ? ' · ' + esc(v.o) + ' ore motore' : '') + '</span>' + ((v.foto || []).length ? '<span class="dfo" style="width:100%">' + v.foto.map(img).join('') + '</span>' : '') + '</div>'; }).join('') : '';
     var cVa = (c.vari || []).length ? '<h5>Vari e alaggi</h5>' + c.vari.map(function (v) { return '<div class="lv"><span class="d">' + esc(dataCorta(v.d)) + '</span><span>' + esc(v.t) + '</span></div>'; }).join('') : '';
     var g = '';
-    if (cur === 'cr') g = cs(cOre + cVaro + (cOre || cVaro ? '' : '<p style="margin:0">Le ore dei motori e il varo compaiono qui quando il cantiere li segna.</p>')) + cs(cStato) + cs(cTag) + cs(d.richieste ? rqCard(id) : '') + x.av;
+    if (cur === 'cr') g = cs(cOre + cVaro + (cOre || cVaro || setCl() !== 'nautica' ? '' : '<p style="margin:0">Le ore dei motori e il varo compaiono qui quando il cantiere li segna.</p>')) + cs(cStato) + cs(cTag) + cs(d.richieste ? rqCard(id) : '') + x.av;
     else if (cur === 'mo') g = cs(cMot) + cs(cSto) + cs(cTag);
     else if (cur === 'at') g = cs(cAttr) + cs(cComp) + cs(cBatt) + (cAttr || cComp || cBatt ? '' : cs('<p style="margin:0">Il cantiere non ha ancora segnato attrezzatura e componenti.</p>'));
     else if (cur === 'sc') g = cs(scC) + cs(cScL);
@@ -1873,11 +1881,11 @@
   }
   function renderCliente() {
     if (!CLIENTE || !ME) return;
-    var h = '<h2>Ciao ' + esc(String(ME.nome || '').split(' ')[0]) + '</h2><p>La tua barca al cantiere ' + esc(nomeAz()) + ', sempre aggiornata.</p>';
+    var h = '<h2>Ciao ' + esc(String(ME.nome || '').split(' ')[0]) + '</h2><p>' + (function (az) { return pt('La tua barca ' + (/cantier/i.test(az) ? 'da ' : 'al cantiere ') + esc(az) + ', sempre aggiornata.', 'I tuoi veicoli ' + (/officin/i.test(az) ? 'da ' : 'all’officina ') + esc(az) + ', sempre aggiornati.', 'I lavori di ' + esc(az) + ' per te, sempre aggiornati.'); })(nomeAz()) + '</p>';
     var rpOggi = nowISO().slice(0, 10), rpL = []; CL.ids.forEach(function (id) { var d = CL.docs[id]; if (d && (d.reperibili || []).length && !rpL.length) rpL = d.reperibili; });
     var rp = rpL.filter(function (t) { return t.dal <= rpOggi && t.al >= rpOggi; })[0] || rpL.filter(function (t) { return t.dal > rpOggi && t.dal <= new Date(Date.now() + 3 * 864e5).toISOString().slice(0, 10); })[0];
     if (rp) h += '<div class="card"><p style="margin:0">' + (rp.dal <= rpOggi ? 'Reperibile per le urgenze' : 'Reperibile per le urgenze da ' + esc(dataLunga(rp.dal))) + (rp.al > rp.dal ? ' fino a ' + esc(dataLunga(rp.al)) : '') + ': <b>' + esc(rp.nome || 'il cantiere') + '</b> · <a href="tel:' + esc(String(rp.tel).replace(/[^\d+]/g, '')) + '">' + esc(rp.tel) + '</a></p></div>';
-    if (!CL.ids.length) h += '<div class="card"><p style="margin:0">Il cantiere sta collegando la tua barca al tuo account. Appena fatto, la trovi qui.</p></div>';
+    if (!CL.ids.length) h += '<div class="card"><p style="margin:0">' + pt('Il cantiere sta collegando la tua barca al tuo account. Appena fatto, la trovi qui.', 'L’officina sta collegando il tuo veicolo al tuo account. Appena fatto, compare qui.', 'L’azienda sta collegando i tuoi dati al tuo account. Appena fatto, compaiono qui.') + '</p></div>';
     // computer e tablet: una scheda per barca in alto e sotto i riquadri; sul telefono le barche restano una sotto l'altra
     var tab = CL.ids.indexOf(CL.tab) >= 0 ? CL.tab : CL.ids[0];
     if (CL.ids.length > 1) h += '<div class="btabs" role="tablist">' + CL.ids.map(function (id) {
@@ -1888,7 +1896,7 @@
       var d = CL.docs[id], on = id === tab ? ' on' : '';
       var cs = function (x, c) { return x ? '<div class="cs' + (c ? ' ' + c : '') + '">' + x + '</div>' : ''; };
       if (d === undefined) { h += '<div class="card bc' + on + '"><div class="spin" style="margin:10px auto"></div></div>'; return; }
-      if (!d) { h += '<div class="card bc' + on + '"><p style="margin:0">Stiamo preparando i dati di questa barca: tra poco li vedi qui.</p></div>'; return; }
+      if (!d) { h += '<div class="card bc' + on + '"><p style="margin:0">' + pt('Stiamo preparando i dati di questa barca: tra poco li vedi qui.', 'Stiamo preparando i dati di questo veicolo: tra poco li vedi qui.', 'Stiamo preparando i tuoi dati: tra poco li vedi qui.') + '</p></div>'; return; }
       var st = d.stato || 'In rimessaggio', cls = st === 'In acqua' ? 'acqua' : st === 'In lavorazione' ? 'lav' : '';
       var lav = d.lavori || [], open = CL.all[id], show = open ? lav : lav.slice(0, 8);
       var img = function (f) { if (!PH[f]) setTimeout(function () { loadPhoto(f); }, 0); return '<img alt="" data-blob="' + esc(f) + '" src="' + esc(PH[f] || 'data:image/gif;base64,R0lGODlhAQABAAAAACw=') + '">'; };
@@ -1910,10 +1918,34 @@
       if (d.cr) body = crBody(id, d, cs, img, { depo: cDepo, av: cAv, lav: cLav });
       else body = '<div class="cg">' + cs(cDepo) + cAv + cs(scCard(id, d)) + cs(d.richieste ? rqCard(id) : '') + cs(oreCard(id, d), 'cso') + cs(cLav) + '</div>';
       h += '<div class="card bc full' + on + '"><div class="bt"><div class="bh"><div><div class="bn">' + esc(d.nome || 'Barca') + '</div><div class="bm">' + esc([d.modello, d.lunghezza ? String(d.lunghezza).replace('.', ',') + ' m' : ''].filter(Boolean).join(' · ')) + '</div></div>' +
-        '<span class="st ' + cls + '">' + esc(st) + '</span></div>' +
+        (setCl() === 'impianti' ? '' : '<span class="st ' + cls + '">' + esc(st) + '</span>') + '</div>' +
         doveCl(d) + '</div>' + body +
         (d.aggiornato ? '<div class="upd">Aggiornato il ' + esc(quando(d.aggiornato)) + '</div>' : '') + '</div>';
     });
+    var conCr = CL.ids.some(function (id) { return CL.docs[id] && CL.docs[id].cr; }), conOre = CL.ids.some(function (id) { return CL.docs[id] && CL.docs[id].ore; });
+    var GL = setCl() === 'officina' ? [
+      'Per ogni tuo veicolo vedi lo stato (in deposito, in lavorazione, consegnato) e se è all’officina.',
+      conCr ? 'Sotto il nome del veicolo ci sono le schede: Cruscotto (stato del veicolo e prossimi tagliandi), Scadenze, Deposito, Foto e storia e Lavori fatti. Alcune compaiono solo se l’officina le mostra.' : '',
+      'Se l’officina tiene in deposito cose tue (gomme, portapacchi, seggiolini…), le vedi con le foto. Sotto ci sono i lavori eseguiti, con la data.',
+      conOre ? 'In «Ore di lavoro» vedi quante ore ha lavorato l’officina sul tuo veicolo, divise per tipo di lavoro: tocca un tipo per leggere giorno per giorno cosa è stato fatto, come l’ha scritto chi ci ha lavorato, con il suo nome. Ci sono le giornate già confermate dal dipendente. Sopra scegli l’anno.' : '',
+      'Se l’officina sta facendo i lavori di un preventivo, vedi quali sono fatti e quali mancano.',
+      'Con «Chiedi all’officina» puoi dire il giorno in cui vuoi ritirare il veicolo o segnalare un problema con le foto: sotto vedi se è stata ricevuta e confermata.',
+      'Se l’officina le mostra, vedi anche le scadenze del veicolo (tagliando, revisione, bollo…): con «Richiedi il lavoro» lo chiedi all’officina senza telefonare.',
+      'Se l’officina ha un reperibile per il fine settimana o i festivi, in alto vedi chi è e il numero da chiamare per le urgenze.',
+      'La pagina si aggiorna da sola pochi secondi dopo ogni modifica dell’officina.', 'Se manca un veicolo o qualcosa non torna, chiama l’officina.'
+    ] : setCl() === 'impianti' ? [
+      'Qui vedi i lavori che l’azienda ha fatto per te e quelli in corso.',
+      conCr ? 'Ci sono le schede: Cruscotto (stato degli impianti e prossime manutenzioni), Scadenze, Foto e storia e Lavori fatti. Alcune compaiono solo se l’azienda le mostra.' : '',
+      'Sotto ci sono i lavori eseguiti, con la data.',
+      conOre ? 'In «Ore di lavoro» vedi quante ore ha lavorato l’azienda per te, divise per tipo di lavoro: tocca un tipo per leggere giorno per giorno cosa è stato fatto, come l’ha scritto chi ci ha lavorato, con il suo nome. Ci sono le giornate già confermate dal dipendente. Sopra scegli l’anno.' : '',
+      'Se l’azienda sta facendo i lavori di un preventivo, vedi quali sono fatti e quali mancano.',
+      'Con «Chiedi all’azienda» puoi chiedere un intervento per un giorno o segnalare un problema con le foto: sotto vedi se è stata ricevuta e confermata.',
+      'Se l’azienda le mostra, vedi anche le tue scadenze (manutenzione della caldaia, controllo fumi…): con «Richiedi il lavoro» lo chiedi all’azienda senza telefonare.',
+      'Se l’azienda ha un reperibile per il fine settimana o i festivi, in alto vedi chi è e il numero da chiamare per le urgenze.',
+      'La pagina si aggiorna da sola pochi secondi dopo ogni modifica dell’azienda.', 'Se qualcosa non torna, chiama l’azienda.'
+    ] : null;
+    if (GL) h += '<details class="gd"><summary>? Come funziona questa pagina</summary><ul>' + GL.filter(Boolean).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></details>';
+    else
     h += '<details class="gd"><summary>? Come funziona questa pagina</summary><ul>' +
       '<li>Per ogni tua barca vedi lo stato (in rimessaggio, in lavorazione, in acqua, consegnata) e dove si trova: al cantiere o al suo posto in porto.</li>' +
       (CL.ids.some(function (id) { return CL.docs[id] && CL.docs[id].cr; }) ? '<li>Sotto il nome della barca ci sono le schede: Cruscotto (ore dei motori, giorni al varo, stato della barca e prossimi tagliandi), Motori (ore, storico e tagliandi), Attrezzatura (dotazioni, componenti e batterie), Scadenze, Deposito, Foto e storia e Lavori fatti. Alcune compaiono solo se il cantiere le mostra.</li>' : '') +

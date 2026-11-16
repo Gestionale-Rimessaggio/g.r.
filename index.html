@@ -87,7 +87,7 @@ window.NM_MARCA = (function () {
     var lp = typeof d.lat === 'number' && typeof d.lon === 'number' ? d : typeof b.lat === 'number' && typeof b.lon === 'number' ? b : {};
     r.luogo = lp.luogo || ''; r.lat = typeof lp.lat === 'number' ? lp.lat : null; r.lon = typeof lp.lon === 'number' ? lp.lon : null; r.sigla = lp === b ? b.sigla || '' : '';
     r.colore1 = scuro(hex(r.colore1) || DEF.colore1, .2); r.colore2 = scuro(hex(r.colore2) || DEF.colore2, .06);
-    r.nome = String(r.nome).trim().slice(0, 60) || DEF.nome;
+    r.nome = String(r.nome === DEF.nome && SETT ? '' : r.nome).trim().slice(0, 60) || (SETT ? 'Gestionale' : DEF.nome); // officina e impianti: senza nome scelto niente «Rimessaggio» nella scritta
     if (!r.logo) r.logo = logoNeutro(r.nome);
     if (!r.scritta) r.scritta = scrittaNeutra(r.nome);
     return r;
@@ -104,7 +104,7 @@ window.NM_MARCA = (function () {
     Object.keys(v).forEach(function (k) { if (base) st.removeProperty(k); else st.setProperty(k, v[k]); });
     var tc = document.querySelector('meta[name="theme-color"]');
     if (tc) { if (!tc.hasAttribute('data-orig')) tc.setAttribute('data-orig', tc.content); tc.content = base ? tc.getAttribute('data-orig') : cur.colore2; }
-    document.title = cur.nome + ' – Gestionale cantiere';
+    document.title = cur.nome + ' – ' + (SETT === 'officina' ? 'Gestionale officina' : SETT === 'impianti' ? 'Gestionale lavori' : 'Gestionale cantiere'); // il nome nella scheda del browser parla il mestiere
     var at = document.querySelector('meta[name="apple-mobile-web-app-title"]'); if (at) at.content = cur.nome; // nome dell'app aggiunta alla Home dell'iPhone
     img('logo-src', cur.logo); img('scritta-src', cur.scritta);
     try { document.dispatchEvent(new CustomEvent('nm-marca')); } catch (e) { }
@@ -113,6 +113,7 @@ window.NM_MARCA = (function () {
   return {
     DEF: DEF, hex: hex, colori: colori, scuro: scuro,
     nome: function () { return cur.nome; },
+    scelto: function () { return !!String((db && db.nome) || (window.NM_ASPETTO || {}).nome || '').trim(); }, // l'azienda ha scritto il suo nome in Aspetto
     get: function () { return cur; },
     logo: function () { var el = document.getElementById('logo-src'); return el ? el.getAttribute('src') : ''; },
     // nuove scelte dal database (o null = nessuna): si applicano e si ricordano sul dispositivo
@@ -2114,7 +2115,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       posto: function (r) { return String(r.b.posto || '~'); }, nome: function (r) { return String(r.b.nome || ''); }, modello: function (r) { return String(r.b.modello || '~'); }, lung: function (r) { return num(r.b.lunghezza); }, prop: function (r) { return String(r.b.proprietario || '~'); },
       ore: function (r) { return num(r.b.oreMotore); }, scad: function (r) { return r.n ? r.n.i.rank * 1e6 + r.n.i.key : null; }, lav: function (r) { return r.lav; } }[k];
     rows.sort(function (a, c) { var x = key(a), y = key(c); if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1; return (typeof x === 'number' ? x - y : x.localeCompare(y, 'it', { numeric: true, sensitivity: 'base' })) * dir; });
-    var cols = SX === 'officina' ? [['posto', 'Posto'], ['nome', 'Targa o nome'], ['modello', 'Marca e modello'], ['km', 'Km', 1], ['prop', 'Proprietario'], ['anno', 'Anno', 1], ['scad', 'Prossima scadenza'], ['lav', 'Lavori aperti', 1]]
+    var cols = SX === 'officina' ? (PORTO_ON() ? [['posto', 'Posto']] : []).concat([['nome', 'Targa o nome'], ['modello', 'Marca e modello'], ['km', 'Km', 1], ['prop', 'Proprietario'], ['anno', 'Anno', 1], ['scad', 'Prossima scadenza'], ['lav', 'Lavori aperti', 1]])
       : SX === 'impianti' ? [['nome', 'Cliente'], ['ind', 'Indirizzo'], ['tel', 'Telefono'], ['scad', 'Prossima scadenza'], ['lav', 'Lavori aperti', 1]]
       : [['posto', 'Posto'], ['nome', 'Barca'], ['modello', 'Modello'], ['lung', 'Lungh.', 1], ['prop', 'Proprietario'], ['ore', 'Ore motore', 1], ['scad', 'Prossima scadenza'], ['lav', 'Lavori aperti', 1]];
     var h = chips + '<div class="group tb-wrap" style="margin-top:12px"><table class="tb tb-click"><thead><tr>' + cols.map(function (c) {
@@ -2122,7 +2123,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     }).join('') + '</tr></thead><tbody>' + rows.map(function (r) {
       var b = r.b, n = r.n;
       return '<tr data-act="open-boat" data-id="' + esc(b.id) + '">' + (SX === 'impianti' ? '<td><b>' + esc(b.nome || 'Senza nome') + '</b></td><td>' + esc(b.indirizzo || '') + '</td><td>' + esc(b.telefono || '') + '</td>'
-        : '<td><span class="posto' + (b.posto ? '' : ' empty') + '">' + esc(b.posto || '–') + '</span></td><td><b>' + esc(b.nome || 'Senza nome') + '</b></td><td>' + esc(b.modello || '') + '</td>' +
+        : (SX === 'officina' && !PORTO_ON() ? '' : '<td><span class="posto' + (b.posto ? '' : ' empty') + '">' + esc(b.posto || '–') + '</span></td>') + '<td><b>' + esc(b.nome || 'Senza nome') + '</b></td><td>' + esc(b.modello || '') + '</td>' +
         (SX === 'officina' ? '<td class="n">' + (num(b.km) != null ? fmtNum(b.km) : '') + '</td><td>' + esc(b.proprietario || '') + '</td><td class="n">' + esc(b.anno || '') + '</td>'
           : '<td class="n">' + (num(b.lunghezza) != null ? fmtNum(b.lunghezza, 2) + ' m' : '') + '</td><td>' + esc(b.proprietario || '') + '</td><td class="n">' + (num(b.oreMotore) != null ? fmtNum(b.oreMotore) : '') + '</td>')) +
         '<td>' + (n ? '<span class="pill ' + n.i.level + '" title="' + esc(n.s.tipo || '') + '">' + esc(n.i.level === 'late' ? 'Scaduta' : n.i.text) + '</span> <span class="cap">' + esc(n.s.tipo || '') + '</span>' : '') + '</td><td class="n">' + (r.lav || '') + '</td></tr>';
@@ -2230,9 +2231,12 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (S.dl === undefined) { try { S.dl = (await CLD().use('downloads')) || null; } catch (e) { S.dl = null; } }
     if (!S.dl) { toast('Da qui non si possono scaricare file.', true); return; }
     var cp = cpList(), col = function (i) { return (i >= 26 ? String.fromCharCode(64 + Math.floor(i / 26)) : '') + String.fromCharCode(65 + i % 26); };
-    var H = ['Nome della barca', 'Modello', 'Tipo', 'Lunghezza (m)', 'Anno', 'Matricola o targa', 'Posto', 'Stato', 'Proprietario (cliente)', 'Telefono', 'Email'].concat(cp.map(function (c) { return c.nome; })).map(vocT);
+    var SX = settore(), CO = SX === 'officina' ? [['Targa o nome del veicolo', 'nome'], ['Marca e modello', 'modello'], ['Tipo', 'tipo'], ['Km', 'km', 'n'], ['Alimentazione', 'alim'], ['Telaio', 'telaio'], ['Prossima revisione', 'revisione', 'd'], ['Anno', 'anno'], ['Stato', 'stato'], ['Proprietario (cliente)', 'proprietario'], ['Telefono', 'telefono'], ['Email', 'email']]
+      : SX === 'impianti' ? [['Nome del cliente', 'nome'], ['Tipo di cliente', 'tipo'], ['Indirizzo', 'indirizzo'], ['Codice fiscale o partita IVA', 'piva'], ['Telefono', 'telefono'], ['Email', 'email'], ['Impianti e apparecchi', 'impianti']] : null;
+    var H = (CO ? CO.map(function (c) { return c[0]; }) : ['Nome della barca', 'Modello', 'Tipo', 'Lunghezza (m)', 'Anno', 'Matricola o targa', 'Posto', 'Stato', 'Proprietario (cliente)', 'Telefono', 'Email']).concat(cp.map(function (c) { return c.nome; })).map(vocT);
     var rows = [H].concat(S.boats.slice().sort(byName).map(function (b) {
-      return [b.nome || '', b.modello || '', b.tipo || '', num(b.lunghezza) != null ? num(b.lunghezza) : '', b.anno || '', b.immatricolazione || '', Porto.berthLabel(b.id) || b.posto || '', b.stato || '', b.proprietario || '', b.telefono || '', b.email || '']
+      return (CO ? CO.map(function (c) { var v = b[c[1]]; return c[2] === 'n' ? (num(v) != null ? num(v) : '') : c[2] === 'd' ? (v ? fmtDate(v) : '') : v == null ? '' : String(v); })
+        : [b.nome || '', b.modello || '', b.tipo || '', num(b.lunghezza) != null ? num(b.lunghezza) : '', b.anno || '', b.immatricolazione || '', Porto.berthLabel(b.id) || b.posto || '', b.stato || '', b.proprietario || '', b.telefono || '', b.email || ''])
         .concat(cp.map(function (c) { var v = cpVal(b, c); return c.tipo === 'numero' && typeof v === 'number' ? v : cpTxt(c, v); }));
     }));
     var xml = rows.map(function (r, i) {
@@ -2249,6 +2253,23 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['larghezza', 'Larghezza (m)', /largh|baglio|^b\.?$/], ['anno', 'Anno', /^anno|costruzion/], ['immatricolazione', 'Matricola o targa', /matricol|targa|immatric|sigla/],
     ['proprietario', 'Proprietario (cliente)', /propriet|cliente|armator|intestat|nominativ|ragione soc/], ['telefono', 'Telefono', /tel|cell|mobile/], ['email', 'Email', /mail/],
     ['posto', 'Posto', /posto|ormeggio|banchina|stallo/], ['stato', 'Stato', /^stato|situazion/], ['note', 'Note', /note|annotaz/]];
+  // Officina e Impianti: le colonne del veicolo o del cliente (le stesse dell'Excel in uscita, così un file esportato si rilegge)
+  var XL_CAMPI_SETT = {
+    officina: [['nome', 'Targa o nome del veicolo', /^(targa( o nome( del veicolo)?)?|nome( del veicolo)?|veicolo|mezzo)$/], ['modello', 'Marca e modello', /modell|marca/],
+      ['tipo', 'Tipo (auto, moto, camper…)', /^tipo|categori/], ['km', 'Km', /^km|chilometr|percorrenz/], ['alim', 'Alimentazione', /alimentaz|carburant/], ['telaio', 'Telaio', /telaio|^vin$/],
+      ['revisione', 'Prossima revisione', /revision/], ['anno', 'Anno', /^anno|immatricolaz/], ['proprietario', 'Proprietario (cliente)', /propriet|cliente|intestat|nominativ|ragione soc/],
+      ['telefono', 'Telefono', /^tel(?!aio)|cell|mobil/], ['email', 'Email', /mail/], ['posto', 'Posto', /posto|box|stallo/], ['stato', 'Stato', /^stato|situazion/], ['note', 'Note', /note|annotaz/]],
+    impianti: [['nome', 'Nome del cliente', /^(nome( del cliente| e cognome)?|cliente|nominativo|ragione sociale|denominazione)$/], ['tipo', 'Tipo di cliente', /^tipo/],
+      ['indirizzo', 'Indirizzo', /indirizz|^via|residenz|ubicaz/], ['piva', 'Codice fiscale o partita IVA', /fiscal|p ?iva|partita/], ['telefono', 'Telefono', /^tel(?!aio)|cell|mobil/], ['email', 'Email', /mail/],
+      ['impianti', 'Impianti e apparecchi', /impiant|apparecch|caldai/], ['note', 'Note', /note|annotaz/]]
+  };
+  function xlCampi() { return XL_CAMPI_SETT[settore()] || XL_CAMPI; }
+  function xlData(t) { // una data scritta (31/12/2026) o come numero di Excel (46022) in AAAA-MM-GG
+    t = String(t || '').trim(); if (!t) return '';
+    if (/^\d{5}(\.0+)?$/.test(t)) return new Date(Date.UTC(1899, 11, 30) + parseInt(t, 10) * 864e5).toISOString().slice(0, 10);
+    var m = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/.exec(t); if (m) return (m[3].length === 2 ? '20' + m[3] : m[3]) + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+    return /^\d{4}-\d{2}-\d{2}/.test(t) ? t.slice(0, 10) : '';
+  }
   async function xlUnzip(buf) {
     var u8 = new Uint8Array(buf), dv = new DataView(buf), e = u8.length - 22;
     while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
@@ -2311,7 +2332,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         '<label class="btn self-start">' + I.dl + 'Scegli il file<input type="file" id="xl-f" accept=".xlsx,.csv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" class="vh"></label><p class="form-err" id="xl-e" hidden></p>';
       var H = X.rows[X.head], dati = X.rows.slice(X.head + 1).filter(function (r) { return r.some(function (c) { return String(c).trim(); }); });
       var h = '<p class="context">Ho trovato <b>' + dati.length + ' righe</b>. Per ogni campo scegli la colonna del file (ho provato a indovinarle dai titoli). Solo il nome della barca è obbligatorio.</p>';
-      h += XL_CAMPI.concat(cpList().map(function (c) { return ['cp:' + c.id, c.nome, new RegExp('^' + xlNorm(c.nome).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$')]; })).map(function (c) {
+      h += xlCampi().concat(cpList().map(function (c) { return ['cp:' + c.id, c.nome, new RegExp('^' + xlNorm(c.nome).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$')]; })).map(function (c) {
         var g = -1; H.forEach(function (t, i) { if (g < 0 && c[2].test(xlNorm(t))) g = i; });
         return field(lab('xl-c-' + c[0], c[1]), '<select id="xl-c-' + c[0] + '" class="xl-c" data-k="' + c[0] + '"><option value="">— nessuna —</option>' + H.map(function (t, i) { return '<option value="' + i + '"' + (i === g ? ' selected' : '') + '>' + esc(String(t || 'Colonna ' + (i + 1)).slice(0, 40)) + '</option>'; }).join('') + '</select>');
       }).join('');
@@ -2324,18 +2345,31 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       X.rows.slice(X.head + 1).forEach(function (r) {
         var g = function (k) { return m[k] == null ? '' : String(r[m[k]] == null ? '' : r[m[k]]).trim(); }, nome = g('nome');
         if (!nome) return; if (noti[xlNorm(nome)]) { salt++; return; } noti[xlNorm(nome)] = 1;
-        var tipo = g('tipo'), st = g('stato'), tp = TIPI_BARCA.filter(function (t) { return xlNorm(t) === xlNorm(tipo); })[0] || (/vel/i.test(tipo) ? 'Vela' : /gomm|rib/i.test(tipo) ? 'Gommone' : tipo ? 'Motore' : '');
+        var tipo = g('tipo'), st = g('stato'), SX = settore();
+        var cpv = cpList().reduce(function (o, c) { var v = cpConv(c, g('cp:' + c.id).replace(/\.0$/, '')); if (v != null) o[c.id] = v; return o; }, {});
+        if (SX === 'officina' || SX === 'impianti') {
+          var tl = TIPI_SETT[SX], tq = tl.filter(function (t) { return xlNorm(t) === xlNorm(tipo); })[0] || (tipo ? 'Altro' : '');
+          var o = { nome: nome, tipo: tq, telefono: g('telefono').replace(/\.0$/, ''), email: g('email'), note: g('note'), campi: cpv };
+          if (SX === 'officina') {
+            var al = g('alim'), km = g('km').replace(/[^0-9]/g, '');
+            Object.assign(o, { modello: g('modello'), km: km ? parseInt(km, 10) : null, alim: ALIM.filter(function (a) { return a && xlNorm(a) === xlNorm(al); })[0] || al, telaio: g('telaio').toUpperCase(), revisione: xlData(g('revisione')),
+              anno: g('anno').replace(/\.0$/, ''), proprietario: g('proprietario'), posto: g('posto'),
+              stato: /consegn/i.test(st) ? 'Consegnata' : /lavoraz/i.test(st) ? 'In lavorazione' : /deposit|rimessag/i.test(st) ? 'In rimessaggio' : '' });
+          } else Object.assign(o, { indirizzo: g('indirizzo'), piva: g('piva').toUpperCase(), impianti: g('impianti'), proprietario: nome });
+          out.push(o); return;
+        }
+        var tp = TIPI_BARCA.filter(function (t) { return xlNorm(t) === xlNorm(tipo); })[0] || (/vel/i.test(tipo) ? 'Vela' : /gomm|rib/i.test(tipo) ? 'Gommone' : tipo ? 'Motore' : '');
         out.push({ nome: nome, modello: g('modello'), tipo: tp, stato: STATI_BARCA.filter(function (s) { return xlNorm(s) === xlNorm(st); })[0] || '',
           lunghezza: parseDec(g('lunghezza').replace(/\s*m$/i, '')), larghezza: parseDec(g('larghezza').replace(/\s*m$/i, '')), anno: g('anno').replace(/\.0$/, ''), immatricolazione: g('immatricolazione'),
           proprietario: g('proprietario'), telefono: g('telefono').replace(/\.0$/, ''), email: g('email'), posto: g('posto'), note: g('note'),
-          campi: cpList().reduce(function (o, c) { var v = cpConv(c, g('cp:' + c.id).replace(/\.0$/, '')); if (v != null) o[c.id] = v; return o; }, {}) });
+          campi: cpv });
       });
       return { barche: out, saltate: salt };
     }
     function anteprima(f) {
       var x = barcheDa(f), pv = f.querySelector('#xl-pv'); if (!pv) return;
       pv.innerHTML = (x.barche.length ? '<div class="group">' + x.barche.slice(0, 5).map(function (b) {
-        return '<div class="row"><span class="main"><span class="title">' + esc(b.nome) + '</span><span class="sub">' + esc([b.modello, b.lunghezza ? fmtNum(b.lunghezza, 2) + ' m' : '', b.proprietario, b.telefono, b.posto].filter(Boolean).join(' · ')) + '</span></span></div>'; }).join('') + '</div>' : '<div class="notice">Nessuna barca da aggiungere: scegli la colonna del nome.</div>') +
+        return '<div class="row"><span class="main"><span class="title">' + esc(b.nome) + '</span><span class="sub">' + esc((settore() === 'impianti' ? [b.indirizzo, b.telefono] : settore() === 'officina' ? [b.modello, b.km != null ? fmtNum(b.km) + ' km' : '', b.proprietario, b.telefono] : [b.modello, b.lunghezza ? fmtNum(b.lunghezza, 2) + ' m' : '', b.proprietario, b.telefono, b.posto]).filter(Boolean).join(' · ')) + '</span></span></div>'; }).join('') + '</div>' : '<div class="notice">Nessuna barca da aggiungere: scegli la colonna del nome.</div>') +
         '<p class="cap" style="margin:8px 2px 0">Aggiungo <b>' + x.barche.length + '</b> barche' + (x.barche.length > 5 ? ' (qui sopra le prime 5)' : '') + '.' + (x.saltate ? (x.saltate === 1 ? ' Una ha un nome già presente nell’app e la salto.' : ' ' + x.saltate + ' hanno un nome già presente nell’app e le salto.') : '') + '</p>';
       var sv = $('#sheet-save'); if (sv) sv.textContent = x.barche.length ? 'Aggiungi ' + x.barche.length : 'Aggiungi';
     }
@@ -2359,7 +2393,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
           var now = new Date().toISOString(), n = 0;
           for (var i = 0; i < x.barche.length; i++) {
             var d = x.barche[i], data = {}; Object.keys(d).forEach(function (k) { if (d[k] !== '' && d[k] != null) data[k] = d[k]; });
-            data.daCompletare = !(d.lunghezza && d.proprietario); data.importata = now; data.creato = data.modificato = now;
+            data.daCompletare = settore() === 'officina' ? !(d.modello && d.proprietario) : settore() === 'impianti' ? !d.indirizzo : !(d.lunghezza && d.proprietario); data.importata = now; data.creato = data.modificato = now;
             var ref = S.db.collection('barche').doc(), ok = await w(function () { return ref.set(data); }); if (!ok) break; n++;
             if (d.posto && PORTO_ON() && Porto.libero(d.posto)) await Porto.assign(d.posto, ref.id);
           }
@@ -2608,7 +2642,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     function media(l) { return l.length ? Math.round(l.reduce(function (a, x) { return a + x; }, 0) / l.length) : null; }
     var lvl = function (x) { return x.i.level === 'late' ? 0 : x.i.level === 'soon' ? 60 : 100; };
     var isT = function (x) { return num(x.s.oreScadenza) != null || num(x.s.ricorrenzaOre) != null || /tagliand|olio|filtr|girant|motor|generator/i.test(x.s.tipo || ''); };
-    var t = media(sc.filter(isT).map(lvl)); if (t != null) v.push(['Tagliandi motori', t, 'mo']);
+    var t = media(sc.filter(isT).map(lvl)); if (t != null) v.push(naut() ? ['Tagliandi motori', t, 'mo'] : ['Tagliandi', t, 'sc']); // fuori dalla Nautica la scheda Motori non c'è
     var d = media(sc.filter(function (x) { return !isT(x); }).map(lvl)); if (d != null) v.push(['Scadenze e documenti', d, 'sc']);
     var oggi = todayISO(), la = S.lavori.filter(function (l) { return l.barcaId === b.id && l.stato !== 'fatto' && !l.annullata && l.fonte !== 'scheda'; });
     if (la.length) v.push(['Lavori nei tempi', Math.round(100 * la.filter(function (l) { var z = sbLavDate(l).z; return !z || z >= oggi; }).length / la.length), 'la']);
@@ -2907,7 +2941,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       batt: bi && bi.n > 0 ? { n: bi.n, d: bi.d, late: !!bi.late } : null,
       scad: openScad(bid).slice(0, 20).map(function (x) { return { t: x.s.tipo || 'Scadenza', m: x.s.modello || '', txt: x.i.text, lv: x.i.level }; }),
       foto: (b.foto || []).slice(0, 30),
-      verbali: vbOn() ? vbOf(bid).slice(0, 10).map(function (v) { return { t: v.tipo === 'uscita' ? 'uscita' : 'ingresso', d: v.data || '', o: v.oreMotore != null && v.oreMotore !== '' ? String(v.oreMotore) : '', foto: (v.foto || []).slice(0, 6) }; }) : [],
+      verbali: vbOn() ? vbOf(bid).slice(0, 10).map(function (v) { return { t: v.tipo === 'uscita' ? 'uscita' : 'ingresso', d: v.data || '', o: v.oreMotore != null && v.oreMotore !== '' ? String(v.oreMotore) : '', k: v.km != null && v.km !== '' ? String(v.km) : '', foto: (v.foto || []).slice(0, 6) }; }) : [],
       vari: S.vari.filter(function (v) { return v.barcaId === bid && v.fatto; }).sort(function (x, y) { return String(y.fattoIl || y.data || '').localeCompare(String(x.fattoIl || x.data || '')); }).slice(0, 12)
         .map(function (v) { return { t: TIPI_V[v.tipo] || 'Movimento', d: v.fattoIl || v.data || '' }; })
     };
@@ -2968,8 +3002,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       (sv.length ? '<div class="stack">' + sv.map(function (x) { return '<div><b>' + esc(x[0]) + '</b><span>' + esc(x[1]) + '</span></div>'; }).join('') + '</div>' : '<span class="cap">' + (naut() ? 'Aggiungi lunghezza, anno e potenza con la matita in alto' : settore() === 'officina' ? 'Aggiungi anno, km e revisione con la matita in alto' : 'Aggiungi indirizzo e impianti con la matita in alto') + '</span>') + '</div>';
     P.da += '<div class="tiles" style="margin-top:14px"><div style="grid-column:1/-1">' + schedaTile + '</div></div>';
     var onMap = !!(boatPos(b) && boatDims(b)), berth = Porto.berthLabel(b.id);
-    P.fo += '<div class="grid2" style="margin-top:14px"><button type="button" class="btn sec" data-act="res-open">' + I.doc + 'Resoconto</button>' +
-      (berth && !onMap ? '<button type="button" class="btn sec" data-act="go-porto" data-id="' + esc(berth) + '">' + I.map + 'Al porto · ' + esc(berth) + '</button>' : '<button type="button" class="btn sec" data-act="go-map" data-id="' + esc(b.id) + '">' + I.map + (onMap ? 'Sulla mappa' : 'Posiziona') + '</button>') + '</div>' +
+    P.fo += '<div' + (naut() || veicolo() || berth ? ' class="grid2"' : '') + ' style="margin-top:14px"><button type="button" class="btn sec" data-act="res-open"' + (naut() || veicolo() || berth ? '' : ' style="width:100%"') + '>' + I.doc + 'Resoconto</button>' +
+      (berth && !onMap ? '<button type="button" class="btn sec" data-act="go-porto" data-id="' + esc(berth) + '">' + I.map + 'Al porto · ' + esc(berth) + '</button>' : naut() || veicolo() ? '<button type="button" class="btn sec" data-act="go-map" data-id="' + esc(b.id) + '">' + I.map + (onMap ? 'Sulla mappa' : 'Posiziona') + '</button>' : '') + '</div>' +
       '<button type="button" class="btn sec" data-act="storia-open" style="width:100%;margin-top:10px">' + I.hours + 'Storia della barca</button>';
 
     var fotoB = (b.foto || []).map(function (id) { return { id: id, boat: true }; });
@@ -3042,8 +3076,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     }
 
     var vb = variOpen(b.id);
+    if (sezOn('vari') || vb.length) {
     P.sc += secH('Vari e alaggi', S.canWrite ? 'new-vari' : '', '+ Programma', ' data-boat="' + esc(b.id) + '"');
     P.sc += vb.length ? '<div class="group">' + vb.map(function (v) { return variRow(v, false); }).join('') + '</div>' : '<div class="notice">Nessun varo o alaggio in programma.</div>';
+    }
 
     var sc = openScad(b.id), scDone = S.scadenze.filter(function (s) { return s.fatta && s.barcaId === b.id; });
     P.sc += secH('Scadenze', S.canWrite ? 'new-scad' : '', '+ Aggiungi', ' data-boat="' + esc(b.id) + '"');
@@ -3054,7 +3090,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (bops) P.lx += secH('Servizi', S.canWrite ? 'new-op' : '', '+ Nuovo', ' data-boat="' + esc(b.id) + '"');
     if (bops) P.lx += bops.length ? '<div class="group">' + bops.slice(0, 6).map(function (o) { return opRow(o, false); }).join('') + '</div>' : '<div class="notice">Nessun servizio per questa barca.</div>';
 
-    P.da += secH('Trasporto: passa?') + passaHtml(b);
+    if (naut()) P.da += secH('Trasporto: passa?') + passaHtml(b); // la barca sul carrello tra portoni e strade: solo Nautica
     var pvs = prevOn() ? prevOfBoat(b.id) : null;
     if (pvs) P.lx += secH('Preventivi', S.canWrite ? 'prev-new' : '', '+ Nuovo', ' data-boat="' + esc(b.id) + '"');
     if (pvs) P.lx += pvs.length ? '<div class="group">' + pvs.slice(0, 5).map(function (p) { return prevRow(p, false); }).join('') + '</div>' : '<div class="notice">Nessun preventivo per questa barca.</div>';
@@ -3075,7 +3111,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     } else P.la += '<div class="notice">Nessun lavoro registrato.</div>';
     if (vbOn()) P.fo += '<button type="button" class="btn sec" data-act="vb-list" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">' + I.camera + 'Verbale di presa in carico' + (vbOf(b.id).length ? ' · ' + vbOf(b.id).length : '') + '</button>';
     if (sezOn('qrbarca')) P.da += '<button type="button" class="btn sec" data-act="boat-qr" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">' + I.doc + 'Etichetta QR da attaccare alla barca</button>';
-    if (S.canWrite) P.da += '<button type="button" class="btn sec" data-act="boat-sold" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">Barca venduta: cambia proprietario</button>' + (b.proprietari && b.proprietari.length ? '<p class="cap" style="margin:6px 4px 0">Proprietari di prima: ' + esc(b.proprietari.map(function (x) { return x.nome + (x.fino ? ' (fino al ' + fmtDate(x.fino) + ')' : ''); }).join(', ')) + '</p>' : '');
+    if (S.canWrite && settore() !== 'impianti') P.da += '<button type="button" class="btn sec" data-act="boat-sold" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">Barca venduta: cambia proprietario</button>' + (b.proprietari && b.proprietari.length ? '<p class="cap" style="margin:6px 4px 0">Proprietari di prima: ' + esc(b.proprietari.map(function (x) { return x.nome + (x.fino ? ' (fino al ' + fmtDate(x.fino) + ')' : ''); }).join(', ')) + '</p>' : '');
     if (S.isOwner && S.canWrite && S.boats.length > 1) P.da += '<button type="button" class="btn sec" data-act="boat-merge" data-id="' + esc(b.id) + '" style="width:100%;margin-top:22px">Unisci con un’altra barca</button><p class="cap" style="margin:6px 4px 0">Solo per l’amministratore: se questa barca ha una scheda doppia.</p>';
     return h + sbHtml(b, P);
   }
@@ -3537,7 +3573,14 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   var CAT_DEF = CATEGORIE.slice();
   /* Pacchetto di partenza (idea N12): al primo ingresso dell'amministratore di un'azienda vuota mette categorie, checklist,
      tipi di scadenze e rifiuti preparati dal gestore (pacchetto/attuale, in nm-fb.js). Una volta sola: lo segna in impostazioni/pacchetto. */
-  function tipiScad() { var x = S.pacCfg && !S.pacCfg._del && Array.isArray(S.pacCfg.tipiScadenza) ? S.pacCfg.tipiScadenza : []; return TIPI_SCADENZA.concat(x.filter(function (t) { return TIPI_SCADENZA.indexOf(t) < 0; })); }
+  // negli altri settori i tipi proposti sono i loro (quelli nautici restano solo se già scritti in una scadenza)
+  var TIPI_SCAD_SETT = { officina: ['Tagliando', 'Revisione', 'Cambio gomme', 'Assicurazione', 'Bollo', 'Cinghia di distribuzione', 'Ricarica clima', 'Fine deposito gomme'],
+    impianti: ['Manutenzione caldaia', 'Controllo fumi', 'Manutenzione condizionatore', 'Verifica impianto elettrico', 'Verifica messa a terra', 'Estintori', 'Fine contratto di manutenzione', 'Garanzia'] };
+  function tipiScad() {
+    var x = S.pacCfg && !S.pacCfg._del && Array.isArray(S.pacCfg.tipiScadenza) ? S.pacCfg.tipiScadenza : [], base = TIPI_SCAD_SETT[settore()];
+    if (base) return base.concat(x.filter(function (t) { return base.indexOf(t) < 0 && TIPI_SCADENZA.indexOf(t) < 0; }));
+    return TIPI_SCADENZA.concat(x.filter(function (t) { return TIPI_SCADENZA.indexOf(t) < 0; }));
+  }
   async function pacCheck() {
     var FB = window.__NM_FB;
     if (S.pacRun || !FB || !FB.pacchetto || !S.isOwner || !S.canWrite || S.status !== 'ready' || !S.got.impostazioni || !S.got.modelli || (S.pacCfg && !S.pacCfg._del)) return;
@@ -4048,7 +4091,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   var EM_BASE = [['Numero unico di emergenza', '112'], ['Ambulanza', '118'], ['Vigili del fuoco', '115'], ['Guardia costiera (emergenze in mare)', '1530']];
   function emCfg() { var c = S.emCfg; return c && !c._del ? c : {}; }
   function emNumeri() {
-    var c = emCfg(), l = Array.isArray(c.numeri) ? c.numeri.slice() : EM_BASE.map(function (x) { return { n: x[0], t: x[1] }; });
+    var c = emCfg(), l = Array.isArray(c.numeri) ? c.numeri.slice() : EM_BASE.filter(function (x) { return naut() || x[1] !== '1530'; }).map(function (x) { return { n: x[0], t: x[1] }; });
     if (!Array.isArray(c.numeri) && sezOn('rifiuti')) { var dt = rifDittaTel('d1'); if (dt) l.push({ n: 'Ditta dei rifiuti (' + rifDittaNome('d1') + ')', t: dt }); }
     return l.filter(function (x) { return x && x.t; });
   }
@@ -4429,7 +4472,17 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var L = num(b.lunghezza) || 0, k = b.tipo === 'Vela' ? [0.31, 0.2] : b.tipo === 'Gommone' ? [0.38, 0.15] : [0.29, 0.5];
     return { B: Math.round((L * k[0] + k[1]) * 100) / 100, est: true };
   }
-  function boatDims(b) { var L = num(b.lunghezza); if (!L || L <= 0) return null; var bb = beamOf(b); return { L: L, B: bb.B, est: bb.est }; }
+  // Officina: ogni veicolo ha le misure tipiche del suo tipo (lunghezza × larghezza in metri), se non sono scritte
+  var VEIC_MIS = { Auto: [4.3, 1.8], Moto: [2.2, 0.8], Camper: [7, 2.35], Furgone: [5.4, 2], 'Macchina agricola': [4.2, 2.3], Altro: [4.5, 1.9] };
+  function veicolo() { return settore() === 'officina'; }
+  function boatDims(b) {
+    if (!naut()) { // Impianti: i clienti non stanno sulla mappa
+      if (!veicolo()) return null;
+      var v = VEIC_MIS[b.tipo] || VEIC_MIS.Altro, L0 = num(b.lunghezza), B0 = num(b.larghezza);
+      return { L: L0 > 0 ? L0 : v[0], B: B0 > 0 ? B0 : v[1], est: false, tip: !(L0 > 0) };
+    }
+    var L = num(b.lunghezza); if (!L || L <= 0) return null; var bb = beamOf(b); return { L: L, B: bb.B, est: bb.est };
+  }
   function mezzoById(id) { for (var i = 0; i < S.mezzi.length; i++) if (S.mezzi[i].id === id) return S.mezzi[i]; return null; }
   function mezzoDims(m) { var L = num(m.lunghezza), B = num(m.larghezza); return L > 0 && B > 0 ? { L: L, B: B } : null; }
   function mezzoPos(m) { var p = M.pend['m:' + m.id] || m.mappa; return p && num(p.x) != null && num(p.y) != null ? p : null; }
@@ -4439,7 +4492,14 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function cargoPose(m) { var p = mezzoPos(m), d = mezzoDims(m), off = -drawbarLen(d, m) / 2, r = (num(p.rot) || 0) * Math.PI / 180; return { x: p.x + Math.cos(r) * off, y: p.y + Math.sin(r) * off, rot: num(p.rot) || 0 }; }
   function boatPos(b) { var c = carrierOf(b.id); if (c) return cargoPose(c); var p = M.pend[b.id] || b.mappa; return p && num(p.x) != null && num(p.y) != null ? p : null; }
   function placedBoats() { return S.boats.filter(function (b) { return boatPos(b) && boatDims(b); }); }
-  function unplacedBoats() { return S.boats.filter(function (b) { return !boatPos(b) || !boatDims(b); }).sort(byName); }
+  function unplacedBoats() { return naut() || veicolo() ? S.boats.filter(function (b) { return (!boatPos(b) || !boatDims(b)) && !(veicolo() && b.stato === 'Consegnata'); }).sort(byName) : []; } // Officina: i veicoli già riconsegnati non vanno messi sulla mappa
+  function vehLocal(L, B, tipo) {
+    var h = L / 2, b = B / 2, r = Math.min(0.35, L * 0.08);
+    if (tipo === 'Moto') return [[-h, -b * 0.35], [-h * 0.55, -b], [h * 0.45, -b], [h, -b * 0.3], [h, b * 0.3], [h * 0.45, b], [-h * 0.55, b], [-h, b * 0.35]];
+    if (tipo === 'Camper' || tipo === 'Furgone' || tipo === 'Macchina agricola') return [[-h, -b], [h - r, -b], [h, -b + r], [h, b - r], [h - r, b], [-h, b]];
+    return [[-h, -b * 0.88], [-h + r * 0.6, -b], [h - r * 1.6, -b], [h - r * 0.3, -b * 0.82], [h, -b * 0.5], [h, b * 0.5], [h - r * 0.3, b * 0.82], [h - r * 1.6, b], [-h + r * 0.6, b], [-h, b * 0.88]];
+  }
+  function shapeLocal(L, B, b) { return veicolo() ? vehLocal(L, B, b && b.tipo) : hullLocal(L, B); }
   function hullLocal(L, B) {
     var h = L / 2, b = B / 2;
     return [[-h, -b * 0.9], [-h + Math.min(0.2, L * 0.03), -b], [h * 0.22, -b], [h * 0.62, -b * 0.76], [h, 0], [h * 0.62, b * 0.76], [h * 0.22, b], [-h + Math.min(0.2, L * 0.03), b], [-h, b * 0.9]];
@@ -4549,8 +4609,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function mapAnalysis() {
     var cfg = mapCfg(), obs = obstacles(cfg), items = [], bad = {}, pairs = [];
     S.mezzi.forEach(function (m) { var d = mezzoDims(m), p = mezzoPos(m); if (d && p) items.push({ id: 'm:' + m.id, mezzo: true, m: m, d: d, p: p, poly: toWorld(mezzoLocal(d, m), p) }); });
-    placedBoats().forEach(function (b) { var d = boatDims(b), p = boatPos(b); items.push({ id: b.id, b: b, d: d, p: p, poly: toWorld(hullLocal(d.L, d.B), p) }); });
-    if (M.ghost) items.push({ id: '__ghost', ghost: true, d: { L: M.ghost.L, B: M.ghost.B, est: false }, p: M.ghost, poly: toWorld(hullLocal(M.ghost.L, M.ghost.B), M.ghost) });
+    placedBoats().forEach(function (b) { var d = boatDims(b), p = boatPos(b); items.push({ id: b.id, b: b, d: d, p: p, poly: toWorld(shapeLocal(d.L, d.B, b), p) }); });
+    if (M.ghost) items.push({ id: '__ghost', ghost: true, d: { L: M.ghost.L, B: M.ghost.B, est: false }, p: M.ghost, poly: toWorld(shapeLocal(M.ghost.L, M.ghost.B, null), M.ghost) });
     for (var i = 0; i < items.length; i++) {
       for (var j = i + 1; j < items.length; j++) if (!linked(items[i], items[j]) && satHit(items[i].poly, items[j].poly)) { bad[items[i].id] = bad[items[j].id] = true; pairs.push([items[i].id, items[j].id]); }
       for (var k = 0; k < obs.length; k++) if (satHit(items[i].poly, obs[k].p)) { bad[items[i].id] = true; pairs.push([items[i].id, null]); break; }
@@ -4633,7 +4693,22 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     h += '<g transform="translate(0,' + (H + fs * 1.2).toFixed(2) + ')"><rect x="0" y="0" width="' + bar + '" height="' + (fs * .3).toFixed(2) + '" fill="#e9ebef"/><rect x="0" y="0" width="' + (bar / 2) + '" height="' + (fs * .3).toFixed(2) + '" fill="#6e717a"/><text x="' + (bar + fs * .5).toFixed(2) + '" y="' + (fs * .5).toFixed(2) + '" font-size="' + fs.toFixed(2) + '" fill="#e9ebef">' + bar + ' m</text></g>';
     return h;
   }
+  // Officina e Impianti: il ponte sollevatore con le due pedane, gli altri mezzi pieni del loro colore (furgoni e piattaforme con la cabina davanti)
+  function mezzoSvgSett(it, an) {
+    var d = it.d, p = it.p, m = it.m, sel = M.sel === it.id, bad = an.bad[it.id] === true, h = d.L / 2, b = d.B / 2, t = String((m.tipo || '') + ' ' + (m.nome || '')).toLowerCase();
+    var stroke = bad ? '#F2473D' : sel ? '#ffffff' : 'rgba(0,0,0,.55)', sw = bad || sel ? 2.5 : 1, rot = num(p.rot) || 0, nr = ((rot % 360) + 360) % 360, flip = nr > 90 && nr < 270;
+    var ponte = /ponte|sollevator/.test(t), col = ponte ? 'rgba(70,75,85,.55)' : mezzoColor(m, '#5b6b8c'), cargo = m.barcaId && boatById(m.barcaId);
+    var rgb = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(col), chiaro = rgb && (parseInt(rgb[1], 16) * 0.299 + parseInt(rgb[2], 16) * 0.587 + parseInt(rgb[3], 16) * 0.114) > 160;
+    var dentro = ponte ? '<rect x="' + (-h).toFixed(2) + '" y="' + (-b * 0.82).toFixed(2) + '" width="' + d.L.toFixed(2) + '" height="' + (b * 0.3).toFixed(2) + '" fill="#9aa0aa"/>' +
+      '<rect x="' + (-h).toFixed(2) + '" y="' + (b * 0.52).toFixed(2) + '" width="' + d.L.toFixed(2) + '" height="' + (b * 0.3).toFixed(2) + '" fill="#9aa0aa"/>'
+      : /furgon|carro|auto|camion|piattaform/.test(t) && d.L > 2.5 ? '<rect x="' + (h - Math.min(1.5, d.L * 0.24)).toFixed(2) + '" y="' + (-b * 0.8).toFixed(2) + '" width="' + Math.min(1.1, d.L * 0.17).toFixed(2) + '" height="' + (b * 1.6).toFixed(2) + '" fill="rgba(255,255,255,.28)"/>' : '';
+    var fs = Math.max(0.3, Math.min(d.B * 0.3, d.L * 0.13, 0.9)), tx = !ponte && dentro ? (-Math.min(1.5, d.L * 0.24) / 2).toFixed(2) : '0';
+    return '<g data-b="' + esc(it.id) + '" transform="translate(' + p.x.toFixed(3) + ',' + p.y.toFixed(3) + ') rotate(' + rot.toFixed(2) + ')" style="cursor:pointer">' +
+      '<rect x="' + (-h).toFixed(3) + '" y="' + (-b).toFixed(3) + '" width="' + d.L.toFixed(3) + '" height="' + d.B.toFixed(3) + '" rx="' + Math.min(0.25, d.B * 0.12).toFixed(2) + '" fill="' + col + '" stroke="' + stroke + '" stroke-width="' + sw + '"' + (ponte ? ' stroke-dasharray="5 3"' : '') + ' vector-effect="non-scaling-stroke"/>' + dentro +
+      (cargo ? '' : '<text x="' + tx + '" y="' + (fs * 0.36).toFixed(2) + '" font-size="' + fs.toFixed(2) + '" fill="' + (chiaro ? '#14161a' : '#f3f4f6') + '" text-anchor="middle" font-weight="700"' + (flip ? ' transform="rotate(180 ' + tx + ' 0)"' : '') + ' style="pointer-events:none">' + esc(m.nome || 'Mezzo') + '</text>') + '</g>';
+  }
   function mezzoSvg(it, an) {
+    if (!naut()) return mezzoSvgSett(it, an);
     var d = it.d, p = it.p, sel = M.sel === it.id, bad = an.bad[it.id] === true, h = d.L / 2, b = d.B / 2, db = drawbarLen(d, it.m);
     var pts = mezzoLocal(d, it.m).map(function (q) { return q[0].toFixed(3) + ',' + q[1].toFixed(3); }).join(' ');
     var stroke = bad ? '#F2473D' : sel ? '#ffffff' : '#c8ccd4', sw = bad || sel ? 2.5 : 1.2, rot = num(p.rot) || 0, nr = ((rot % 360) + 360) % 360, flip = nr > 90 && nr < 270;
@@ -4651,16 +4726,18 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (it.mezzo) return mezzoSvg(it, an);
     var d = it.d, p = it.p, sel = M.sel === it.id, bad = an.bad[it.id] === true;
     var col = it.ghost ? 'rgba(255,255,255,.18)' : statoCol(it.b.stato);
-    var pts = hullLocal(d.L, d.B).map(function (q) { return q[0].toFixed(3) + ',' + q[1].toFixed(3); }).join(' ');
+    var pts = shapeLocal(d.L, d.B, it.b).map(function (q) { return q[0].toFixed(3) + ',' + q[1].toFixed(3); }).join(' ');
     var stroke = bad ? '#F2473D' : sel ? '#ffffff' : 'rgba(0,0,0,.55)', sw = bad || sel ? 2.5 : 1;
     var rot = num(p.rot) || 0, nr = ((rot % 360) + 360) % 360, flip = nr > 90 && nr < 270;
     var name = it.ghost ? 'Prova ' + fmtNum(d.L, 2) + ' m' : (it.b.nome || '');
     var fs = Math.max(0.35, Math.min(d.B * 0.36, d.L * 0.13, 1.1));
     return '<g data-b="' + esc(it.id) + '" transform="translate(' + p.x.toFixed(3) + ',' + p.y.toFixed(3) + ') rotate(' + rot.toFixed(2) + ')" style="cursor:pointer">' +
       '<polygon points="' + pts + '" fill="' + col + '" fill-opacity="' + (it.ghost ? 1 : .88) + '" stroke="' + stroke + '" stroke-width="' + sw + '" vector-effect="non-scaling-stroke"' + (it.ghost ? ' stroke-dasharray="6 4"' : '') + '/>' +
-      '<polygon points="' + toLocalCabin(d) + '" fill="rgba(255,255,255,.28)"/>' +
+      '<polygon points="' + (veicolo() ? vehCabin(d, it.b && it.b.tipo) : toLocalCabin(d)) + '" fill="rgba(255,255,255,.28)"/>' +
       '<text x="' + (-d.L * 0.06).toFixed(2) + '" y="' + (fs * 0.36).toFixed(2) + '" font-size="' + fs.toFixed(2) + '" fill="#fff" text-anchor="middle" font-weight="700"' + (flip ? ' transform="rotate(180 ' + (-d.L * 0.06).toFixed(2) + ' 0)"' : '') + ' style="pointer-events:none">' + esc(name) + '</text></g>';
   }
+  // veicoli: il tetto (moto: la sella), un po' indietro rispetto al davanti
+  function vehCabin(d, tipo) { var a = tipo === 'Moto' ? -d.L * 0.2 : -d.L * 0.3, b2 = tipo === 'Moto' ? d.L * 0.12 : tipo === 'Camper' || tipo === 'Furgone' ? d.L * 0.3 : d.L * 0.12, w = d.B * (tipo === 'Moto' ? 0.3 : 0.4); return [[a, -w], [b2, -w], [b2, w], [a, w]].map(function (q) { return q[0].toFixed(2) + ',' + q[1].toFixed(2); }).join(' '); }
   function toLocalCabin(d) { var a = -d.L * 0.18, b2 = d.L * 0.16, w = d.B * 0.3; return [[a, -w], [b2, -w * 0.8], [b2, w * 0.8], [a, w]].map(function (q) { return q[0].toFixed(2) + ',' + q[1].toFixed(2); }).join(' '); }
 
   function viewMappa() {
@@ -4668,15 +4745,16 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var seg = !sezOn('porto') ? '' : '<div class="seg2 area-seg" role="group" aria-label="Cantiere o porto"><button type="button" data-act="m-area" data-a="cantiere" aria-pressed="' + (M.area !== 'porto') + '">Cantiere</button><button type="button" data-act="m-area" data-a="porto" aria-pressed="' + (M.area === 'porto') + '">Porto</button></div>';
     if (M.area === 'porto') return seg + Porto.view();
     var un = unplacedBoats().length, cfg0 = mapCfg(), lib = cfg0.libera;
-    if (lib && M.mode !== '2d') { M.mode = '2d'; dispose3D(); M.mounted = null; } // pianta libera: solo vista dall'alto
+    if ((lib || !naut()) && M.mode !== '2d') { M.mode = '2d'; dispose3D(); M.mounted = null; } // pianta libera (e Officina, Impianti): solo vista dall'alto
+    var cli = naut() || veicolo(); // Impianti: sulla mappa solo i mezzi
     return seg + '<div class="map-ctrl">' + (lib ? '' : '<div class="seg2" role="group" aria-label="Vista"><button type="button" data-act="m-mode" data-m="2d" aria-pressed="' + (M.mode === '2d') + '">Pianta</button><button type="button" data-act="m-mode" data-m="3d" aria-pressed="' + (M.mode === '3d') + '">3D</button></div>') +
-      (S.canWrite ? '<button type="button" class="chip-b" data-act="m-place-list">Da posizionare <b id="m-un">' + un + '</b></button>' : '') +
-      '<button type="button" class="chip-b" data-act="m-mezzi">Mezzi <b>' + S.mezzi.length + '</b></button>' + (lib ? '' : '<button type="button" class="chip-b" data-act="m-ingombri">Ingombri <b>' + cfg0.ostacoli.length + '</b></button>') + '<button type="button" class="chip-b" data-act="m-try">Prova misure</button></div>' +
-      (lib && !cfg0.pianta ? '<div class="notice" style="margin:0 0 10px">' + (S.canWrite && S.status === 'ready' ? 'Carica la planimetria del cantiere (foto, immagine o PDF) e mettila in scala: <button type="button" class="link" data-act="m-cfg">carica la planimetria</button>. Intanto puoi già sistemare le barche sul rettangolo.' : 'La planimetria del cantiere non è ancora stata caricata.') + '</div>' : '') +
-      mlStrip('Cerca una barca sulla mappa', mlBoats()) +
+      (S.canWrite && cli ? '<button type="button" class="chip-b" data-act="m-place-list">Da posizionare <b id="m-un">' + un + '</b></button>' : '') +
+      '<button type="button" class="chip-b" data-act="m-mezzi">Mezzi <b>' + S.mezzi.length + '</b></button>' + (lib ? '' : '<button type="button" class="chip-b" data-act="m-ingombri">Ingombri <b>' + cfg0.ostacoli.length + '</b></button>') + '' + (naut() || veicolo() ? '<button type="button" class="chip-b" data-act="m-try">Prova misure</button>' : '') + '</div>' +
+      (lib && !cfg0.pianta ? '<div class="notice" style="margin:0 0 10px">' + (S.canWrite && S.status === 'ready' ? 'Carica la planimetria del cantiere (foto, immagine o PDF) e mettila in scala: <button type="button" class="link" data-act="m-cfg">carica la planimetria</button>. Intanto puoi già sistemare ' + (settore() === 'impianti' ? 'i mezzi' : 'le barche') + ' sul rettangolo.' : 'La planimetria del cantiere non è ancora stata caricata.') + '</div>' : '') +
+      (cli ? mlStrip('Cerca una barca sulla mappa', mlBoats()) : '') +
       '<div class="map-box" id="map-root"></div>' +
       '<p class="cap" style="margin:10px 2px 0">' + (cfg0.stimate ? 'Misure del cantiere stimate dalla foto dall’alto: correggile con il righello in alto a destra. ' : '') +
-      'Le barche sono disegnate con lunghezza e larghezza massima (baglio): la distanza mostrata è tra i punti più vicini.</p>';
+      (naut() ? 'Le barche sono disegnate con lunghezza e larghezza massima (baglio): la distanza mostrata è tra i punti più vicini.' : cli ? 'I veicoli sono disegnati come auto, moto, camper o furgoni, con le misure tipiche del loro tipo: la distanza mostrata è tra i punti più vicini.' : 'Sulla pianta ci sono i vostri mezzi, con le loro misure: aggiungili da «Mezzi».') + '</p>';
   }
   // elenco sopra la mappa (solo computer): una casella per cercare e un bottone per barca o posto, tocchi e la mappa ci va
   function mlStrip(ph, chips) {
@@ -4714,7 +4792,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       mount3D();
     } else {
       var cfg = mapCfg();
-      root.innerHTML = '<svg id="m-svg" xmlns="http://www.w3.org/2000/svg" aria-label="Pianta del cantiere"><g id="m-world"><g id="m-static">' + mapStatic(cfg) + '</g><g id="m-boats"></g><g id="m-gap"></g></g></svg>' +
+      root.innerHTML = '<svg id="m-svg" xmlns="http://www.w3.org/2000/svg" aria-label="Pianta ' + (naut() ? 'del cantiere' : veicolo() ? 'dell’officina' : 'dell’azienda') + '"><g id="m-world"><g id="m-static">' + mapStatic(cfg) + '</g><g id="m-boats"></g><g id="m-gap"></g></g></svg>' +
         '<button type="button" class="map-chip" id="m-chip" data-act="m-overlap" hidden></button>' +
         '<div class="map-tools"><button type="button" data-act="m-zoom" data-z="1.5" aria-label="Ingrandisci">+</button><button type="button" data-act="m-zoom" data-z="0.67" aria-label="Riduci">−</button>' +
         '<button type="button" data-act="m-fit" aria-label="Mostra tutto il cantiere">' + I.fit + '</button><button type="button" data-act="m-foto" aria-pressed="' + M.foto + '" aria-label="' + (cfg.libera ? 'Planimetria' : 'Foto dall’alto') + '">' + I.photo + '</button></div>' +
@@ -4791,7 +4869,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (it.mezzo) return mezzoCard(card, it, an, nb, gl);
     var carr = !it.ghost && carrierOf(it.id);
     var title = it.ghost ? 'Barca di prova' : esc(it.b.nome || 'Barca');
-    var sub = (it.ghost || !it.b.modello ? '' : esc(it.b.modello) + ' · ') + fmtNum(d.L, 2) + ' × ' + fmtNum(d.B, 2) + ' m' + (d.est ? ' (larghezza stimata)' : '') + ' · ' + zoneOf(it.p, an.cfg);
+    var sub = (it.ghost || !it.b.modello ? '' : esc(it.b.modello) + ' · ') + fmtNum(d.L, 2) + ' × ' + fmtNum(d.B, 2) + ' m' + (d.est ? ' (larghezza stimata)' : d.tip ? ' (misure tipiche)' : '') + ' · ' + zoneOf(it.p, an.cfg);
     var acts = '';
     if (M.mode === '3d') acts = '<button type="button" class="btn sec" data-act="m-to2d">Sposta in pianta</button>' + (it.ghost ? '' : '<button type="button" class="btn sec" data-act="open-boat" data-id="' + esc(it.id) + '">Scheda</button>');
     else if (it.ghost || S.canWrite) {
@@ -4812,12 +4890,12 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (M.mode === '3d') acts = '<button type="button" class="btn sec" data-act="m-to2d">Sposta in pianta</button>';
     else if (S.canWrite) acts = '<button type="button" class="btn' + (M.move ? '' : ' sec') + '" data-act="m-move">' + (M.move ? 'Fine' : 'Sposta') + '</button>' +
       '<button type="button" class="mb" data-act="m-rot" data-d="-5" aria-label="Ruota 5 gradi a sinistra">↺5°</button><button type="button" class="mb" data-act="m-rot" data-d="5" aria-label="Ruota 5 gradi a destra">↻5°</button><button type="button" class="mb" data-act="m-rot" data-d="90" aria-label="Ruota di 90 gradi">90°</button>' +
-      (cargo ? '<button type="button" class="mb" data-act="m-unload" data-id="' + esc(m.id) + '">Scarica</button>' : '<button type="button" class="mb" data-act="m-load" data-id="' + esc(m.id) + '">Carica barca</button>') +
+      (cargo ? '<button type="button" class="mb" data-act="m-unload" data-id="' + esc(m.id) + '">Scarica</button>' : naut() || veicolo() ? '<button type="button" class="mb" data-act="m-load" data-id="' + esc(m.id) + '">Carica barca</button>' : '') + // Impianti: niente da caricare
       '<button type="button" class="mb" data-act="m-mezzo-edit" data-id="' + esc(m.id) + '">Modifica</button>';
     card.hidden = false;
-    card.innerHTML = '<div class="hd"><span class="ic-circle grey" style="width:28px;height:28px;background:var(--card-2)">' + I.updown + '</span><span class="title">' + esc(m.nome || 'Carrello') + '</span><span class="pill">' + esc(m.tipo || 'Mezzo') + '</span><button type="button" class="x" data-act="m-desel" aria-label="Chiudi">×</button></div>' +
-      '<div class="sub">' + fmtNum(it.d.L, 2) + ' × ' + fmtNum(it.d.B, 2) + ' m' + (m.misureStimate ? ' (misure stimate)' : '') + ' · ' + zoneOf(it.p, an.cfg) + ' · ' + (cargo ? 'a bordo: ' + esc(cargo.nome || 'una barca') : 'vuoto') + '</div>' + gl +
-      (M.move && M.mode === '2d' ? '<div class="cap">Trascina il carrello: ' + (cargo ? 'la barca a bordo si sposta con lui.' : 'la posizione si salva quando lo lasci.') + '</div>' : '') + '<div class="m-acts">' + acts + '</div>' +
+    card.innerHTML = '<div class="hd"><span class="ic-circle grey" style="width:28px;height:28px;background:var(--card-2)">' + I.updown + '</span><span class="title">' + esc(m.nome || (naut() ? 'Carrello' : 'Mezzo')) + '</span><span class="pill">' + esc(m.tipo || 'Mezzo') + '</span><button type="button" class="x" data-act="m-desel" aria-label="Chiudi">×</button></div>' +
+      '<div class="sub">' + fmtNum(it.d.L, 2) + ' × ' + fmtNum(it.d.B, 2) + ' m' + (m.misureStimate ? ' (misure stimate)' : '') + ' · ' + zoneOf(it.p, an.cfg) + (naut() || veicolo() || cargo ? ' · ' + (cargo ? 'a bordo: ' + esc(cargo.nome || 'una barca') : 'vuoto') : '') + '</div>' + gl +
+      (M.move && M.mode === '2d' ? '<div class="cap">Trascina ' + (naut() ? 'il carrello' : 'il mezzo') + ': ' + (cargo ? 'la barca a bordo si sposta con lui.' : 'la posizione si salva quando lo lasci.') + '</div>' : '') + '<div class="m-acts">' + acts + '</div>' +
       (S.canWrite && M.mode === '2d' ? '<button type="button" class="link" data-act="m-remove" style="align-self:flex-start;color:var(--muted);font-size:.85rem">Togli dalla mappa</button>' : '');
   }
   function posOf(id) { if (id === '__ghost') return M.ghost; if (id.indexOf('m:') === 0) { var m = mezzoById(id.slice(2)); return m ? mezzoPos(m) : null; } var b = boatById(id); return b ? boatPos(b) : null; }
@@ -4907,7 +4985,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       body: list.length ? '<p class="context">Tocca una barca: compare al centro della mappa e la trascini al suo posto.</p><div class="menu">' + list.map(function (b) {
         var d = boatDims(b);
         return '<button type="button" data-act="m-place" data-id="' + esc(b.id) + '"><span class="ic-circle" style="background:' + statoCol(b.stato) + '">' + I.boat + '</span><span class="main"><span class="title">' + esc(b.nome || 'Senza nome') + '</span><span class="sub">' +
-          (d ? fmtNum(d.L, 2) + ' × ' + fmtNum(d.B, 2) + ' m' + (d.est ? ' · larghezza stimata' : '') : 'Manca la lunghezza: la inserisci al prossimo passo') + ' · ' + esc(b.stato || '') + '</span></span></button>';
+          (d ? fmtNum(d.L, 2) + ' × ' + fmtNum(d.B, 2) + ' m' + (d.est ? ' · larghezza stimata' : d.tip ? ' · misure tipiche' : '') : 'Manca la lunghezza: la inserisci al prossimo passo') + ' · ' + esc(b.stato || '') + '</span></span></button>';
       }).join('') + '</div>' : '<p class="context">Tutte le barche sono già sulla mappa.</p>'
     });
   }
@@ -4934,12 +5012,12 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     openSheet({
       title: 'Prova misure', submitLabel: 'Prova',
       body: '<p class="context">Metti sulla mappa una barca di prova per vedere se ci sta. Non viene salvata.</p><div class="grid2">' +
-        field(lab('f-tl', 'Lunghezza (m)'), inp('f-tl', M.ghost ? String(M.ghost.L).replace('.', ',') : '', 'type="text" inputmode="decimal" required placeholder="es. 9,50"')) +
-        field(lab('f-tb', 'Larghezza (m)'), inp('f-tb', M.ghost ? String(M.ghost.B).replace('.', ',') : '', 'type="text" inputmode="decimal" placeholder="es. 3,20"')) + '</div>',
+        field(lab('f-tl', 'Lunghezza (m)'), inp('f-tl', M.ghost ? String(M.ghost.L).replace('.', ',') : '', 'type="text" inputmode="decimal" required placeholder="es. ' + (veicolo() ? '4,30' : '9,50') + '"')) +
+        field(lab('f-tb', 'Larghezza (m)'), inp('f-tb', M.ghost ? String(M.ghost.B).replace('.', ',') : '', 'type="text" inputmode="decimal" placeholder="es. ' + (veicolo() ? '1,80' : '3,20') + '"')) + '</div>',
       onSubmit: async function (f) {
         var L = parseDec(val(f, 'f-tl')), B = parseDec(val(f, 'f-tb'));
         if (!L || L <= 0 || L > 60) { formErr('Scrivi la lunghezza in metri.'); return false; }
-        if (!B || B <= 0) B = r2(L * 0.29 + 0.5);
+        if (!B || B <= 0) B = veicolo() ? (L <= 2.5 ? 0.8 : L <= 5 ? 1.8 : 2.3) : r2(L * 0.29 + 0.5);
         var c = viewCenter();
         M.ghost = { L: L, B: B, x: M.ghost ? M.ghost.x : c[0], y: M.ghost ? M.ghost.y : c[1], rot: M.ghost ? M.ghost.rot : -90 };
         M.sel = '__ghost'; M.move = true;
@@ -5167,13 +5245,14 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function mezziList() {
     var list = S.mezzi.filter(function (m) { return !m.attrezzo; }).sort(function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || ''), 'it'); });
     openSheet({
-      title: 'Mezzi e carrelli', menu: true,
+      title: naut() ? 'Mezzi e carrelli' : 'Mezzi', menu: true,
       body: (list.length ? '<div class="menu">' + list.map(function (m) {
         var d = mezzoDims(m), c = m.barcaId && boatById(m.barcaId);
         return '<button type="button" data-act="m-mezzo-go" data-id="' + esc(m.id) + '"><span class="ic-circle" style="background:var(--card-2);color:var(--ink)">' + I.updown + '</span><span class="main"><span class="title">' + esc(m.nome || 'Carrello') + '</span><span class="sub">' +
           (m.fermo && ctrlOn() ? '<b class="t-late">FERMO</b> · ' : '') + esc(m.tipo || 'Mezzo') + (d ? ' · ' + fmtNum(d.L, 2) + ' × ' + fmtNum(d.B, 2) + ' m' : '') + ' · ' + (mezzoPos(m) ? (c ? 'a bordo ' + esc(c.nome) : 'sulla mappa') : 'da posizionare') + '</span></span></button>';
-      }).join('') + '</div>' : '<p class="context">Nessun mezzo. Aggiungi carrelli, muletti e gli altri mezzi che si muovono nel cantiere.</p>') +
-        (S.canWrite ? '<button type="button" class="btn sec self-start" data-act="m-mezzo-new">' + I.plus + 'Nuovo mezzo</button><button type="button" class="link" data-act="mz-seed" style="align-self:flex-start">Aggiungi i mezzi del cantiere (BoatLift, motrice, trattore…)</button><button type="button" class="link" data-act="perc-edit" style="align-self:flex-start">' + (mapLibera() ? 'Percorso del trasporto' : 'Percorso MSV → cantiere e portoni') + '</button>' : '')
+      }).join('') + '</div>' : '<p class="context">' + (naut() ? 'Nessun mezzo. Aggiungi carrelli, muletti e gli altri mezzi che si muovono nel cantiere.' : veicolo() ? 'Nessun mezzo. Aggiungi ponti sollevatori, carro attrezzi, furgoni e gli altri mezzi dell’officina.' : 'Nessun mezzo. Aggiungi furgoni, piattaforme, trabattelli e gli altri mezzi.') + '</p>') +
+        (S.canWrite ? '<button type="button" class="btn sec self-start" data-act="m-mezzo-new">' + I.plus + 'Nuovo mezzo</button>' + (naut() ? '<button type="button" class="link" data-act="mz-seed" style="align-self:flex-start">Aggiungi i mezzi del cantiere (BoatLift, motrice, trattore…)</button>' +
+          '<button type="button" class="link" data-act="perc-edit" style="align-self:flex-start">' + (mapLibera() ? 'Percorso del trasporto' : 'Percorso MSV → cantiere e portoni') + '</button>' : '') : '')
     });
   }
   var TIPI_MEZZO = ['BoatLift (semovente)', 'Carrello autotaccante con timone snodato', 'Carrello autolivellante', 'Carrello stradale', 'Carrello', 'Motrice', 'Trattore', 'Furgone', 'Muletto', 'Altro'];
@@ -5199,13 +5278,18 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       }
     });
   }
+  // Officina e Impianti: i mezzi del mestiere, con le misure tipiche (lunghezza × larghezza in metri) proposte quando si sceglie il tipo
+  var MEZZI_SETT = { officina: [['Ponte sollevatore', 4.5, 3.4], ['Carro attrezzi', 6.5, 2.3], ['Furgone', 5.4, 2], ['Auto di cortesia', 4, 1.75], ['Compressore', 1.2, 0.6], ['Altro', 2, 1]],
+    impianti: [['Furgone', 5.4, 2], ['Auto', 4, 1.75], ['Piattaforma aerea', 5.5, 2], ['Trabattello', 2, 0.8], ['Scala', 2.5, 0.6], ['Altro', 2, 1]] };
   function mezzoSheet(m) {
-    var isNew = !m; m = m || { tipo: 'Carrello' };
-    var body = field(lab('f-mzn', 'Nome'), inp('f-mzn', m.nome, 'type="text" required placeholder="es. Zenti"')) +
-      field(lab('f-mzt', 'Tipo'), '<select id="f-mzt">' + opts(TIPI_MEZZO.indexOf(m.tipo) >= 0 || !m.tipo ? TIPI_MEZZO : TIPI_MEZZO.concat([m.tipo]), m.tipo) + '</select>') +
-      '<div class="grid2">' + field(lab('f-mzh', 'Altezza del piano di carico (m)'), inp('f-mzh', num(m.altezzaCarico) != null ? String(m.altezzaCarico).replace('.', ',') : '', 'type="text" inputmode="decimal" placeholder="dove poggia la chiglia"')) +
-      field(lab('f-mzc', 'Colore'), '<input id="f-mzc" type="color" value="' + esc(/^#[0-9a-f]{6}$/i.test(m.colore || '') ? m.colore : '#23306e') + '">') + '</div>' +
-      '<div class="grid2">' + field(lab('f-mzl', 'Lunghezza con timone (m)'), inp('f-mzl', num(m.lunghezza) != null ? String(m.lunghezza).replace('.', ',') : '', 'type="text" inputmode="decimal" required')) +
+    var MS = !naut() && MEZZI_SETT[settore()], TM = MS ? MS.map(function (x) { return x[0]; }) : TIPI_MEZZO;
+    var isNew = !m; m = m || (MS ? { tipo: MS[0][0], lunghezza: MS[0][1], larghezza: MS[0][2] } : { tipo: 'Carrello' });
+    var body = field(lab('f-mzn', 'Nome'), inp('f-mzn', m.nome, 'type="text" required placeholder="' + (MS ? (settore() === 'officina' ? 'es. Ponte 1' : 'es. Furgone Ducato') : 'es. Zenti') + '"')) +
+      field(lab('f-mzt', 'Tipo'), '<select id="f-mzt">' + opts(TM.indexOf(m.tipo) >= 0 || !m.tipo ? TM : TM.concat([m.tipo]), m.tipo) + '</select>') +
+      '<div class="grid2"' + (MS ? ' style="display:none"' : '') + '>' + field(lab('f-mzh', 'Altezza del piano di carico (m)'), inp('f-mzh', num(m.altezzaCarico) != null ? String(m.altezzaCarico).replace('.', ',') : '', 'type="text" inputmode="decimal" placeholder="dove poggia la chiglia"')) +
+      (MS ? '' : field(lab('f-mzc', 'Colore'), '<input id="f-mzc" type="color" value="' + esc(/^#[0-9a-f]{6}$/i.test(m.colore || '') ? m.colore : '#23306e') + '">')) + '</div>' +
+      (MS ? '<input type="color" id="f-mzc" value="' + esc(/^#[0-9a-f]{6}$/i.test(m.colore || '') ? m.colore : '#23306e') + '" hidden>' : '') +
+      '<div class="grid2">' + field(lab('f-mzl', MS ? 'Lunghezza (m)' : 'Lunghezza con timone (m)'), inp('f-mzl', num(m.lunghezza) != null ? String(m.lunghezza).replace('.', ',') : '', 'type="text" inputmode="decimal" required')) +
       field(lab('f-mzb', 'Larghezza (m)'), inp('f-mzb', num(m.larghezza) != null ? String(m.larghezza).replace('.', ',') : '', 'type="text" inputmode="decimal" required')) + '</div>' +
       field(lab('f-mznote', 'Note'), '<textarea id="f-mznote" placeholder="es. portata massima, numero pistoni, targa">' + esc(m.note || '') + '</textarea>') +
       (ctrlOn() ? '<label class="check" style="margin-top:4px"><input type="checkbox" id="f-mzctrl"' + (m.controllo ? ' checked' : '') + '> Controllo prima dell’uso</label>' +
@@ -5213,7 +5297,16 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         '<span class="hint" style="margin-top:-6px">Vuoto = le voci di base per il tipo di mezzo (quelle in grigio).</span>' : '');
     openSheet({
       title: isNew ? 'Nuovo mezzo' : 'Modifica mezzo', body: body, deleteLabel: 'Elimina mezzo',
-      deleteText: 'Elimini ' + (m.nome || 'questo mezzo') + '. Se ha una barca a bordo, la barca resta sulla mappa.',
+      deleteText: 'Elimini ' + (m.nome || 'questo mezzo') + (MS ? '.' : '. Se ha una barca a bordo, la barca resta sulla mappa.'),
+      onOpen: MS ? function (f) { // scelto il tipo, propone le sue misure se quelle scritte sono ancora quelle proposte (o vuote)
+        var t = f.querySelector('#f-mzt'), prev = t.value;
+        t.addEventListener('change', function () {
+          var a = MS.find(function (x) { return x[0] === prev; }), z = MS.find(function (x) { return x[0] === t.value; }), l = f.querySelector('#f-mzl'), w2 = f.querySelector('#f-mzb');
+          var com = function (el, v) { var n = parseDec(el.value); return !el.value || (v != null && n === v); };
+          if (z && com(l, a && a[1]) && com(w2, a && a[2])) { l.value = String(z[1]).replace('.', ','); w2.value = String(z[2]).replace('.', ','); }
+          prev = t.value;
+        });
+      } : null,
       item: m, onDelete: isNew ? null : async function () { if (await delSeq([S.db.collection('mezzi').doc(m.id)])) { closeSheet(); if (M.sel === 'm:' + m.id) M.sel = null; toast('Mezzo eliminato'); } },
       onSubmit: async function (f) {
         var L = parseDec(val(f, 'f-mzl')), B = parseDec(val(f, 'f-mzb')), nome = val(f, 'f-mzn');
@@ -5232,7 +5325,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var list = S.boats.slice().sort(byName).filter(function (b) { return boatDims(b); });
     openSheet({
       title: 'Carica su ' + (mz.nome || 'carrello'), menu: true,
-      body: list.length ? '<p class="context">Scegli la barca da mettere sul carrello: si sposterà insieme a lui.</p><div class="menu">' + list.map(function (b) {
+      body: list.length ? '<p class="context">' + (naut() ? 'Scegli la barca da mettere sul carrello' : 'Scegli il veicolo da mettere sul mezzo (ponte sollevatore, carro attrezzi…)') + ': si sposterà insieme a lui.</p><div class="menu">' + list.map(function (b) {
         var d = boatDims(b), c = carrierOf(b.id);
         return '<button type="button" data-act="m-load-pick" data-mz="' + esc(mz.id) + '" data-id="' + esc(b.id) + '"><span class="ic-circle" style="background:' + statoCol(b.stato) + '">' + I.boat + '</span><span class="main"><span class="title">' + esc(b.nome || 'Barca') + '</span><span class="sub">' +
           fmtNum(d.L, 2) + ' × ' + fmtNum(d.B, 2) + ' m' + (c ? ' · ora su ' + esc(c.nome) : boatPos(b) ? '' : ' · non ancora sulla mappa') + '</span></span></button>';
@@ -5246,7 +5339,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var mref = S.db.collection('mezzi').doc(mz.id);
     if (!(await w(function () { return mref.update({ barcaId: boatId }); }))) return;
     if (mezzoPos(mz) && mezzoDims(mz)) { var cp = cargoPose(Object.assign({}, mz, { barcaId: boatId })), bref = S.db.collection('barche').doc(boatId); await w(function () { return bref.update({ mappa: { x: r2(cp.x), y: r2(cp.y), rot: r2(cp.rot) } }); }); }
-    M.sel = 'm:' + mz.id; M.move = false; toast(b.nome + ' caricata su ' + mz.nome);
+    M.sel = 'm:' + mz.id; M.move = false; toast(b.nome + (naut() ? ' caricata su ' : ' caricato su ') + mz.nome);
   }
 
   /* Vista 3D (three.js caricato solo quando serve) */
@@ -5513,6 +5606,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   /* Carrelli e mezzi */
   function mezzoKind(m) {
     var t = String((m.tipo || '') + ' ' + (m.nome || '')).toLowerCase();
+    if (!naut()) return /rimorchi|carrell/.test(t) ? 'carrello' : /furgon|carro|auto|camion/.test(t) ? 'furgone' : 'mezzo';
     return /boat ?lift|bl ?20/.test(t) ? 'boatlift' : /stradal/.test(t) ? 'stradale' : /autotacc|zenti|autoliv|idraulic/.test(t) ? 'idraulico' : /motrice/.test(t) ? 'motrice' : /trattor|john ?deere/.test(t) ? 'trattore' : /furgon|citro/.test(t) ? 'furgone' : /muletto/.test(t) ? 'muletto' : 'carrello';
   }
   function isTrailer(m) { var k = m ? mezzoKind(m) : 'carrello'; return k === 'idraulico' || k === 'stradale' || k === 'carrello'; }
@@ -7741,10 +7835,16 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
 
   // 7.01 Controllo dei dati: un elenco corto di cose incomplete, da sistemare a fine mese
   function cdOn() { return strOn('controllodati'); }
+  function cdCampi() { // i campi della scheda che di solito si riempiono, settore per settore
+    var x = settore();
+    return x === 'officina' ? [['modello', 'marca e modello'], ['anno', 'anno'], ['km', 'km'], ['telefono', 'telefono del cliente'], ['email', 'email del cliente']]
+      : x === 'impianti' ? [['indirizzo', 'indirizzo'], ['telefono', 'telefono'], ['email', 'email']]
+      : [['modello', 'cantiere e modello'], ['anno', 'anno'], ['telefono', 'telefono del cliente'], ['immatricolazione', 'immatricolazione'], ['email', 'email del cliente']];
+  }
   function cdVoci() {
     var t = todayISO(), da = addDays(t, -60), g = [];
     function add(k, tit, its) { if (its.length) g.push({ k: k, t: tit, its: its }); }
-    add('misure', 'Barche senza misure', S.boats.filter(function (b) { return num(b.lunghezza) == null; }).map(function (b) { return { act: 'open-boat', id: b.id, t: b.nome || 'Barca', s: 'manca la lunghezza' }; }));
+    if (naut()) add('misure', 'Barche senza misure', S.boats.filter(function (b) { return num(b.lunghezza) == null; }).map(function (b) { return { act: 'open-boat', id: b.id, t: b.nome || 'Barca', s: 'manca la lunghezza' }; }));
     add('prop', 'Barche senza proprietario', S.boats.filter(function (b) { return !String(b.proprietario || '').trim(); }).map(function (b) { return { act: 'open-boat', id: b.id, t: b.nome || 'Barca', s: 'manca il cliente' }; }));
     add('ore', 'Mansioni senza barca o senza ore', S.lavori.filter(function (l) { return l.fonte === 'scheda' && l.data && l.data >= da && l.data < t && ((l.barcaId && l.barcaId !== '__cantiere' && !boatById(l.barcaId)) || l.daSegnare); })
       .map(function (l) { return { act: 'edit-entry', id: l.id, t: l.titolo || 'Mansione', s: nameOf(l.utente) + ' · ' + fmtDate(l.data) + ' · ' + (l.daSegnare ? 'tempo da segnare' : 'la barca è stata eliminata') }; }));
@@ -7755,7 +7855,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (typeof S.posti === 'object' && S.posti && (typeof sezOn !== 'function' || sezOn('porto'))) add('posti', 'Posti al porto senza contratto', Object.keys(S.posti).filter(function (k) { var p = S.posti[k]; return p && !p._del && p.barcaId && boatById(p.barcaId) && !p.fino; })
       .map(function (k) { var b = boatById(S.posti[k].barcaId); return { act: 'open-boat', id: b.id, t: (Porto.berthLabel(b.id) || k) + ' · ' + (b.nome || 'Barca'), s: 'manca la scadenza del contratto' }; }));
     var vuoti = [];
-    if (S.boats.length >= 5) [['modello', 'cantiere e modello'], ['anno', 'anno'], ['telefono', 'telefono del cliente'], ['immatricolazione', 'immatricolazione'], ['email', 'email del cliente']].forEach(function (c) {
+    if (S.boats.length >= 5) cdCampi().forEach(function (c) {
       var n = S.boats.filter(function (b) { return !String(b[c[0]] == null ? '' : b[c[0]]).trim(); }).length, pc = Math.round(100 * n / S.boats.length);
       if (pc >= 70) vuoti.push({ act: '', t: cap(c[1]), s: 'vuoto in ' + n + ' barche su ' + S.boats.length + ' (' + pc + '%)' });
     });
@@ -7822,7 +7922,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   function fuList() { return S.mezzi.filter(function (m) { return !m._del; }).sort(function (a, b) { return (b.fermo ? 1 : 0) - (a.fermo ? 1 : 0) || String(a.nome || '').localeCompare(String(b.nome || ''), 'it'); }); }
   function fuFermo(nome) { var n = String(nome || '').trim().toLowerCase(); return n ? S.mezzi.find(function (m) { return m.fermo && !m._del && String(m.nome || '').trim().toLowerCase() === n; }) || null : null; }
   function viewFuoriUso() {
-    var l = fuList(), h = '<p class="context" style="margin-top:12px">Gru, travel lift, muletto, furgone e attrezzi. Se uno non va, segnalo «fuori uso» con cosa non va: nel programma risulta fermo finché non lo rimettete in uso. Le revisioni restano in Scadenze del cantiere.</p>';
+    var l = fuList(), h = '<p class="context" style="margin-top:12px">' + (naut() ? 'Gru, travel lift, muletto, furgone e attrezzi.' : veicolo() ? 'Ponte sollevatore, carro attrezzi, furgone e attrezzi.' : 'Furgone, piattaforma, scale e attrezzi.') + ' Se uno non va, segnalo «fuori uso» con cosa non va: nel programma risulta fermo finché non lo rimettete in uso. Le revisioni restano in Scadenze del cantiere.</p>';
     if (S.canWrite) h += '<button type="button" class="btn sec" data-act="fu-new" style="width:100%;margin-top:12px">' + I.plus + 'Aggiungi un attrezzo</button>';
     if (!l.length) return h + '<div class="notice" style="margin-top:12px">Nessun mezzo. I mezzi si aggiungono da Mappa › Mezzi, gli attrezzi (smerigliatrice, saldatrice…) da qui.</div>';
     var fe = l.filter(function (m) { return m.fermo; }), ok = l.filter(function (m) { return !m.fermo; });
@@ -8084,7 +8184,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       { id: 'conf', t: 'Giornate da confermare', z: tl, d: 's', h: fn(panTile('tab', 'ore', I.check, pend ? 'soon' : 'ok', 'Giornate da confermare', String(pend), pend ? 'fino a ieri' : 'Tutte confermate')) },
       { id: 'lav', t: 'Lavorazioni aperte', z: tl, d: 's', h: fn(panTile('tab', 'lavori', I.wrench, 'acc', 'Lavorazioni aperte', String(lavOpen.length), inCorso + ' in corso' + (opsOn() ? ' · ' + opsOpen + (opsOpen === 1 ? ' servizio aperto' : ' servizi aperti') : ''))) },
       { id: 'contr', t: 'Contratti in scadenza', z: tl, d: 's', h: fn(panTile('go-porto-tab', '', I.map, ps.due ? 'soon' : 'ok', 'Contratti in scadenza', String(ps.due), 'entro 30 giorni al porto')) },
-      { id: 'riord', t: 'Da riordinare · batterie', z: tl, d: 's', h: fn(panTile('tab', low ? 'magazzino' : 'batterie', I.box, low || bd ? 'soon' : 'ok', 'Da riordinare · batterie', low + ' <small>· ' + bd + '</small>', 'articoli sotto scorta · barche da caricare')) }
+      sezOn('batterie') ? { id: 'riord', t: 'Da riordinare · batterie', z: tl, d: 's', h: fn(panTile('tab', low ? 'magazzino' : 'batterie', I.box, low || bd ? 'soon' : 'ok', 'Da riordinare · batterie', low + ' <small>· ' + bd + '</small>', 'articoli sotto scorta · barche da caricare')) }
+        : { id: 'riord', t: 'Da riordinare', z: tl, d: 's', h: fn(panTile('tab', 'magazzino', I.box, low ? 'soon' : 'ok', 'Da riordinare', String(low), 'articoli sotto scorta')) }
     ];
     // Ore
     var r = panRange(V.panPer), E = panEntries(r), tot = E.reduce(function (a, l) { return a + num(l.oreLavoro); }, 0), cant = E.filter(function (l) { return !l.barcaId && !l.clienteNome; }).reduce(function (a, l) { return a + num(l.oreLavoro); }, 0);
@@ -8208,9 +8309,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       rpKpi('Entro 90 giorni', String(d90.length), 'a data', ''), rpKpi('Fatte questo mese', String(fatte), '', fatte ? 'ok' : '')];
     B.push(rpCols('Scadenze per mese', 'prossimi 6 mesi', ms, byM), rpBars('Per tipo', 'prossimi 90 giorni', tr, 'Nessuna scadenza nei prossimi 90 giorni'));
     var h = secH('Da avvisare (' + (late.length + soon.length) + ')');
-    h += rpTable([['Cliente'], ['Barca'], ['Scadenza'], ['Data'], ['Stato'], ['Telefono']], late.concat(soon).map(function (x) {
+    var IMR = settore() === 'impianti';
+    h += rpTable([['Cliente'], [IMR ? 'Indirizzo' : 'Barca'], ['Scadenza'], ['Data'], ['Stato'], ['Telefono']], late.concat(soon).map(function (x) {
       var b = x.i.boat;
-      return { act: b ? ' data-act="open-boat" data-id="' + esc(b.id) + '"' : '', c: ['<b>' + esc(b && b.proprietario || '–') + '</b>', esc(boatLabel(b)), esc(x.s.tipo || ''), esc(x.s.data ? fmtDate(x.s.data) : ''), '<span class="pill ' + x.i.level + '">' + esc(x.i.text) + '</span>', esc(b && b.telefono || '')] };
+      return { act: b ? ' data-act="open-boat" data-id="' + esc(b.id) + '"' : '', c: ['<b>' + esc(b && b.proprietario || '–') + '</b>', esc(IMR ? (b && b.indirizzo) || '' : boatLabel(b)), esc(x.s.tipo || ''), esc(x.s.data ? fmtDate(x.s.data) : ''), '<span class="pill ' + x.i.level + '">' + esc(x.i.text) + '</span>', esc(b && b.telefono || '')] };
     }), 'Nessun cliente da avvisare: niente di scaduto o in scadenza nei prossimi 30 giorni.');
     B.push(rpTab('avvisa', 'Da avvisare', h));
     return B;
@@ -8332,8 +8434,13 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
 
   /* ---------- Programma: chi fa cosa, giorno per giorno, con orari, persone, mezzi e materiali ---------- */
-  var PROG_DOVE = ['Capannone', 'Piazzale', 'Porto', 'Marina (MSV)', 'Fuori sede'];
-  var PROG_MEZZI_BASE = ['Travel lift MSV', 'Gru', 'Muletto', 'Carrello', 'Furgone', 'Idropulitrice', 'Compressore', 'Lucidatrice'];
+  var PROG_DOVE_N = ['Capannone', 'Piazzale', 'Porto', 'Marina (MSV)', 'Fuori sede'];
+  var PROG_MEZZI_N = ['Travel lift MSV', 'Gru', 'Muletto', 'Carrello', 'Furgone', 'Idropulitrice', 'Compressore', 'Lucidatrice'];
+  var PROG_SETT = { officina: { dove: ['Officina', 'Piazzale', 'Fuori sede'], mezzi: ['Ponte sollevatore', 'Carro attrezzi', 'Furgone', 'Compressore', 'Diagnosi', 'Equilibratrice', 'Smontagomme'] },
+    impianti: { dove: ['Magazzino', 'Dal cliente', 'Fuori sede'], mezzi: ['Furgone', 'Piattaforma aerea', 'Scala', 'Trapano', 'Saldatrice', 'Analizzatore fumi'] } };
+  // si leggono quando servono: il settore arriva dopo il caricamento della pagina
+  function progDove() { var x = PROG_SETT[settore()]; return x ? x.dove : PROG_DOVE_N; }
+  function progMezziBase() { var x = PROG_SETT[settore()]; return x ? x.mezzi : PROG_MEZZI_N; }
   function addDays(iso, n) { return utcToISO(isoToUTC(iso) + n * 86400000); }
   function progDayLabel(d) { var t = todayISO(); return d === t ? 'Oggi' : d === addDays(t, 1) ? 'Domani' : d === addDays(t, -1) ? 'Ieri' : cap(fmtDayLong(d)); }
   function progOf(day) { return S.prog.filter(function (x) { return x.data === day; }); }
@@ -8346,7 +8453,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     S.prog.forEach(function (x) { progPers(x).forEach(function (id) { if (ids.indexOf(id) < 0) ids.push(id); }); });
     return ids.sort(byPerson);
   }
-  function progMezzi() { var m = PROG_MEZZI_BASE.slice(); S.mezzi.forEach(function (z) { if (z.nome && m.indexOf(z.nome) < 0) m.push(z.nome); }); S.prog.forEach(function (x) { (x.mezzi || []).forEach(function (n) { if (m.indexOf(n) < 0) m.push(n); }); }); return m; }
+  function progMezzi() { var m = progMezziBase().slice(); S.mezzi.forEach(function (z) { if (z.nome && m.indexOf(z.nome) < 0) m.push(z.nome); }); S.prog.forEach(function (x) { (x.mezzi || []).forEach(function (n) { if (m.indexOf(n) < 0) m.push(n); }); }); return m; }
   function hm(s) { var m = String(s || '').match(/^(\d{1,2}):(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; }
   function hmStr(min) { min = Math.round(min); return pad(Math.floor(min / 60) % 24) + ':' + pad(min % 60); }
   function progSpan(x) { var a = hm(x.ora); if (a == null) return null; var d = num(x.durata); return { a: a, b: a + (d > 0 ? d * 60 : 60) }; }
@@ -8453,7 +8560,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         '<button type="button" class="link self-start" id="f-pmoreB"' + (more ? ' hidden' : '') + '>＋ Mezzi, dove, materiali, urgenza, cliente da avvisare</button>' +
         '<div id="f-pmore"' + (more ? '' : ' hidden') + '>' +
           '<div class="lbl">Mezzi e attrezzature</div><div class="chips wrap" id="f-pm">' + mezzi.map(function (m) { return '<button type="button" data-pm="' + esc(m) + '" aria-pressed="' + ((x.mezzi || []).indexOf(m) >= 0) + '">' + esc(m) + '</button>'; }).join('') + '</div>' +
-          '<div class="grid2" style="margin-top:12px">' + field(lab('f-pmx', 'Altro mezzo'), inp('f-pmx', '', 'type="text" placeholder="es. Gommone di servizio"')) + field(lab('f-pdv', 'Dove'), '<select id="f-pdv"><option value="">—</option>' + opts(PROG_DOVE, x.dove || '') + '</select>') + '</div>' +
+          '<div class="grid2" style="margin-top:12px">' + field(lab('f-pmx', 'Altro mezzo'), inp('f-pmx', '', 'type="text" placeholder="es. Gommone di servizio"')) + field(lab('f-pdv', 'Dove'), '<select id="f-pdv"><option value="">—</option>' + opts(progDove(), x.dove || '') + '</select>') + '</div>' +
           rcBlock(x.materiali, { lbl: 'Materiali da preparare (facoltativi)', add: 'Aggiungi materiale', more: 'Aggiungi un altro materiale', hint: 'Dal magazzino: nel programma vedi subito se ne mancano. Qui non si scala niente.' }) +
           '<label class="check" style="margin-top:12px"><input type="checkbox" id="f-pu"' + (x.urgente ? ' checked' : '') + '> Urgente</label>' +
           '<label class="check"><input type="checkbox" id="f-pa"' + (x.avvisare ? ' checked' : '') + '> Avvisare il cliente</label>' +
@@ -8737,7 +8844,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       ((r.foto || []).length ? '<div class="thumbs">' + r.foto.map(function (id) { return '<span class="thumb-w"><img class="thumb" alt="" src="' + esc(blobSrc(id)) + '" data-blob="' + esc(id) + '" data-act="photo" data-id="' + esc(id) + '"></span>'; }).join('') + '</div>' : '');
     if (puo) body += field(lab('f-rqr', 'Risposta al cliente'), '<textarea id="f-rqr" maxlength="1000" placeholder="' + (r.tipo === 'varo' ? 'es. va bene, alle 9 in banchina' : 'es. passiamo a vederla giovedì') + '">' + esc(r.risposta || '') + '</textarea>') +
       field(lab('f-rqs', 'Esito'), '<select id="f-rqs">' + opts([['vista', 'Ricevuta (ci stiamo lavorando)'], ['confermata', 'Confermata'], ['no', 'Non possibile']], r.stato === 'inviata' ? 'vista' : r.stato) + '</select>') +
-      (r.tipo === 'varo' && !r.varoId ? '<label class="chk"><input type="checkbox" id="f-rqv" checked> Se confermata, metti il varo in Vari e alaggi</label>' : '') +
+      (r.tipo === 'varo' && !r.varoId && sezOn('vari') ? '<label class="chk"><input type="checkbox" id="f-rqv" checked> Se confermata, metti il varo in Vari e alaggi</label>' : '') +
       (r.tipo === 'lavoro' && !r.lavId ? '<label class="chk"><input type="checkbox" id="f-rql" checked> Se confermata, metti il lavoro tra le lavorazioni da fare</label>' : '') +
       (r.risposta && r.rispostoDa ? '<p class="cap">Ultima risposta di ' + esc(nameOf(r.rispostoDa)) + ' il ' + esc(fmtDate(String(r.rispostoIl || '').slice(0, 10))) + '.</p>' : '');
     openSheet({ title: r.tipo === 'varo' ? 'Richiesta di varo' : r.tipo === 'lavoro' ? 'Lavoro chiesto dal cliente' : 'Problema segnalato', menu: !puo, submitLabel: 'Rispondi', item: r, body: body,
@@ -9939,9 +10046,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   // Collegamento facoltativo da lavorazione o mansione a un pezzo di attrezzatura
   function attrLinkBlock(curId) {
     var open = !!curId;
-    return '<button type="button" class="link self-start" id="f-atBtn"' + (open ? ' hidden' : '') + '>＋ Collega a un pezzo dell’attrezzatura di bordo</button>' +
+    var no = !naut() && !open; // negli altri settori la scheda Attrezzatura non c'è
+    return (no ? '<div hidden>' : '') + '<button type="button" class="link self-start" id="f-atBtn"' + (open ? ' hidden' : '') + '>＋ Collega a un pezzo dell’attrezzatura di bordo</button>' +
       '<div id="f-atW"' + (open ? '' : ' hidden') + '>' + field(lab('f-at', 'Attrezzatura di bordo (facoltativa)'), '<select id="f-at"><option value="' + esc(curId || '') + '"></option></select>') +
-      '<div id="f-atNew" hidden>' + attrFields({}, 'fn-', false) + '</div></div>';
+      '<div id="f-atNew" hidden>' + attrFields({}, 'fn-', false) + '</div></div>' + (no ? '</div>' : '');
   }
   function attrLinkBind(f, getBoat, getCat, curId) {
     var wr = f.querySelector('#f-atW'), btn = f.querySelector('#f-atBtn'), sel = f.querySelector('#f-at'), nw = f.querySelector('#f-atNew');
@@ -10544,6 +10652,37 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['nessun lavoro né varo', 'nessun lavoro'], ['chiede il varo', set === 'officina' ? 'chiede la riconsegna' : 'chiede un intervento'], ['conferma prima del varo', set === 'officina' ? 'conferma prima della riconsegna' : 'conferma prima di chiudere'],
     ['cosa resta a bordo', set === 'officina' ? 'cosa resta nel veicolo' : 'cosa resta'], ['motore, carena, coperta…', set === 'officina' ? 'Tagliando, freni, gomme…' : 'Manutenzione, installazione…']
     ]);
+    // esempi, segnaposti e descrizioni: negli altri settori parlano del loro mestiere (15/11/2026)
+    var OF = set === 'officina';
+    F = [
+      ['\\(velaio, tappezziere…\\)', OF ? '(carrozziere, elettrauto…)' : '(muratore, fabbro…)'],
+      ['velaio, tappezziere, elettricista…', OF ? 'carrozziere, elettrauto, gommista…' : 'muratore, fabbro, idraulico…'],
+      ['es\\. vele e tendalini', OF ? 'es. carrozzeria e verniciatura' : 'es. opere murarie'],
+      ['motore, zattera, estintore…', OF ? 'motore, gomme, impianto a gas…' : 'caldaia, condizionatore, estintore…'],
+      ['es\\. Yamaha F150, zattera Eurovinil 6 posti', OF ? 'es. Fiat Panda 1.2, gomme Michelin Alpin' : 'es. caldaia Vaillant ecoTEC, estintore 6 kg'],
+      ['es\\. Alaggio Lulu con il travel lift', OF ? 'es. Tagliando della Panda di Rossi' : 'es. Manutenzione caldaia al condominio Le Querce'],
+      ['es\\. Gommone di servizio', OF ? 'es. Carro attrezzi' : 'es. Piattaforma aerea'],
+      ['es\\. Nautica Rossi', OF ? 'es. Ricambi Rossi' : 'es. Termoidraulica Rossi'],
+      ['es\\. Filtro olio Yamaha F200, Antivegetativa nera 2,5 l, Guanti nitrile', OF ? 'es. Filtro olio Mann W 712, Pastiglie freno anteriori, Guanti nitrile' : 'es. Raccordo in rame 15 mm, Silicone bianco, Guanti nitrile'],
+      ['Lavoro, es\\. Antivegetativa carena', OF ? 'Lavoro, es. Tagliando completo' : 'Lavoro, es. Sostituzione caldaia'],
+      ['es\\. Tagliando fuoribordo', OF ? 'es. Tagliando auto' : 'es. Manutenzione caldaia'],
+      ['il paese o il porto', 'il paese o la città'], ['paese o del porto', 'paese o della città'], ['paese o porto', 'paese o città'],
+      ['uno sul pontile', 'uno nel furgone'], ['solo urgenze in porto', 'solo urgenze'],
+      ['es\\. anodi asse elica 30 mm', OF ? 'es. pastiglie freno anteriori' : 'es. valvola di sicurezza 3 bar'],
+      ['es\\. 2 cuscini prendisole, tendalino', OF ? 'es. centralina motore, 4 cerchi' : 'es. scheda della caldaia'],
+      ['attrezzatura di bordo', 'attrezzatura'], ['attrezzature di bordo', 'attrezzature'],
+      ['tender, cuscini, tendalini con foto', OF ? 'gomme, portapacchi, seggiolini con foto' : 'apparecchi e materiale del cliente con foto'],
+      ['Tagliando, antivegetativa, assicurazione…', OF ? 'Tagliando, revisione, assicurazione…' : 'Manutenzione, controllo fumi, contratto…'],
+      ['\\(BoatLift, muletto, trattore…\\)', OF ? '(ponte sollevatore, carro attrezzi…)' : '(furgone, piattaforma…)'],
+      ['Programma lavori e varo', 'Programma lavori'], ['larghezza massima \\(baglio\\)', 'larghezza massima'],
+      ['tagliandi, varo, invernaggio, lavaggio', OF ? 'tagliandi, cambio gomme, revisione, lavaggio' : 'manutenzioni, collaudi, consegna al cliente'],
+      ['motore, impianti di bordo, carena, coperta…', OF ? 'tagliando, freni, gomme, carrozzeria…' : 'manutenzione, installazione, riparazione…'],
+      ['\\(tagliando, rimessaggio, carena\\)', OF ? '(tagliando, cambio gomme, revisione)' : '(manutenzione caldaia, installazione, collaudo)'],
+      ['\\(tagliando, estintori, zattera…\\)', OF ? '(tagliando, revisione, bollo…)' : '(caldaia, estintori, contratto…)'],
+      ['Vari chiesti', OF ? 'Riconsegne chieste' : 'Interventi chiesti'], ['Richiesta di varo', OF ? 'Richiesta di riconsegna' : 'Richiesta di intervento'],
+      ['Varo il', OF ? 'Riconsegna il' : 'Intervento il'], ['chiedono il varo per un giorno', OF ? 'chiedono di riprendere il veicolo un giorno' : 'chiedono un intervento per un giorno'],
+      ['alle 9 in banchina', OF ? 'alle 9 in officina' : 'alle 9 da lei']
+    ].concat(F); // prima delle altre frasi: qui sono scritte come nella Nautica
     var G = set === 'officina' ? 'Lavoro, Veicoli e clienti, Officina e Amministrazione' : 'Lavoro, Clienti, Azienda e Amministrazione';
     F = [
       ['diviso in Officina, Barche e clienti, Cantiere e Amministrazione', 'diviso in ' + G], ['scheda della barca creata', 'scheda del' + (N[0] === 'veicolo' ? ' veicolo' : ' cliente') + ' creata'],
@@ -10623,7 +10762,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   function vocApplica(regole, s) { for (var i = 0; i < regole.length; i++) s = s.replace(regole[i][0], regole[i][1]); return s; }
   var VOC = { set: 'nautica', R: null, obs: null };
-  var VOC_T = /barc|cantier|rimessagg|antivegetativ|travel lift|a bordo|ore motore|ore dei motori|alaggio|collegati a lei|tendalini|chiedere il varo|onsegnat|comprata|ripartita|trovi qui|varo|vari del giorno|porto e rifiuti|carena|porto spento/i;
+  var VOC_T = /barc|cantier|rimessagg|antivegetativ|travel lift|a bordo|ore motore|ore dei motori|alaggio|collegati a lei|tendalini|chiedere il varo|onsegnat|comprata|ripartita|trovi qui|varo|vari del giorno|porto e rifiuti|carena|porto spento|fuoribordo|velaio|zattera|gommone|nautica rossi|yamaha|vele e|porto|pontile|elica|prendisole|di bordo|tender|boatlift|baglio|invernaggio|vari chiesti/i;
   var VOC_ATTR = ['placeholder', 'aria-label', 'title', 'alt'];
   var VOC_SKIP = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, NOSCRIPT: 1, CODE: 1, svg: 1, SVG: 1 };
   function vocT(t) { return VOC.R && t && VOC_T.test(t) ? vocApplica(VOC.R, String(t)) : t; } // anche per Excel, finestre e titoli
@@ -10819,7 +10958,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (!(S.isOwner && S.canWrite)) return '<div class="notice" style="margin-top:14px">L’aspetto dell’app lo cambia l’amministratore.</div>';
     aspDraft();
     var h = '<p class="context" style="margin-top:12px">Il nome dell’azienda, i due colori dello sfondo sfumato, i loghi, il luogo del meteo e le sezioni che usate. Mentre scegli vedi subito come viene, solo tu; per tutti cambia quando premi «Salva per tutti».</p>';
-    h += '<div class="group asp-box">' + aspNomeHtml() + aspColoriHtml() + aspLoghiHtml() + aspLuogoHtml() + '</div>';
+    h += '<div class="group asp-box">' + aspNomeHtml() + aspColoriHtml() + aspLoghiHtml() + (luogoServe() ? aspLuogoHtml() : '') + '</div>';
     h += secH('Che lavoro fate') + aspSettHtml();
     h += secH('Sezioni dell’app') + aspSezHtml();
     h += '<div class="asp-acts" style="margin-top:12px"><button type="button" class="btn" data-act="asp-save">Salva per tutti</button>' +
@@ -10849,11 +10988,16 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     ['Il luogo', 'Cerca il paese o il porto del cantiere: serve per il meteo.', aspLuogoHtml],
     ['Le sezioni', 'Lascia accese le sezioni che usate. Le altre si possono riaccendere quando vuoi.', aspSezHtml]
   ];
+  function luogoServe() { return naut() || sezOn('meteo') || sezOn('giro'); }
+  function wizPassi() { // senza meteo né giro il passo del luogo non serve
+    if (luogoServe()) return WIZ;
+    return WIZ.filter(function (x) { return x[2] !== aspLuogoHtml; }).map(function (x, i) { return i ? x : [x[0], x[1].replace('cinque passi', 'quattro passi'), x[2]]; });
+  }
   function wizOn() { return S.status === 'ready' && S.isOwner && S.canWrite && aspNuovo() && !V.wizDopo && !(window.__NM_FB && __NM_FB.azienda && __NM_FB.azienda().assist); } // il gestore in assistenza non la vede
   function viewWizard() {
-    aspDraft(); var n = Math.max(0, Math.min(WIZ.length - 1, V.wizStep || 0)), st = WIZ[n], last = n === WIZ.length - 1;
-    return '<div class="wiz"><div class="wiz-dots" aria-label="Passo ' + (n + 1) + ' di ' + WIZ.length + '">' + WIZ.map(function (x, i) { return '<i' + (i <= n ? ' class="on"' : '') + '></i>'; }).join('') + '</div>' +
-      '<div class="eyebrow">Passo ' + (n + 1) + ' di ' + WIZ.length + '</div><h2>' + esc(st[0]) + '</h2><p class="context">' + esc(st[1]) + '</p>' +
+    aspDraft(); var WZ = wizPassi(), n = Math.max(0, Math.min(WZ.length - 1, V.wizStep || 0)), st = WZ[n], last = n === WZ.length - 1;
+    return '<div class="wiz"><div class="wiz-dots" aria-label="Passo ' + (n + 1) + ' di ' + WZ.length + '">' + WZ.map(function (x, i) { return '<i' + (i <= n ? ' class="on"' : '') + '></i>'; }).join('') + '</div>' +
+      '<div class="eyebrow">Passo ' + (n + 1) + ' di ' + WZ.length + '</div><h2>' + esc(st[0]) + '</h2><p class="context">' + esc(st[1]) + '</p>' +
       '<div class="group asp-box">' + st[2]() + '</div>' +
       '<div class="asp-acts wiz-acts">' + (n ? '<button type="button" class="btn sec" data-act="wiz-go" data-d="-1">Indietro</button>' : '') +
       '<button type="button" class="btn" data-act="' + (last ? 'asp-save' : 'wiz-go') + '" data-d="1">' + (last ? 'Inizia' : 'Avanti') + '</button></div>' +
@@ -11144,14 +11288,15 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       ? '<p class="cap" style="margin:6px 0 0">Da qui non si possono scaricare file: apri l’app da claude.ai o dall’app Claude.</p>'
       : '<div class="acts"><button type="button" class="btn" data-act="bk-save"' + (BK.busy ? ' disabled' : '') + '>' + I.dl + (BK.busy === 'save' ? 'Preparo la copia…' : 'Scarica la copia') + '</button></div>';
     h += '<div class="empty" style="margin-top:14px"><span class="ic-circle">' + I.dl + '</span><h3>Copia di tutti i dati</h3>' +
-      '<p>Un unico file con barche, lavorazioni, scheda lavoro, programma, scadenze, magazzino, rifiuti, vari e alaggi, servizi, porto, attrezzatura, batterie, mezzi e mappa.</p>' + save +
+      '<p>' + (naut() ? 'Un unico file con barche, lavorazioni, scheda lavoro, programma, scadenze, magazzino, rifiuti, vari e alaggi, servizi, porto, attrezzatura, batterie, mezzi e mappa.' : 'Un unico file con barche, lavorazioni, scheda lavoro, programma, scadenze, magazzino, rifiuti, preventivi, mezzi e attrezzi.') + '</p>' + save +
       (inf && inf.ultima ? '<p class="cap" style="margin-top:6px">Ultima copia: ' + esc(fmtWhen(inf.ultima)) + (inf.nome ? ' · ' + esc(inf.nome) : '') + '</p>' : '') + '</div>';
     var au = inf && inf.auto;
     h += '<div class="empty" style="margin-top:14px"><span class="ic-circle">' + I.restore + '</span><h3>Copia automatica</h3>' +
       '<p>Ogni domenica notte il servizio salva da solo una copia dei dati dell’azienda, chiusa con una password. Le copie restano 8 settimane: se ti serve, chiedila al gestore del servizio e recuperala qui sotto.</p>' +
       '<p class="cap" style="margin:6px 0 0">' + (au && au.ultima ? 'Ultima copia automatica: ' + esc(fmtWhen(au.ultima)) + (au.voci ? ' · ' + esc(nVoci(au.voci)) : '') : 'Nessuna copia automatica ancora.') + '</p></div>';
 
-    var rows = BK_COLL.filter(function (x) { return x[0] !== 'impostazioni' && (c[x[0]] || BK_OLD.indexOf(x[0]) < 0); }).map(function (x) {
+    var BK_SEZ = { vari: 'vari', posti: 'porto', operazioni: 'operazioni', opModelli: 'operazioni', barattoli: 'vernice', deposito: 'deposito', verbali: 'verbale' }; // fuori dalla Nautica: le sezioni che non ci sono, se vuote, non si elencano
+    var rows = BK_COLL.filter(function (x) { return x[0] !== 'impostazioni' && (c[x[0]] || (BK_OLD.indexOf(x[0]) < 0 && (naut() || !BK_SEZ[x[0]] || sezOn(BK_SEZ[x[0]])))); }).map(function (x) {
       return '<div class="kv-row"><span class="k">' + esc(x[1]) + '</span><span class="v">' + fmtNum(c[x[0]] || 0) + '</span></div>';
     });
     rows.push('<div class="kv-row"><span class="k">Misure della mappa e posizioni</span><span class="v">' + (S.mapCfg ? 'Sì' : '—') + '</span></div>');
@@ -11614,15 +11759,16 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       if (l.fonte !== 'scheda' || !l.utente || !l.data || String(l.data).slice(0, 7) !== key) return;
       (per[l.utente] = per[l.utente] || []).push(l);
     });
-    var rows = [], breaks = [], ids = Object.keys(per).sort(function (a, b) { return nameOf(a).localeCompare(nameOf(b), 'it'); });
+    var rows = [], breaks = [], IMX = settore() === 'impianti', ids = Object.keys(per).sort(function (a, b) { return nameOf(a).localeCompare(nameOf(b), 'it'); });
     ids.forEach(function (uid, n) {
       var list = per[uid].map(function (l) {
         var b = l.barcaId ? boatById(l.barcaId) : null, altre = (l.altreBarche || []).map(boatById).filter(Boolean);
         var pm = schPermInfo(l);
         if (pm) return { d: l.data, t: l.titolo || 'Permesso', c: 'Permesso', b: '—', o: pm.ore, pm: true };
+        if (IMX) return { d: l.data, t: l.titolo || 'Lavoro', c: l.barcaId ? [b ? b.nome || 'Cliente' : 'Cliente eliminato'].concat(altre.map(function (x) { return x.nome || 'Cliente'; })).join(', ') : l.clienteNome ? l.clienteNome + ' (di passaggio)' : 'Lavori del cantiere', b: (b && b.indirizzo) || '—', o: num(l.oreLavoro) || 0 };
         return { d: l.data, t: l.titolo || 'Lavoro', c: l.barcaId ? (b && b.proprietario) || '' : l.clienteNome ? l.clienteNome + ' (di passaggio)' : 'Lavori del cantiere', b: l.barcaId ? [b ? b.nome || 'Barca' : 'Barca eliminata'].concat(altre.map(function (x) { return x.nome || 'Barca'; })).join(', ') : '—', o: num(l.oreLavoro) || 0 };
       }).sort(function (a, b) { return a.d.localeCompare(b.d) || a.t.localeCompare(b.t, 'it') || a.c.localeCompare(b.c, 'it'); });
-      rows.push(['t', NOME() + ' · Schede lavoro · ' + cap(monthLabel(key))], ['n', nameOf(uid)], ['v'], ['h', 'Data', 'Lavorazione', 'Cliente', 'Barca', 'Ore']);
+      rows.push(['t', NOME() + ' · Schede lavoro · ' + cap(monthLabel(key))], ['n', nameOf(uid)], ['v'], ['h', 'Data', 'Lavorazione', 'Cliente', IMX ? 'Indirizzo' : 'Barca', 'Ore']);
       var last = '', band = true, tot = 0, ptot = 0;
       list.forEach(function (x) {
         var first = x.d !== last; if (first) band = !band;
@@ -11831,7 +11977,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       return '<button type="button" data-act="st-filtro" data-f="' + o[0] + '" aria-pressed="' + (f === o[0]) + '">' + o[1] + ' (' + (o[0] === 'tutto' ? all.length : n[o[0]]) + ')</button>';
     }).join('') + '</div>';
     var list = all.filter(function (e) { return f === 'tutto' || e.k === f; });
-    if (!list.length) return h + '<div class="notice" style="margin-top:12px">Ancora niente da raccontare: la storia si riempie da sola con lavori, ricambi, vari e alaggi, cariche delle batterie e scadenze fatte.</div>';
+    if (!list.length) return h + '<div class="notice" style="margin-top:12px">' + (naut() ? 'Ancora niente da raccontare: la storia si riempie da sola con lavori, ricambi, vari e alaggi, cariche delle batterie e scadenze fatte.' : 'Ancora niente da raccontare: la storia si riempie da sola con lavori, ricambi e scadenze fatte.') + '</div>';
     var MAX = 80, shown = V.stTutto ? list : list.slice(0, MAX), mese = '', rows = [];
     function chiudi() { if (rows.length) { h += '<div class="group">' + rows.join('') + '</div>'; rows = []; } }
     shown.forEach(function (e) {
@@ -12008,10 +12154,18 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     boatlift: ['Nessuna perdita d’olio da tubi e pistoni', 'Livello olio idraulico', 'Gomme e ruote', 'Fasce e cinghie di sollevamento integre', 'Radiocomando e arresto d’emergenza', 'Freni', 'Luci e lampeggiante'],
     muletto: ['Forche e catene', 'Nessuna perdita d’olio', 'Freni', 'Clacson, luci e cicalino retromarcia', 'Cintura e sedile', 'Gomme'],
     strada: ['Gomme', 'Luci e frecce', 'Freni', 'Olio motore e liquidi', 'Gancio di traino e spinotto luci', 'Specchi e vetri'],
-    carrello: ['Gomme e ruote', 'Luci e catarifrangenti', 'Gancio e sicura', 'Cinghie e cavalletti', 'Freno']
+    carrello: ['Gomme e ruote', 'Luci e catarifrangenti', 'Gancio e sicura', 'Cinghie e cavalletti', 'Freno'],
+    // Officina e Impianti
+    ponte: ['Bracci e tamponi integri', 'Nessuna perdita d’olio', 'Blocchi di sicurezza', 'Pulsanti e arresto d’emergenza', 'Nessuno sotto il ponte quando sale o scende'],
+    piattaforma: ['Stabilizzatori', 'Nessuna perdita d’olio', 'Comandi e arresto d’emergenza', 'Cestello e cancelletto', 'Imbracatura'],
+    scala: ['Piedini antiscivolo', 'Gradini e montanti integri', 'Blocchi e ganci di sicurezza'],
+    compressore: ['Pressione e manometro', 'Tubi e innesti', 'Scarico della condensa', 'Valvola di sicurezza'],
+    altro: ['Integro e pulito', 'Funziona', 'Protezioni al loro posto']
   };
   function ctrlOn() { return sezOn('controllo'); }
-  function ctrlTipo(t) { t = String(t || '').toLowerCase(); return /boatlift|semovente/.test(t) ? 'boatlift' : /muletto/.test(t) ? 'muletto' : /motrice|trattore|furgone/.test(t) ? 'strada' : 'carrello'; }
+  function ctrlTipo(t) { t = String(t || '').toLowerCase();
+    if (!naut()) return /ponte|sollevator/.test(t) ? 'ponte' : /piattaform|cestell/.test(t) ? 'piattaforma' : /scala|trabattell/.test(t) ? 'scala' : /compressor/.test(t) ? 'compressore' : /furgon|auto|carro|camion|motrice|trattore/.test(t) ? 'strada' : /muletto/.test(t) ? 'muletto' : 'altro';
+    return /boatlift|semovente/.test(t) ? 'boatlift' : /muletto/.test(t) ? 'muletto' : /motrice|trattore|furgone/.test(t) ? 'strada' : 'carrello'; }
   function ctrlVoci(m) { var v = String(m.vociControllo || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); return v.length ? v : CTRL_VOCI[ctrlTipo(m.tipo)]; }
   function ctrlList() { return S.mezzi.filter(function (m) { return m.controllo; }).sort(function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || ''), 'it'); }); }
   function ctrlOggi(m) { var t = todayISO(); return (S.ctrlMz || []).filter(function (c) { return c.mezzoId === m.id && c.data === t && !c._del; }).sort(function (a, b) { return String(b.ora).localeCompare(String(a.ora)); })[0] || null; }
@@ -12538,11 +12692,37 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var k = GUIDA[V.tab] ? V.tab : 'inizio';
     return GUIDA[k].rif || k;
   }
+  // Officina e Impianti: le righe delle cose che lì non ci sono (porto, vari, meteo, motori e attrezzatura di bordo) spariscono,
+  // dalle altre si tolgono i pezzi delle sezioni spente; la Nautica resta com'è
+  var GUIDA_VIA = ['Meteo della Marina', 'L’icona a sinistra dice dove si trova', '«Dove si trova» nella matita', '«Dotazioni e documenti obbligatori»', '«Piano tagliandi pronto»',
+    'I tasti mappa e porto', 'Contratti del porto in scadenza', 'Porto e posti:', 'Confermando un varo', 'In «Dove si trova il cantiere»',
+    '«Trasporto: passa?»', '«Scegli la strada del trasporto»', 'Ogni passaggio ha altezza e larghezza dal cartello'];
+  var GUIDA_PEZZI = [['mostra le distanze dalle vicine.', 'mostra le distanze da quelli vicini.'], ['con una casella per cercarle:', 'con una casella per cercarli:'],
+    ['Puoi mettere anche mezzi e carrelli: una barca caricata su un carrello si sposta con lui.', 'Puoi mettere anche i mezzi (ponte sollevatore, carro attrezzi…): un veicolo caricato su un mezzo si sposta con lui.'], [', vari di oggi,', ','], [', batterie, ricambi', ', ricambi'], ['Scadenze, Magazzino, Porto, Rifiuti e Batterie', 'Scadenze, Magazzino e Rifiuti'],
+    ['Scadenze, Porto, Rifiuti e Batterie', 'Scadenze e Rifiuti'], [', vari e alaggi, scadenze (', ', scadenze ('], ['programma, vari, scadenze, assenti e meteo', 'programma, scadenze e assenti'],
+    ['lavori, scadenze, vari e ricambi', 'lavori, scadenze e ricambi'], ['i tasti sopra per vedere solo quelle a terra, in acqua, con scadenze o con lavori aperti', 'i tasti sopra mostrano solo chi ha scadenze o lavori aperti'],
+    ['(scadenze vicine, batterie, attrezzatura da sistemare, lavori in ritardo, vari e alaggi dei prossimi 30 giorni), il programma dei lavori con i giorni al varo,', '(scadenze vicine e lavori in ritardo), il programma dei lavori,'],
+    ['i prossimi tagliandi e i numeri', 'le prossime scadenze e i numeri'], [', con il giorno del varo: «In tempo» o «A rischio» se un lavoro finisce dopo il varo.', '.'],
+    [', vari e alaggi, cariche delle batterie, scadenze fatte, servizi, preventivi, giri dopo il vento e lavori dati fuori', ', scadenze fatte, preventivi e lavori dati fuori'],
+    ['senza lavori né vari da 12 mesi, contratti del posto scaduti,', 'senza lavori da 12 mesi,'], ['Barche senza misure o senza proprietario', 'Barche senza proprietario'], [', posti al porto senza contratto.', '.'],
+    ['(porto, rifiuti, batterie…)', '(rifiuti, preventivi, magazzino…)'], ['(preventivi, servizi, scadenze del cantiere e giro di controllo anche', '(preventivi e scadenze del cantiere anche'],
+    [', servizio, varo, programma', ', programma']];
+  // Impianti: la mappa ha solo i mezzi (le righe sui clienti da sistemare si tolgono o si riscrivono)
+  var GUIDA_IMP = [['con le barche disegnate con le loro misure', 'con i vostri mezzi disegnati con le loro misure'], ['Trascina una barca dove si trova davvero', 'Trascina un mezzo dove si trova davvero'],
+    ['L’app segnala barche sovrapposte', 'L’app segnala mezzi sovrapposti'], ['Puoi mettere anche mezzi e carrelli', null], ['«barca di prova»', null], ['L’elenco «Da posizionare»', null],
+    ['puoi già sistemare le barche', 'puoi già sistemare i mezzi'], ['nasconde o mostra la planimetria sotto le barche', 'nasconde o mostra la planimetria sotto i mezzi'], ['l’elenco delle barche già sistemate', null]];
+  function guidaSett(s) {
+    if (s == null || naut()) return s;
+    if (GUIDA_VIA.some(function (x) { return s.indexOf(x) >= 0; })) return null;
+    if (settore() === 'impianti') for (var gi = 0; gi < GUIDA_IMP.length; gi++) if (s.indexOf(GUIDA_IMP[gi][0]) >= 0) { if (GUIDA_IMP[gi][1] == null) return null; s = s.split(GUIDA_IMP[gi][0]).join(GUIDA_IMP[gi][1]); }
+    GUIDA_PEZZI.forEach(function (x) { s = s.split(x[0]).join(x[1]); });
+    return s;
+  }
   function guidaBody(k) {
     var g = GUIDA[k], adm = !!S.isOwner;
     var lib = mapLibera(); // N| solo con il capannone di Nautica Mare, L| solo con la planimetria
-    var li = g.li.filter(function (s) { var k = s.slice(0, 2); return k === 'A|' ? adm : k === 'D|' ? !adm : k === 'N|' ? !lib : k === 'L|' ? lib : true; }).map(function (s) { return '<li>' + esc(s.replace(/^[ADNL]\|/, '')) + '</li>'; }).join('');
-    var gp = lib && g.pL ? g.pL : g.p;
+    var li = g.li.filter(function (s) { var k = s.slice(0, 2); return k === 'A|' ? adm : k === 'D|' ? !adm : k === 'N|' ? !lib : k === 'L|' ? lib : true; }).map(guidaSett).filter(function (s) { return s != null; }).map(function (s) { return '<li>' + esc(s.replace(/^[ADNL]\|/, '')) + '</li>'; }).join('');
+    var gp = guidaSett(lib && g.pL ? g.pL : g.p);
     return (gp ? '<p class="gd-p">' + esc(gp) + '</p>' : '') + '<ul class="gd-list">' + li + '</ul>' +
       '<div class="lbl">Altre sezioni</div><div class="group">' + GUIDA_ORD.filter(function (x) { return x !== k && (x !== 'aspetto' || adm) && sezOn(x); }).map(function (x) {
         return '<button type="button" class="row" data-act="guida" data-k="' + x + '"><span class="main"><span class="title">' + esc(GUIDA[x].t) + '</span></span><span style="color:var(--dim);width:18px;flex:none">' + I.right + '</span></button>';
@@ -12891,7 +13071,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         (S.myId && !date ? '<button type="button" data-act="new-entry"><span class="ic-circle">' + I.clip + '</span><span class="main"><span class="title">Mansione</span><span class="sub">Segna sulla scheda lavoro cosa hai fatto oggi</span></span></button>' : '') +
         '<button type="button" data-act="new-scad"' + dA + bA + (none ? ' disabled' : '') + '><span class="ic-circle soon">' + I.alarm + '</span><span class="main"><span class="title">Scadenza</span><span class="sub">Tagliando, antivegetativa, assicurazione…</span></span></button>' +
         '<button type="button" data-act="new-lav"' + dA + bA + (none ? ' disabled' : '') + '><span class="ic-circle">' + I.wrench + '</span><span class="main"><span class="title">Lavorazione</span><span class="sub">Da fare, in corso o già fatta</span></span></button>' +
-        '<button type="button" data-act="new-vari"' + dA + bA + (none ? ' disabled' : '') + '><span class="ic-circle vio">' + I.updown + '</span><span class="main"><span class="title">Varo o alaggio</span><span class="sub">Uscita o rientro in acqua di una barca</span></span></button>' +
+        (sezOn('vari') ? '<button type="button" data-act="new-vari"' + dA + bA + (none ? ' disabled' : '') + '><span class="ic-circle vio">' + I.updown + '</span><span class="main"><span class="title">Varo o alaggio</span><span class="sub">Uscita o rientro in acqua di una barca</span></span></button>' : '') +
         (date || cliMansione() ? '' : '<button type="button" data-act="new-boat"><span class="ic-circle ok">' + I.boat + '</span><span class="main"><span class="title">Barca</span><span class="sub">' + (naut() ? 'Nuova scheda con motore, posto e cliente' : settore() === 'officina' ? 'Nuova scheda con targa, km e cliente' : 'Nuova scheda con indirizzo e impianti') + '</span></span></button>') +
         '</div>' + (none ? '<p class="context">Prima aggiungi una barca: lavori e scadenze sono collegati a una barca.</p>' : '')
     });
@@ -13432,10 +13612,10 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       field(lab('f-titolo', 'Lavorazione'), inp('f-titolo', l.titolo, 'type="text" required placeholder="es. Tagliando 100 ore"')) +
       '<div class="grid2">' + '<div class="field" id="f-dataW"' + (l.stato === 'fatto' ? '' : ' hidden') + '>' + lab('f-data', 'Fatta il') + inp('f-data', l.stato === 'fatto' ? l.data : '', 'type="date"') + '</div>' + field(lab('f-statoL', 'Stato'), '<select id="f-statoL">' + opts([['da_fare', 'Da fare'], ['in_corso', 'In corso'], ['fatto', 'Fatto']], l.stato) + '</select>') + '</div>' +
       '<div id="f-pianW"' + (l.stato === 'fatto' ? ' hidden' : '') + '><div class="grid2">' + field(lab('f-inizio', 'Inizio'), inp('f-inizio', l.inizio, 'type="date"')) + field(lab('f-entro', 'Entro il'), inp('f-entro', l.entro, 'type="date"')) + '</div>' +
-        '<span class="hint" style="margin-top:-8px">Facoltative: con le date il lavoro compare nel Programma lavori della barca, accanto al varo.</span></div>' +
+        '<span class="hint" style="margin-top:-8px">Facoltative: con le date il lavoro compare nel Programma lavori della barca' + (sezOn('vari') ? ', accanto al varo' : '') + '.</span></div>' +
       field(lab('f-categoria', 'Categoria'), '<select id="f-categoria">' + opts(CATEGORIE, l.categoria) + '</select>' + (isNew ? '<span class="hint" id="f-catHint">' + catHintTxt({ cat: '', src: '' }) + '</span>' : '')) +
       attrLinkBlock(l.attrId) + lfBlock(l.fuori) + attBlock(l) +
-      (effOn() ? field(lab('f-eff', 'Effetto sulla barca'), '<select id="f-eff">' + opts([['', 'Nessun effetto']].concat(Object.keys(EFF_T).map(function (k) { return [k, EFF_T[k]]; })), l.effetto || '') + '</select>', 'Finché il lavoro è aperto: le barche ferme o che non possono uscire sono in rosso in Home e in Barche, e prima del varo l’app chiede conferma.') : '') +
+      (effOn() ? field(lab('f-eff', 'Effetto sulla barca'), '<select id="f-eff">' + opts([['', 'Nessun effetto']].concat(Object.keys(EFF_T).map(function (k) { return [k, EFF_T[k]]; })), l.effetto || '') + '</select>', 'Finché il lavoro è aperto: le barche ferme o che non possono uscire sono in rosso in Home e in Barche' + (sezOn('vari') ? ', e prima del varo l’app chiede conferma' : '') + '.') : '') +
       (nrOn() ? field(lab('f-notaRL', 'Nota riservata'), inp('f-notaRL', l.notaRis, 'type="text" maxlength="300" placeholder="es. non dire al cliente che è il secondo intervento"'), 'Non compare mai nel portale del cliente.') : '') +
       field(lab('f-descr', 'Dettagli e ricambi'), '<textarea id="f-descr" placeholder="es. olio 15W-40, filtro olio, girante, anodi">' + esc(l.descr || '') + '</textarea>') +
       '<div class="grid2">' + field(lab('f-oreStima', 'Tempo stimato (ore)'), inp('f-oreStima', num(l.oreStima) != null ? String(l.oreStima).replace('.', ',') : '', 'type="text" inputmode="decimal" placeholder="es. 3"') + '<span class="hint" id="f-stimaHint" hidden></span>') + field(lab('f-oreLavoro', 'Ore di manodopera'), inp('f-oreLavoro', num(l.oreLavoro) != null ? String(l.oreLavoro).replace('.', ',') : '', 'type="text" inputmode="decimal"')) + '</div>' +
@@ -14152,6 +14332,24 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     rifiuto: 'Olio esausto, venti litri, dalla barca Libeccio',
     ferie: 'Ferie dal 10 al 14 agosto'
   };
+  var DT_ES_SETT = {
+    officina: {
+      mansione: 'Oggi due ore sulla Panda di Rossi, tagliando con cambio olio e filtri', lavorazione: 'Panda di Rossi, cambio delle pastiglie dei freni, da fare entro venerdì',
+      barca: 'AB123CD, Fiat Panda 1.2 del 2017, 84500 chilometri, cliente Mario Rossi', scadenza: 'Panda di Rossi, revisione, scade il 15 marzo',
+      servizio: 'Ritiro della Panda di Rossi domani alle nove, mezz’ora', prog: 'Domani tagliando sulla Panda di Rossi', articolo: 'Filtro olio Mann W 712, ricambio, minimo due pezzi',
+      carico: 'Da Ricambi Rossi, bolla 1234: quattro filtri olio e due taniche di olio motore', preventivo: 'Panda di Rossi: tagliando due ore, cambio pastiglie un’ora',
+      verbale: '84500 chilometri, serbatoio a metà, due chiavi, nel bagagliaio restano il seggiolino e le catene', deposito: 'Quattro gomme invernali della Panda di Rossi, scaffale due',
+      rifiuto: 'Olio esausto, venti litri, dalla Panda di Rossi'
+    },
+    impianti: {
+      mansione: 'Oggi tre ore al condominio Le Querce, manutenzione della caldaia', lavorazione: 'Bar Centrale, sostituzione del condizionatore in sala, da fare entro venerdì',
+      barca: 'Mario Rossi, via Roma 12 a Cecina, caldaia Vaillant del 2019, telefono 333 1234567', scadenza: 'Condominio Le Querce, controllo fumi della caldaia, scade il 15 marzo',
+      servizio: 'Sopralluogo da Mario Rossi domani alle nove, un’ora', prog: 'Domani manutenzione della caldaia al condominio Le Querce', articolo: 'Raccordo in rame da 15, ricambio, minimo dieci pezzi',
+      carico: 'Dalla Termoidraulica Rossi, bolla 1234: dieci raccordi e due silicone bianco', preventivo: 'Bar Centrale: smontaggio del vecchio condizionatore due ore, installazione del nuovo quattro ore',
+      rifiuto: 'Cavi elettrici, cinque chili, dal Bar Centrale'
+    }
+  };
+  function dtEs(t) { var m = DT_ES_SETT[settore()]; if (!m) return t; for (var k in DT_ES) if (DT_ES[k] === t && m[k]) return m[k]; return t; }
   var DT_RIGHE = {
     carico: { nome: 'articoli arrivati', box: '#car-rows', row: '.car-row', add: '#car-add', list: '#car-list', cols: [['.car-n', 'articolo', 'nome dell’articolo'], ['.car-q', 'quantita', 'numero']] },
     preventivo: { nome: 'lavori previsti', box: '.pv-box', row: '.pv-row', add: '[data-act="pv-add"]', cols: [['.pv-t', 'lavoro', 'testo'], ['.pv-o', 'ore', 'numero']] }
@@ -14176,7 +14374,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   function dettaScrivi(form, o, msg) {
     var p = dettaPan((msg ? '<p class="cap t-soon" style="margin:0 0 8px">' + esc(msg) + '</p>' : '') +
-      '<textarea id="dt-txt" rows="3" placeholder="Oppure scrivilo qui (anche col microfono della tastiera), es. ' + esc(o.detta) + '"></textarea>' +
+      '<textarea id="dt-txt" rows="3" placeholder="Oppure scrivilo qui (anche col microfono della tastiera), es. ' + esc(dtEs(o.detta)) + '"></textarea>' +
       '<div class="acts"><button type="button" class="btn sec" id="dt-x">Chiudi</button><button type="button" class="btn" id="dt-go">Riempi i campi</button></div>');
     if (!p) return;
     p.querySelector('#dt-x').onclick = function () { dettaPan(''); };
@@ -14196,7 +14394,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       dettaManda(form, o, blob, '');
     };
     var p = dettaPan('<div class="dt-rec"><span class="dt-dot"></span><b>Ti ascolto…</b><span class="dt-t" id="dt-t">0:00</span></div>' +
-      '<p class="cap" style="margin:6px 0 0">Di’ tutto di seguito, per esempio: «' + esc(o.detta) + '». Al massimo un minuto.</p>' +
+      '<p class="cap" style="margin:6px 0 0">Di’ tutto di seguito, per esempio: «' + esc(dtEs(o.detta)) + '». Al massimo un minuto.</p>' +
       '<div class="acts"><button type="button" class="btn sec" id="dt-no">Annulla</button><button type="button" class="btn" id="dt-ok">Fine</button></div>');
     p.querySelector('#dt-no').onclick = function () { dettaStop(true); dettaPan(''); };
     p.querySelector('#dt-ok').onclick = function () { dettaStop(false); };
@@ -14897,7 +15095,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       case 'ai-key': aiKeySave(); break;
       case 'asp-geo': aspGeo(); break;
       case 'asp-geo-ok': if (V.asp && Array.isArray(V.aspGeo)) { var gg = V.aspGeo[+t.getAttribute('data-i')]; if (gg) { V.asp.luogo = gg.name; V.asp.lat = Math.round(gg.latitude * 1e4) / 1e4; V.asp.lon = Math.round(gg.longitude * 1e4) / 1e4; V.aspGeo = null; render(); } } break;
-      case 'wiz-go': if (V.asp) { var wd = +t.getAttribute('data-d'); if (wd > 0 && !(V.wizStep || 0) && !String(V.asp.nome || '').trim()) { toast('Scrivi il nome dell’azienda.', true); break; } V.wizStep = Math.max(0, Math.min(WIZ.length - 1, (V.wizStep || 0) + wd)); render(); window.scrollTo(0, 0); } break;
+      case 'wiz-go': if (V.asp) { var wd = +t.getAttribute('data-d'); if (wd > 0 && !(V.wizStep || 0) && !String(V.asp.nome || '').trim()) { toast('Scrivi il nome dell’azienda.', true); break; } V.wizStep = Math.max(0, Math.min(wizPassi().length - 1, (V.wizStep || 0) + wd)); render(); window.scrollTo(0, 0); } break;
       case 'wiz-dopo': V.wizDopo = true; V.asp = null; V.aspGeo = null; NM_MARCA.applica(); render(); toast('La trovi in Altro › Aspetto dell’app'); break;
       case 'asp-undo': V.asp = null; NM_MARCA.applica(); render(); break;
       case 'asp-base': if (S.isOwner) aspBase(); break;
