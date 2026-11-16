@@ -1,8 +1,8 @@
 # Sito su Firebase Hosting: pubblica il gestionale su https://kardan.web.app (sito «kardan» del progetto Firebase
 # gestionale-rimessaggio, al posto di GitHub Pages, che non si può usare per vendere un servizio in abbonamento).
-# Oggi il sito si pubblica dal Terminale del Mac (npx firebase-tools deploy --only hosting --project gestionale-rimessaggio).
-# Questo lavoro parte solo a mano (Actions › Sito su Firebase › Run workflow) e serve che all'account del segreto
-# FIREBASE_SERVICE_ACCOUNT sia dato il ruolo «Firebase Hosting Admin».
+# Parte solo a mano (Actions › Sito su Firebase › Run workflow), dopo il via esplicito di Torcio, e pubblica il ramo scelto.
+# All'account del segreto FIREBASE_SERVICE_ACCOUNT è stato dato il ruolo «Firebase Hosting Admin» (16/11/2026).
+# In alternativa si pubblica dal Terminale del Mac: npx firebase-tools deploy --only hosting --project gestionale-rimessaggio
 name: Sito su Firebase
 
 on:
