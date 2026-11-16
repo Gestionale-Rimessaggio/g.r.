@@ -1,7 +1,7 @@
 {
-  "name": "Gestionale cantiere",
-  "short_name": "Gestionale",
-  "description": "Il gestionale del cantiere: barche, lavori, programma, porto e magazzino.",
+  "name": "Kardan",
+  "short_name": "Kardan",
+  "description": "Kardan, il gestionale per cantieri nautici, officine e impianti: lavori, programma, scadenze e magazzino.",
   "lang": "it",
   "start_url": "./",
   "scope": "./",
