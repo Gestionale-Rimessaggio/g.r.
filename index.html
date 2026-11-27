@@ -10791,6 +10791,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     var a = settAz(), x = a && a.settore; return x === 'officina' || x === 'impianti' ? x : 'nautica';
   }
   function naut() { return settore() === 'nautica'; }
+  // esempio nel campo «Cosa hai fatto» della mansione, con il lavoro del settore
+  var MANS_ES = { nautica: 'es. lucidatura paratie esterne in gelcoat blu', officina: 'es. cambio pastiglie dei freni anteriori', impianti: 'es. sostituzione del rubinetto del lavello in cucina' };
   function settNo() { return SETT_NO[settore()] || []; }
   // Impianti e artigiani: «Solo scritti nella mansione» = niente schede dei clienti (il cliente di passaggio si scrive nella mansione)
   function cliMansione() {
@@ -14037,7 +14039,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
       '<div id="f-nbWrap" hidden>' + field(lab('f-nbNome', 'Nome della nuova barca'), inp('f-nbNome', '', 'type="text" autocapitalize="words" placeholder="es. Libeccio"'), 'Basta il nome: misure e altri dati si aggiungono quando vuoi dalla scheda della barca.') +
         (settore() === 'impianti' ? '' : field(lab('f-nbCli', 'Cliente (facoltativo)'), inp('f-nbCli', '', 'type="text" autocapitalize="words" placeholder="es. Mario Rossi"'))) + '</div>' +
       '<div id="f-opWrap">' + field(lab('f-opE', 'Servizio di cantiere'), '<select id="f-opE"></select>', 'Se scegli un servizio, compari tra chi ci ha lavorato.') + '<p class="cap" id="f-opStima" style="margin:-4px 2px 0" hidden></p></div>' +
-      field(lab('f-mans', 'Cosa hai fatto'), '<textarea id="f-mans" required placeholder="es. lucidatura paratie esterne in gelcoat blu">' + esc(l.titolo || '') + '</textarea>') +
+      field(lab('f-mans', 'Cosa hai fatto'), '<textarea id="f-mans" required placeholder="' + esc(MANS_ES[settore()] || MANS_ES.nautica) + '">' + esc(l.titolo || '') + '</textarea>') +
       (isNew ? '<div id="f-righe"></div><button type="button" class="link self-start" id="f-addRiga" style="margin-top:-6px">＋ Aggiungi riga: altra lavorazione con le sue ore</button>' : '') +
       '<p class="cap t-acc" id="f-totB" style="margin:-4px 2px 0" hidden></p>' +
       field(lab('f-catE', 'Categoria'), '<select id="f-catE">' + opts([['', 'Automatica in base al testo']].concat(CATEGORIE), isNew ? '' : (l.categoria || '')) + '</select>') +
