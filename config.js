@@ -23,3 +23,11 @@ window.NM_AVVISI_A = '';
 /* App Check: spento dal 4/11/2026. L'AI dalla foto usa la chiave gratuita di Google AI Studio
    (Altro › Strumenti in più / Aspetto dell'app), che non ha bisogno di App Check né della fatturazione. */
 window.NM_APPCHECK = { tipo: 'enterprise', siteKey: '' };
+
+/* Chi fornisce il servizio Kardan: compare in Condizioni d'uso (condizioni.html) e Privacy (privacy.html).
+   Finché un dato è vuoto, nelle pagine si legge «da completare». Da riempire all'apertura della partita IVA. */
+window.KARDAN_FORNITORE = { nome: '', piva: '', sede: '', email: 'andreatorcini01@gmail.com', pec: '', foro: '' };
+/* Versione delle condizioni (AAAA-MM-GG): se cambia, l'amministratore di ogni azienda le riaccetta al primo accesso. */
+window.KARDAN_COND_VER = '2026-11-27';
+/* true finché i testi non sono stati controllati da un consulente: nelle pagine compare l'avviso «Bozza». */
+window.KARDAN_TESTI_BOZZA = true;

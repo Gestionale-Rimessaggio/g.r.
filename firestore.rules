@@ -31,6 +31,13 @@ service cloud.firestore {
     // settore dell'azienda (Nautica, Officina, Impianti e artigiani) e come segna i clienti
     function settoreOk(d) { return (!('settore' in d) || d.settore in ['nautica', 'officina', 'impianti']) && (!('clienti' in d) || d.clienti in ['scheda', 'mansione']); }
     function corto(d, k, n) { return !(k in d) || (d[k] is string && d[k].size() <= n); }
+    // Condizioni d'uso e accordo sui dati (condizioni.html): le accetta l'amministratore per l'azienda, con l'ora del server
+    function condOk(c) {
+      return c is map && c.keys().hasOnly(['versione', 'il', 'ts', 'uid', 'nome', 'email', 'clausole'])
+        && c.uid == request.auth.uid && c.clausole == true && c.ts == request.time
+        && c.versione is string && c.versione.size() > 0 && c.versione.size() <= 20
+        && corto(c, 'il', 40) && corto(c, 'nome', 60) && corto(c, 'email', 254);
+    }
 
     match /creatori/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
@@ -99,16 +106,18 @@ service cloud.firestore {
       allow list: if creatore();
       allow create: if signedIn() && !exists(profilo())
         && request.resource.data.admin == request.auth.uid && request.resource.data.stato == 'in_attesa'
-        && request.resource.data.keys().hasOnly(['nome', 'telefono', 'admin', 'adminNome', 'email', 'stato', 'creato', 'settore', 'clienti']) && settoreOk(request.resource.data)
+        && request.resource.data.keys().hasOnly(['nome', 'telefono', 'admin', 'adminNome', 'email', 'stato', 'creato', 'settore', 'clienti', 'condizioni']) && settoreOk(request.resource.data)
+        && 'condizioni' in request.resource.data && condOk(request.resource.data.condizioni)
         && request.resource.data.nome is string && request.resource.data.nome.size() > 0 && request.resource.data.nome.size() <= 60
         && corto(request.resource.data, 'adminNome', 60) && corto(request.resource.data, 'email', 254) && corto(request.resource.data, 'telefono', 30)
         && getAfter(profilo()).data.azienda == a;
-      // il gestore approva, sospende o rifiuta, dà il codice e la quota; il permesso di assistenza e l'amministratore non li tocca
+      // il gestore approva, sospende o rifiuta, dà il codice e la quota; il permesso di assistenza, le condizioni accettate e l'amministratore non li tocca
       allow update: if (creatore() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stato', 'codice', 'approvata', 'quotaMb', 'modificato', 'scade', 'scadeMs', 'abbonata', 'aiMax', 'funzioni', 'settore', 'clienti'])
           && settoreOk(request.resource.data) && (!('scadeMs' in request.resource.data) || request.resource.data.scadeMs is int)
           && (!('funzioni' in request.resource.data) || (request.resource.data.funzioni is map && request.resource.data.funzioni.size() <= 120))
           && (!('codice' in request.resource.data) || getAfter(/databases/$(database)/documents/codici/$(request.resource.data.codice)).data.azienda == a))
-        || (admin(a) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['codice', 'assistenza', 'modificato', 'settore', 'clienti']) && settoreOk(request.resource.data)
+        || (admin(a) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['codice', 'assistenza', 'modificato', 'settore', 'clienti', 'condizioni']) && settoreOk(request.resource.data)
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['condizioni']) || condOk(request.resource.data.condizioni))
           && (!('codice' in request.resource.data) || getAfter(/databases/$(database)/documents/codici/$(request.resource.data.codice)).data.azienda == a));
 
       // Area cliente: ogni cliente legge solo il riepilogo delle barche che l'azienda gli ha collegato
@@ -116,13 +125,14 @@ service cloud.firestore {
         allow read: if staffA(a) || (cliente(a) && barcaId in me().get('barche', []));
         allow write: if staffA(a);
       }
-      // Tetto dell'AI: il conto delle richieste del giorno sale solo di uno alla volta e non oltre aiMax (30 se non scritto).
+      // Tetto dell'AI: il conto delle richieste del giorno sale solo di uno alla volta e non oltre aiMax.
+      // Senza aiMax l'AI è spenta (0): la accende il gestore, azienda per azienda («Limite AI»).
       // Lo leggono l'azienda e il gestore; nessuno lo abbassa o lo cancella.
       match /aiUso/{giorno} {
         allow read: if staffA(a) || creatore();
-        allow create: if staffA(a) && request.resource.data.keys().hasOnly(['n', 'il']) && request.resource.data.n == 1;
+        allow create: if staffA(a) && request.resource.data.keys().hasOnly(['n', 'il']) && request.resource.data.n == 1 && azienda(a).get('aiMax', 0) >= 1;
         allow update: if staffA(a) && request.resource.data.keys().hasOnly(['n', 'il'])
-          && request.resource.data.n == resource.data.n + 1 && request.resource.data.n <= azienda(a).get('aiMax', 30);
+          && request.resource.data.n == resource.data.n + 1 && request.resource.data.n <= azienda(a).get('aiMax', 0);
       }
       // Le foto della roba in deposito che compaiono nel portale (foto.portale = la barca): le apre solo il cliente di quella barca
       match /foto/{id} {
@@ -159,12 +169,22 @@ service cloud.firestore {
           && getAfter(/databases/$(database)/documents/aziende/$(a)/$(request.resource.data.coll)/$(request.resource.data.docId)).data.get('_del', false) == true;
       }
 
-      // Attività: chi entra nell'app e cosa fa. Ognuno scrive solo le proprie; le leggono gli amministratori
-      // dell'azienda e il gestore del servizio (il suo report); dopo 60 giorni le cancellano gli amministratori.
+      // Attività: chi entra nell'app e cosa fa, con i nomi (della persona e di barche, clienti, lavori…).
+      // Ognuno scrive solo le proprie; le leggono solo gli amministratori dell'azienda (e il gestore se c'è l'assistenza);
+      // dopo 60 giorni le cancellano gli amministratori.
       match /attivita/{id} {
-        allow read: if admin(a) || creatore();
+        allow read: if admin(a) || assist(a);
         allow delete: if admin(a);
         allow create: if (attivo(a) || assist(a)) && request.resource.data.uid == request.auth.uid;
+      }
+      // Registro del servizio: le stesse righe SENZA nomi (chi è l'account, quando entra, il tipo di azione, la pagina,
+      // il dispositivo, gli errori). È il report del gestore; si tiene 60 giorni.
+      match /registro/{id} {
+        allow read: if creatore();
+        allow delete: if admin(a) || creatore();
+        allow create: if (attivo(a) || assist(a)) && request.resource.data.uid == request.auth.uid
+          && request.resource.data.keys().hasOnly(['uid', 'cosa', 'il', 'disp', '_ts'])
+          && corto(request.resource.data, 'cosa', 200) && corto(request.resource.data, 'il', 40) && corto(request.resource.data, 'disp', 20);
       }
 
       // Tutti i dati dell'azienda: solo per chi ci lavora ed è stato approvato (e per il gestore, se c'è l'assistenza).
@@ -183,7 +203,7 @@ service cloud.firestore {
         function proprio(d) {
           return cancellato(d)
             || ((coll != 'lavori' || d.get('fonte', '') != 'scheda' || mio(d))
-              && (!(coll in ['conferme', 'assenze', 'notifiche', 'cronometri', 'pin']) || mio(d)));
+              && (!(coll in ['conferme', 'assenze', 'assenti', 'notifiche', 'cronometri', 'pin']) || mio(d)));
         }
         // le ferie le approva solo l'amministratore; la malattia si comunica e basta
         function ferieOk(d) { return coll != 'assenze' || cancellato(d) || d.get('stato', '') == 'richiesta' || (d.get('stato', '') == 'approvata' && d.get('tipo', '') == 'malattia'); }
@@ -193,16 +213,20 @@ service cloud.firestore {
             || (coll != 'assenze' && tablet(a) && d.get('via', '') == request.auth.uid)
             || (coll == 'lavori' && d.get('fonte', '') == 'scheda' && mio(d))
             || (coll == 'conferme' && mio(d))
-            || (coll == 'assenze' && mio(d) && d.get('stato', '') == 'richiesta');
+            || (coll == 'assenze' && mio(d) && d.get('stato', '') == 'richiesta')
+            || (coll == 'assenti' && mio(d));
         }
         function autoreOk(d) { return d.get('creatoDa', request.auth.uid) == request.auth.uid || (tablet(a) && d.get('via', '') == request.auth.uid); }
         function autoreUguale() { return cancellato(resource.data) || nuovo().get('creatoDa', '') == resource.data.get('creatoDa', ''); }
-        function datiCantiere() { return !(coll in ['portale', 'cestino', 'attivita', 'aiUso']); }
+        function datiCantiere() { return !(coll in ['portale', 'cestino', 'attivita', 'registro', 'aiUso']); }
         // l'aspetto dell'app (nome dell'azienda, colori, loghi, luogo), le sezioni accese e il disegno del porto li cambia solo l'amministratore
         function soloAdmin() { return coll == 'impostazioni' && id in ['aspetto', 'sezioni', 'porto', 'vernice', 'emergenze', 'reperibilita', 'campi', 'consumabili', 'chiusure', 'primipassi']; }
 
         // i PIN del tablet (impronte di 4 cifre, facili da ricavare): ognuno legge solo il suo; tutti solo amministratori, gestore in assistenza e tablet
-        allow read: if (staffA(a) && datiCantiere() && (coll != 'pin' || adminA(a) || tablet(a) || resource.data.get('utente', '') == request.auth.uid))
+        // ferie, permessi e malattia (con motivo e note): ognuno legge solo le sue, tutte solo gli amministratori e il gestore in assistenza.
+        // Chi è assente lo vedono tutti in «assenti» (solo persona e giorni, senza motivo né note)
+        allow read: if (staffA(a) && datiCantiere() && (coll != 'pin' || adminA(a) || tablet(a) || resource.data.get('utente', '') == request.auth.uid)
+            && (coll != 'assenze' || adminA(a) || resource.data.get('utente', '') == request.auth.uid))
           || (datiCantiere() && adminScaduto(a));
         allow create: if datiCantiere() && (adminA(a) || (!soloAdmin() && staff(a) && !cancellato(nuovo()) && proprio(nuovo()) && ferieOk(nuovo()) && autoreOk(nuovo())));
         allow update: if datiCantiere() && (adminA(a) || (!soloAdmin() && staff(a) && (
