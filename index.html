@@ -9138,6 +9138,11 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   var ASS_TIPI = [['ferie', 'Ferie'], ['permesso', 'Permesso a ore'], ['malattia', 'Malattia']];
   function assTipo(k) { var x = ASS_TIPI.find(function (t) { return t[0] === k; }); return x ? x[1] : 'Assenza'; }
   function assAdmin() { return !!S.isOwner; }
+  // chi non è amministratore riceve solo le sue assenze; quelle dei colleghi arrivano da «assenti» (chi e quando, senza motivo né note)
+  function assUnisci() {
+    var m = S._assM || [], ids = {}; m.forEach(function (a) { ids[a.id] = 1; });
+    S.assenze = m.concat((S._assA || []).filter(function (a) { return !ids[a.id]; }));
+  }
   function assCanSee(a) { return assAdmin() || a.utente === S.myId; }
   function assDays(a) { return a.tipo === 'permesso' ? [a.giorno] : (function () { var out = [], d = a.dal; if (!d) return out; var end = a.al || a.dal; var n = 0; while (d <= end && n < 400) { out.push(d); d = addDays(d, 1); n++; } return out; })(); }
   function assOn(day) { return (S.assenze || []).filter(function (a) { return a.stato === 'approvata' && assDays(a).indexOf(day) >= 0; }); }
@@ -11167,6 +11172,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
   }
   // Chiave dell'AI gratuita (Google AI Studio, progetto senza fatturazione): la vedono solo gli account del cantiere, non il sito pubblico
   function viewAiKey() {
+    if (aiSpentaQui()) return secH('AI dalla foto') + '<div class="notice">L’AI dalla foto non è accesa per la vostra azienda. Se vi serve, chiedetela a chi vi fornisce Kardan.</div>';
     var k = aiKey();
     return secH('AI dalla foto') + '<div class="group"><div class="row" style="flex-wrap:wrap;gap:8px"><span class="main"><span class="title">Chiave gratuita di Google AI Studio</span>' +
       '<span class="sub">' + (k ? 'Inserita (finisce con …' + esc(k.slice(-4)) + '). Le foto si leggono gratis, con un limite al giorno.' : 'Non inserita: l’AI usa il progetto Firebase, che senza credito non risponde.') + '</span></span>' +
@@ -11439,7 +11445,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
         (r[5] ? '<span class="side">' + r[5] + '</span>' : '') + '<span style="color:var(--dim);width:18px;flex:none">' + I.right + '</span></button>';
       return '<button type="button" class="row" data-act="tab" data-tab="' + r[0] + '"><span class="ic-circle ' + r[2] + '">' + r[1] + '</span><span class="main"><span class="title">' + r[3] + '</span><span class="sub">' + r[4] + '</span></span>' +
         (r[5] ? '<span class="side">' + r[5] + '</span>' : '') + '<span style="color:var(--dim);width:18px;flex:none">' + I.right + '</span></button>';
-    }).join('') + '</div>' + '<p class="cpy-alt"><a href="./diritti.html" target="_blank" rel="noopener">© Torcio · tutti i diritti riservati</a></p>';
+    }).join('') + '</div>' + '<p class="cpy-alt"><a href="./privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="./condizioni.html" target="_blank" rel="noopener">Condizioni d’uso</a> · <a href="./diritti.html" target="_blank" rel="noopener">© Torcio · tutti i diritti riservati</a></p>';
   }
 
   /* ---------- Copia dei dati e ripristino ---------- */
@@ -14477,7 +14483,9 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     try { var ZX = await getZX(), url = await fileToDataUrl(file, 1600), r = await new ZX.BrowserMultiFormatReader().decodeFromImageUrl(url); return r && r.getText ? r.getText() : null; } catch (e) { return null; }
   }
   function magByCode(code) { code = String(code || '').trim(); if (!code) return null; for (var i = 0; i < S.mag.length; i++) { var c = String(S.mag[i].codice || '').trim(); if (c && c === code) return S.mag[i]; } return null; }
-  function aiOn() { var c = window.NM_FIREBASE_CONFIG; return !!(window.__NM_FB && c && c.apiKey && c.projectId); }
+  // l'AI è spenta se il gestore non l'ha accesa per l'azienda (aiMax 0, vedi nm-fb.js)
+  function aiOn() { var c = window.NM_FIREBASE_CONFIG, F = window.__NM_FB; return !!(F && c && c.apiKey && c.projectId && (!F.aiMax || F.aiMax() > 0)); }
+  function aiSpentaQui() { var F = window.__NM_FB; return !!(F && F.aiMax && F.aiMax() <= 0); }
   /* AI dalla foto: se l'amministratore ha inserito la chiave di un progetto AI Studio gratuito (Strumenti in più,
      salvata in impostazioni/ai: la leggono solo gli account del cantiere) si usa quella, senza fatturazione e senza App Check;
      altrimenti la strada di Firebase AI Logic (progetto a pagamento). */
@@ -14486,6 +14494,7 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     if (!aiOn()) throw { code: 'ai_off' };
     var c = window.NM_FIREBASE_CONFIG, b64 = dataUrl ? String(dataUrl).split(',')[1] : '', mime = dataUrl ? (/^data:([^;,]+)/.exec(String(dataUrl)) || [])[1] || 'image/jpeg' : '', last = null, hd, base;
     var key = aiKey(), AI_MODELS = key ? ['gemini-flash-latest', 'gemini-3.5-flash', 'gemini-flash-lite-latest'] : ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.0-flash'];
+    if (window.__NM_FB.aiConta) await window.__NM_FB.aiConta(); // tetto dell'azienda: le richieste al giorno decise dal gestore
     if (key) {
       hd = { 'Content-Type': 'application/json', 'x-goog-api-key': key };
       base = 'https://generativelanguage.googleapis.com/v1beta/models/';
@@ -15829,7 +15838,8 @@ body { margin: 0; background: var(--body-bg) fixed var(--bg); }
     sub('giri', function (x) { S.giri = x; });
     sub('cronometri', function (x) { S.crono = toMap(x); });
     sub('ditte', function (x) { S.ditte = x; });
-    sub('assenze', function (x) { S.assenze = x; });
+    sub('assenze', function (x) { S._assM = x; assUnisci(); });
+    sub('assenti', function (x) { S._assA = x; assUnisci(); });
     sub('notifiche', function (x) { S.notif = toMap(x); });
     sub('pin', function () { });
     CLD().use('assets').then(function (a) { S.assets = a || null; if (a) render(); }, function () { });

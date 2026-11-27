@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<script src="trasloco.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Privacy di Kardan</title>
+<style>
+  body{margin:0;background:#06002e;color:#f4f5f7;font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
+  main{max-width:720px;margin:0 auto;padding:32px 16px 56px}
+  h1{font-size:1.5rem;margin:0 0 4px}
+  h2{font-size:1.15rem;margin:40px 0 6px;padding-top:24px;border-top:1px solid #2a2c5c}
+  h3{font-size:1rem;margin:22px 0 4px;color:#fff}
+  p,li{color:#d3d6e2}
+  ul{padding-left:20px}
+  li{margin:3px 0}
+  .small{color:#8a94a6;font-size:.9rem}
+  a{color:#8cc2ff}
+  .box{border:1px solid #2a2c5c;border-radius:12px;padding:12px 16px;background:rgba(255,255,255,.03);margin:14px 0}
+  .box p{margin:4px 0}
+  .bozza{border-color:#ffc83d;background:rgba(255,200,61,.08)}
+  .bozza b{color:#ffc83d}
+  .manca{color:#ffc83d;font-style:italic}
+</style>
+<script src="config.js"></script>
+<script src="testi.js"></script>
+</head>
+<body>
+<main>
+  <h1>Privacy</h1>
+  <p class="small">Versione del <span data-ver></span> · <a href="./condizioni.html">Condizioni d’uso</a></p>
+
+  <div class="box bozza" id="bozza" hidden><p><b>Bozza.</b> Questi testi sono in attesa del controllo di un consulente. Possono ancora cambiare.</p></div>
+
+  <p>Questa pagina spiega chi tratta i tuoi dati quando usi Kardan, quali dati sono e perché. Ci sono due casi diversi.</p>
+
+  <div class="box">
+    <p><b>Lavori in un’azienda che usa Kardan, o sei un suo cliente?</b><br>I dati che l’azienda scrive su di te (ore, lavori, ferie, barche o mezzi, preventivi…) sono suoi: è l’azienda il titolare e decide come usarli. Per le domande su questi dati rivolgiti a lei. Kardan è solo il fornitore del programma. Vedi il <a href="#azienda">punto B</a>.</p>
+  </div>
+
+  <h2>A. I dati che tratta il fornitore di Kardan</h2>
+
+  <h3>Chi è il titolare</h3>
+  <p><span data-f="nome"></span>, partita IVA <span data-f="piva"></span>, sede <span data-f="sede"></span>, email <span data-f="email"></span>.</p>
+
+  <h3>Quali dati</h3>
+  <ul>
+    <li><b>Account:</b> nome, email e password di chi si registra (la password è conservata da Google in forma non leggibile).</li>
+    <li><b>Azienda:</b> nome, telefono, email e settore dell’azienda che si registra, chi è il suo amministratore, la prova e l’abbonamento, l’accettazione delle condizioni (data e ora).</li>
+    <li><b>Registro del servizio:</b> quando una persona entra, il tipo di azione (per esempio «aggiunge una barca», senza il nome), la pagina aperta, il tipo di dispositivo (telefono o computer) e gli errori dell’app.</li>
+    <li><b>Notifiche:</b> il codice che il telefono dà per ricevere le notifiche, se le accendi.</li>
+    <li><b>Segnalazioni:</b> i problemi e le idee che mandi dall’app, con la foto se la alleghi.</li>
+  </ul>
+
+  <h3>Perché e su quale base</h3>
+  <ul>
+    <li>Fornire il servizio, creare e gestire gli account: è necessario per il contratto con l’azienda (art. 6.1.b GDPR).</li>
+    <li>Assistenza, sicurezza e prevenzione degli abusi, con il registro del servizio: legittimo interesse a far funzionare il servizio in modo sicuro (art. 6.1.f).</li>
+    <li>Fatture e obblighi fiscali: obbligo di legge (art. 6.1.c).</li>
+  </ul>
+  <p>Non vendiamo i dati, non facciamo pubblicità e non profiliamo nessuno.</p>
+
+  <h3>Per quanto tempo</h3>
+  <ul>
+    <li>Account e dati dell’azienda: finché il servizio è attivo, poi al massimo 90 giorni.</li>
+    <li>Registro del servizio: 60 giorni.</li>
+    <li>Copie di sicurezza: 8 settimane.</li>
+    <li>Fatture: 10 anni, come chiede la legge.</li>
+  </ul>
+
+  <h3>A chi arrivano</h3>
+  <p>Ai servizi su cui si appoggia Kardan, che li trattano per nostro conto: Google (Firebase e Google Cloud: database a Milano, accesso, notifiche, sito), GitHub (lavori automatici e copie cifrate), e al commercialista per le fatture. Alcuni di questi servizi possono portare dati negli Stati Uniti, con le garanzie del GDPR (EU-US Data Privacy Framework o clausole contrattuali standard).</p>
+
+  <h3>Cookie e dati salvati sul dispositivo</h3>
+  <p>Kardan non usa cookie di pubblicità o di profilazione. Salva sul dispositivo solo quello che serve a farlo funzionare: l’accesso, le preferenze (per esempio il tema chiaro o scuro) e una copia dei dati per lavorare senza rete. Per mostrare l’app il browser scarica i caratteri da Google Fonts e alcune librerie da Google e jsDelivr: questi servizi vedono l’indirizzo internet del dispositivo.</p>
+
+  <h3>I tuoi diritti</h3>
+  <p>Puoi chiedere di vedere, correggere o cancellare i tuoi dati, di limitarne l’uso, di riceverli in un file e di opporti al trattamento basato sul legittimo interesse. Scrivi a <span data-f="email"></span>. Se pensi che i tuoi dati siano trattati male puoi rivolgerti al Garante per la protezione dei dati personali (<a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">garanteprivacy.it</a>).</p>
+
+  <h2 id="azienda">B. I dati che le aziende scrivono in Kardan</h2>
+  <p>Ogni azienda che usa Kardan decide quali dati scrivere su dipendenti, clienti e fornitori, e perché: è lei il <b>titolare</b>. Deve dare a queste persone la sua informativa.</p>
+  <p>Il fornitore di Kardan è il <b>responsabile del trattamento</b>: conserva questi dati e li fa vedere solo alle persone che l’azienda ha approvato. Ci entra solo se l’amministratore dell’azienda accende «Permetti assistenza», e solo per aiutarla. Le regole sono nell’<a href="./condizioni.html#parte2">accordo sul trattamento dei dati</a>.</p>
+  <ul>
+    <li><b>Ferie, permessi e malattia:</b> il motivo e le note li vedono solo la persona interessata e gli amministratori dell’azienda. Gli altri colleghi vedono solo chi è assente.</li>
+    <li><b>Chi entra e cosa fa:</b> l’amministratore dell’azienda vede quando le persone entrano nell’app e cosa fanno, e lo conserva per 60 giorni.</li>
+    <li><b>AI dalla foto:</b> è spenta finché l’azienda non la chiede. Se è accesa, la foto o il testo da leggere vanno a Google (Gemini) per essere letti.</li>
+  </ul>
+  <p>Per vedere, correggere o cancellare questi dati rivolgiti all’azienda. Il fornitore la aiuta se serve.</p>
+
+  <p class="small" style="margin-top:36px"><a href="./">← Torna al gestionale</a></p>
+</main>
+</body>
+</html>

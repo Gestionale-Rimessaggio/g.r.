@@ -86,7 +86,9 @@
     '#nmfb .eye{position:absolute;right:3px;top:50%;transform:translateY(-50%);width:48px;height:44px;margin:0;padding:0;border:0;border-radius:10px;background:none;color:#b9bccb;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
     '#nmfb .eye svg{width:22px;height:22px}#nmfb .eye[aria-pressed="true"]{color:#8cc2ff}' +
     '#nmfb .btn[disabled]{opacity:.6}#nmfb .lnk{display:block;width:100%;margin-top:12px;background:none;border:0;color:#8cc2ff;font:inherit;padding:8px;cursor:pointer}' +
-    '#nmfb .cpy{position:fixed;right:12px;bottom:calc(8px + env(safe-area-inset-bottom));padding:6px 8px;font-size:12px;color:#8a94a6;text-decoration:none}#nmfb .cpy:hover{color:#b9bccb}' +
+    '#nmfb .cpy{position:fixed;right:12px;bottom:calc(8px + env(safe-area-inset-bottom));padding:6px 8px;font-size:12px;color:#8a94a6;text-decoration:none}#nmfb .cpy a{color:inherit;text-decoration:none}#nmfb .cpy a:hover{color:#b9bccb}' +
+    '#nmfb .nmcond{margin-top:16px}#nmfb .nmcond .opt,#nmset .nmcond .opt{align-items:flex-start;font-size:14px;line-height:1.45}#nmfb .nmcond .opt input,#nmset .nmcond .opt input{margin-top:1px}#nmfb .nmcond a,#nmset .nmcond a,#nmfb .nmpriv a{color:#8cc2ff}#nmfb .nmpriv,#nmset .nmpriv{font-size:13px;margin:10px 0 0;opacity:.85}' +
+    '#nmset .nmcond .opt{display:flex;gap:10px;padding:10px 12px;border:1px solid #2a3644;border-radius:12px;margin-top:8px;background:#111a24;cursor:pointer;color:#eef3f8}#nmset .nmcond .opt input{width:20px;height:20px;flex:none;accent-color:#2ec4b6}#nmset .err{color:#ff8a80;font-size:.88rem;margin-top:8px}' +
     '#nmfb .err{color:#ff8a80;min-height:1.3em;margin-top:10px;font-size:.95rem}#nmfb .ok{color:#7fe0a0}#nmfb .card{background:#12114a;border:1px solid #33355a;border-radius:14px;padding:16px;margin-top:6px}' +
     '#nmfb .spin{width:34px;height:34px;border-radius:50%;border:3px solid #33355a;border-top-color:#2f8ff0;margin:30px auto;animation:nmspin 1s linear infinite}@keyframes nmspin{to{transform:rotate(360deg)}}' +
     /* pannelli (utenti, account) */
@@ -261,6 +263,8 @@
     var q = AC(L.name);
     // PIN del tablet: chi non è amministratore, gestore in assistenza né tablet legge solo il suo (vedi firestore.rules), sempre per intero
     if (L.name === 'pin' && !(ME && (ME.ruolo === 'admin' || ME.assist || ME.tablet))) { fullDue = true; q = q.where('utente', '==', ME ? ME.uid : '-'); }
+    // ferie, permessi e malattia: chi non è amministratore legge solo le sue; chi è assente lo vede in «assenti» (assentiSync)
+    else if (L.name === 'assenze' && !(ME && (ME.ruolo === 'admin' || ME.assist))) { fullDue = true; q = q.where('utente', '==', ME ? ME.uid : '-'); }
     else if (!fullDue) q = q.where('_ts', '>=', TS.fromMillis(L.ts - 5000));
     var first = true;
     L.unsub = q.onSnapshot(function (snap) {
@@ -277,7 +281,7 @@
           if (x._del) delete L.map[id]; else L.map[id] = strip(x);
         });
       }
-      first = false; markReady(L); save(L); emit(L);
+      first = false; if (!(snap.metadata && snap.metadata.fromCache)) L.srv = true; markReady(L); save(L); emit(L);
     }, function (err) {
       var e = errOf(err);
       L.subs.forEach(function (s) { if (s.err) try { s.err(e); } catch (x) { } });
@@ -345,9 +349,39 @@
     }
     p.then(function () { if (L.pend) delete L.pend[id]; }, function () { if (L.pend) delete L.pend[id]; });
     pendAdd(p);
+    if (name === 'assenze') assentiSync(id, kind === 'delete' ? null : L.map[id]);
     attScrittura(name, kind === 'delete' ? 'cancella' : prev0 ? 'modifica' : 'aggiunge', data || prev0);
     emit(L); save(L);
     return settle(p, L);
+  }
+  /* ---------- chi è assente: aziende/{az}/assenti/{id della richiesta} ----------
+     Le ferie, i permessi e la malattia (con motivo e note) li legge solo la persona e gli amministratori (firestore.rules).
+     Per programma, calendario e «Assenti oggi» tutti vedono invece una copia ridotta delle assenze approvate:
+     chi, quali giorni e, per i permessi, le ore. Senza motivo e senza note. La aggiorna chi scrive l'assenza;
+     l'amministratore, quando apre l'app, rimette a posto le copie che mancano o avanzano. */
+  function assentiDi(a) {
+    var pm = a.tipo === 'permesso';
+    return { utente: String(a.utente || ''), tipo: pm ? 'permesso' : 'assenza', dal: String(a.dal || a.giorno || ''), al: String(a.al || a.dal || a.giorno || ''), giorno: pm ? String(a.giorno || '') : '', dalle: pm ? String(a.dalle || '') : '', alle: pm ? String(a.alle || '') : '', stato: 'approvata' };
+  }
+  function assentiSync(id, a) {
+    if (!ME || !AZ || !id) return;
+    var L = live('assenti'), p = a && a.stato === 'approvata' && a.utente ? assentiDi(a) : null, cur = L.map[id], r = AC('assenti').doc(id), ts = FV.serverTimestamp(), w;
+    if (p) { if (cur && JSON.stringify(cur) === JSON.stringify(p)) return; w = r.set(Object.assign({ _ts: ts }, p)); L.map[id] = p; }
+    else { if (!cur) return; w = r.set({ _del: true, _ts: ts }); delete L.map[id]; }
+    L.pend = L.pend || {}; L.pend[id] = p ? 'set' : 'del';
+    w.then(function () { delete L.pend[id]; }, function () { delete L.pend[id]; L.full = 0; listen(L); });
+    pendAdd(w); emit(L); save(L);
+  }
+  // l'amministratore rimette a posto le copie (anche quelle delle assenze scritte prima che ci fossero)
+  function assentiAllinea() {
+    if (!ME || !(ME.ruolo === 'admin' || ME.assist) || CLIENTE) return;
+    var A = live('assenze'), B = live('assenti'), n = 0;
+    // solo con i dati freschi del server (non quelli salvati sul dispositivo), se no si rimetterebbero assenze già tolte
+    (function prova() {
+      if (!(A.srv && B.srv)) { if (++n < 40) setTimeout(prova, 3000); return; }
+      Object.keys(A.map).forEach(function (id) { assentiSync(id, A.map[id]); });
+      Object.keys(B.map).forEach(function (id) { if (!A.map[id]) assentiSync(id, null); });
+    })();
   }
   // chi può cancellare: l'amministratore tutto; gli altri ciò che hanno aggiunto loro, le proprie mansioni della
   // scheda, le proprie giornate confermate, le proprie richieste di ferie non ancora decise, e i posti al porto.
@@ -519,7 +553,7 @@
       '<button class="btn" type="submit">Accedi</button><div class="err" id="nm-err">' + esc(msg || '') + '</div></form>' +
       '<button class="lnk" id="nm-goreg">Prima volta? Crea il tuo account</button><button class="lnk" id="nm-goreset">Password dimenticata</button>' +
       '<button class="btn" id="nm-prova" type="button" style="margin-top:22px;background:transparent;border:1px solid rgba(255,255,255,.35)">Prova senza registrarti</button><p class="nm-prova-n" style="font-size:13px;opacity:.75;margin-top:6px;text-align:center">Un cantiere di esempio da toccare e modificare: non si salva nulla e sparisce quando chiudi la finestra.</p>' +
-      '<a class="cpy" href="./diritti.html" target="_blank" rel="noopener">© Torcio</a>');
+      '<span class="cpy"><a href="./privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="./condizioni.html" target="_blank" rel="noopener">Condizioni</a> · <a href="./diritti.html" target="_blank" rel="noopener">© Torcio</a></span>');
     var f = $('#nm-login', o);
     f.addEventListener('submit', function (e) {
       e.preventDefault(); busy(f, true); $('#nm-err').textContent = '';
@@ -533,7 +567,39 @@
   function codNuovo() { var a = new Uint32Array(8), c = ''; crypto.getRandomValues(a); for (var i = 0; i < 8; i++) c += COD_ABC[a[i] % COD_ABC.length]; return c; }
   function codPulito(v) { return String(v || '').toUpperCase().replace(/[^0-9A-Z]/g, ''); }
   function codBello(c) { c = codPulito(c); return c.length === 8 ? c.slice(0, 4) + '-' + c.slice(4) : c; }
-  var PRIV = 'Per l’assistenza, il gestore del servizio vede gli accessi, le azioni e gli errori dell’app, non i vostri dati. Le mappe e gli indirizzi cercati per il percorso del trasporto passano da servizi pubblici gratuiti (OpenStreetMap e OSRM).';
+  var PRIV = 'Il gestore del servizio vede chi ha un account, quando entra, il tipo di azioni (senza i nomi) e gli errori dell’app, non i dati che scrivete. Entra nei vostri dati solo se accendete «Permetti assistenza». Le mappe e gli indirizzi cercati per il percorso del trasporto passano da servizi pubblici gratuiti (OpenStreetMap e OSRM).';
+  /* ---------- Condizioni d'uso e accordo sul trattamento dei dati (condizioni.html, privacy.html) ----------
+     Chi registra un'azienda le accetta con due caselle; le aziende già iscritte le accettano al primo accesso dell'amministratore,
+     e di nuovo quando cambia la versione (window.KARDAN_COND_VER in config.js). Si salva in aziende/{az}.condizioni. */
+  var COND_VER = String(window.KARDAN_COND_VER || '');
+  function condHtml() {
+    return '<div class="nmcond"><label class="opt"><input type="checkbox" id="nm-c1"><span>Ho letto e accetto, per conto dell’azienda, le <a href="./condizioni.html" target="_blank" rel="noopener">Condizioni d’uso</a> e l’<a href="./condizioni.html#parte2" target="_blank" rel="noopener">accordo sul trattamento dei dati</a>.</span></label>' +
+      '<label class="opt"><input type="checkbox" id="nm-c2"><span>Approvo in modo specifico le <a href="./condizioni.html#clausole" target="_blank" rel="noopener">clausole 3, 6, 7, 8, 9 e 10</a> (articoli 1341 e 1342 del Codice civile).</span></label>' +
+      '<p class="nmpriv">Come trattiamo i dati: <a href="./privacy.html" target="_blank" rel="noopener">Privacy</a>.</p></div>';
+  }
+  function condSpuntate(root) { var a = root.querySelector('#nm-c1'), b = root.querySelector('#nm-c2'); return !!(a && a.checked && b && b.checked); }
+  // «ts» è l'ora del server (le regole controllano che sia quella vera), «il» quella del telefono
+  function condDati(uid, nome, email) { return { versione: COND_VER, il: nowISO(), ts: FV.serverTimestamp(), uid: uid, nome: String(nome || '').slice(0, 60), email: String(email || '').slice(0, 254), clausole: true }; }
+  function condOk(A) { return !COND_VER || !!(A && A.condizioni && A.condizioni.versione === COND_VER); }
+  // aziende già iscritte (o condizioni cambiate): le accetta l'amministratore al primo accesso; «Leggo dopo» le richiede al prossimo
+  function condChiedi() {
+    if (!COND_VER || !ME || ME.ruolo !== 'admin' || ME.assist || CLIENTE || !AZ || !AZD || condOk(AZD)) return;
+    if ($('#nmset') || $('#nmnov')) { setTimeout(condChiedi, 3000); return; } // prima la domanda del settore o le novità
+    try { if (sessionStorage.getItem('nm-cond-dopo') === AZ + COND_VER) return; } catch (e) { }
+    ensureCss();
+    var el = document.createElement('div'), nuova = !(AZD.condizioni && AZD.condizioni.versione);
+    el.id = 'nmset'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'Condizioni del servizio');
+    el.innerHTML = '<div class="it"><h3>' + (nuova ? 'Condizioni del servizio' : 'Condizioni aggiornate') + '</h3><p>' + (nuova ? 'Per usare Kardan l’azienda accetta le condizioni d’uso e l’accordo sul trattamento dei dati dei vostri dipendenti e clienti. Aprile e leggile con calma.' : 'Le condizioni d’uso sono cambiate: leggi le novità e accettale per continuare.') + '</p>' +
+      condHtml() + '<div class="err" id="nm-cond-err"></div><button type="button" class="ok">Accetto</button><button type="button" class="dopo">Leggo dopo</button></div>';
+    document.body.appendChild(el);
+    el.querySelector('.ok').onclick = function () {
+      var b = this; if (!condSpuntate(el)) { el.querySelector('#nm-cond-err').textContent = 'Per accettare spunta tutte e due le caselle.'; return; }
+      b.disabled = true; var c = condDati(ME.uid, ME.nome, ME.email);
+      fs.collection('aziende').doc(AZ).update({ condizioni: c, modificato: nowISO() }).then(function () { AZD.condizioni = Object.assign({}, c, { ts: null }); el.remove(); toast('Grazie: condizioni accettate.'); setTimeout(novitaMostra, 600); },
+        function (er) { b.disabled = false; el.querySelector('#nm-cond-err').textContent = 'Non riuscito (' + errOf(er).code + '). Riprova.'; });
+    };
+    el.querySelector('.dopo').onclick = function () { try { sessionStorage.setItem('nm-cond-dopo', AZ + COND_VER); } catch (e) { } el.remove(); };
+  }
   var COME = '<details class="gd"><summary>Come funziona?</summary><ul>' +
     '<li><b>Un’azienda nuova</b> sceglie «Registro la mia azienda». La richiesta arriva al gestore del servizio: quando la approva, chi l’ha fatta entra come amministratore.</li>' +
     '<li>Ogni azienda ha un suo <b>codice</b> (per esempio K7P4-M2QX). L’amministratore lo trova in Altro › Utenti e permessi e lo manda a colleghi e clienti.</li>' +
@@ -612,7 +678,8 @@
       '<label for="nm-nm">Nome e cognome</label><input id="nm-nm" type="text" autocomplete="name" required maxlength="60" value="' + v('nome') + '">' +
       (u ? '' : '<label for="nm-em">Email</label><input id="nm-em" type="email" autocomplete="username" inputmode="email" required value="' + v('email') + '">' +
         '<label for="nm-pw">Password (almeno 6 caratteri)</label>' + pwField('nm-pw', 'new-password', ' minlength="6"')) +
-      (az ? '<p style="font-size:.85rem;margin:12px 0 0">' + esc(PRIV) + '</p>' : '') +
+      (az ? '<p style="font-size:.85rem;margin:12px 0 0">' + esc(PRIV) + '</p>' + condHtml()
+        : '<p class="nmpriv">I tuoi dati nell’app li tratta la tua azienda, con Kardan come fornitore del programma: <a href="./privacy.html#azienda" target="_blank" rel="noopener">Privacy</a>.</p>') +
       '<button class="btn" type="submit">' + (az ? 'Invia la richiesta' : u ? 'Entra nell’azienda' : 'Crea account') + '</button><div class="err" id="nm-err">' + esc(msg || '') + '</div></form>' +
       (u ? '<button class="lnk" id="nm-out">Esci</button>' : '<button class="lnk" id="nm-gologin">Ho già un account: accedi</button>') + COME);
     var f = $('#nm-reg', o);
@@ -627,6 +694,7 @@
       var x = dati();
       if (!az && codPulito(x.codice).length !== 8) { busy(f, false); $('#nm-err').textContent = 'Il codice ha 8 tra lettere e numeri, per esempio K7P4-M2QX.'; return; }
       if (az && !settOk(x.settore)) { busy(f, false); $('#nm-err').textContent = 'Scegli che lavoro fate: Nautica, Officina o Impianti e artigiani.'; var t0 = f.querySelector('[data-sett]'); if (t0) t0.focus(); return; }
+      if (az && !condSpuntate(f)) { busy(f, false); $('#nm-err').textContent = 'Per registrare l’azienda spunta tutte e due le caselle delle condizioni.'; var c0 = f.querySelector('#nm-c1'); if (c0) c0.focus(); return; }
       registering = true;
       var acc = u ? Promise.resolve({ user: u }) : auth.createUserWithEmailAndPassword(x.email, $('#nm-pw').value);
       acc.then(function (cr) {
@@ -642,7 +710,7 @@
     if (d.modo === 'azienda') { // l'azienda e il suo amministratore nascono insieme, tutti e due in attesa del gestore
       var ar = fs.collection('aziende').doc(), b = fs.batch();
       var sx = settDati({ s: d.settore, c: d.clienti });
-      b.set(ar, { nome: d.azNome, telefono: d.tel, admin: u.uid, adminNome: base.nome, email: base.email, stato: 'in_attesa', creato: now, settore: sx.settore, clienti: sx.clienti });
+      b.set(ar, { nome: d.azNome, telefono: d.tel, admin: u.uid, adminNome: base.nome, email: base.email, stato: 'in_attesa', creato: now, settore: sx.settore, clienti: sx.clienti, condizioni: condDati(u.uid, base.nome, base.email) });
       b.set(fs.collection('utenti').doc(u.uid), Object.assign(base, { tipo: 'staff', ruolo: 'admin', azienda: ar.id }));
       return b.commit();
     }
@@ -789,7 +857,7 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 
   function afterStart() {
-    msgServizio(); avvisoAbb(); setTimeout(settChiedi, 1200); setTimeout(novitaMostra, 2500);
+    msgServizio(); avvisoAbb(); setTimeout(settChiedi, 1200); setTimeout(condChiedi, 1800); setTimeout(novitaMostra, 2500); setTimeout(assentiAllinea, 6000);
     UT_UNSUB = fs.collection('utenti').where('azienda', '==', AZ).onSnapshot(function (s) {
       var m = {}; s.docs.forEach(function (d) { m[d.id] = d.data(); }); UT = m; if ($('#nmpan')) renderPanel(); schedulePortale();
     }, function () { });
@@ -1094,7 +1162,7 @@
     var sc = schChi(); if (sc && sc.indexOf(id) >= 0) b.set(c('impostazioni', 'schede'), { chi: sc.filter(function (x) { return x !== id; }), modificato: nowISO(), da: ME.uid, _ts: ts });
     b.delete(fs.collection('utenti').doc(id));
     var nm = ex[id].nome;
-    return b.commit().then(function () { attScrivi('cancella l’account di ' + nm); });
+    return b.commit().then(function () { attScrivi('cancella l’account di ' + nm, 'cancella un account'); });
   }
   function setUser(id, f) { f.modificato = nowISO(); return fs.collection('utenti').doc(id).update(f).catch(function (e) { toast('Non riuscito: ' + errOf(e).code); throw e; }); }
   function swap(v, a, b) {
@@ -1152,16 +1220,17 @@
     crConsumi();
     crRender();
   }
-  // gli ultimi accessi, azioni ed errori di ogni azienda attiva (le ultime 300 righe)
+  // gli ultimi accessi, azioni ed errori di ogni azienda attiva (le ultime 300 righe del registro, senza nomi di dati)
   function crReport(id) {
     Object.keys(CR.az).forEach(function (k) {
       if ((id && k !== id) || (!id && CR.att[k]) || CR.az[k].stato !== 'attiva') return;
       CR.att[k] = CR.att[k] || { loading: true, list: [] };
-      fs.collection('aziende').doc(k).collection('attivita').orderBy('il', 'desc').limit(300).get().then(function (s) {
+      fs.collection('aziende').doc(k).collection('registro').orderBy('il', 'desc').limit(300).get().then(function (s) {
         CR.att[k] = { list: s.docs.map(function (d) { return d.data(); }) }; crRender();
       }, function (e) { CR.att[k] = { err: errOf(e).code, list: [] }; crRender(); });
     });
   }
+  function crChi(x) { var u = x && CR.ut[x.uid]; return u ? (u.nome || u.email || 'senza nome') : 'account cancellato'; }
   function crTipo(x) { var c = String(x.cosa || ''); return c.indexOf('⚠') === 0 ? 'errori' : /^è entrato/.test(c) ? 'accessi' : /^apre /.test(c) ? 'pagine' : 'azioni'; }
   function crQuando(iso) { var d = new Date(iso); return isNaN(d) ? '—' : d.toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
   function crUltimo(k) { var R = CR.att[k]; return R && R.list ? R.list.filter(function (x) { return crTipo(x) === 'accessi'; })[0] || null : null; }
@@ -1472,15 +1541,15 @@
         '<div class="chips">' + [['tutto', 'Tutto', R.list.length], ['accessi', 'Accessi', n('accessi')], ['azioni', 'Azioni', n('azioni')], ['errori', 'Errori', n('errori')], ['pagine', 'Pagine aperte', n('pagine')]].map(function (c) {
           return '<button class="b' + (F === c[0] ? ' pri' : '') + '" data-cr="filtro" data-id="' + c[0] + '">' + c[1] + ' ' + c[2] + '</button>'; }).join('') + '</div>' +
         (R.loading ? '<p class="note">Carico…</p>' : R.err ? '<p class="note">Non riesco a leggere il report (' + esc(R.err) + ').</p>' : !list.length ? '<p class="note">Niente da mostrare.</p>' :
-          '<div class="grp">' + list.map(function (x) { return '<div class="u"><div class="nm"' + (crTipo(x) === 'errori' ? ' style="color:#ff8a80"' : '') + '>' + esc(x.cosa || '') + '</div><div class="em">' + esc((x.nome || '') + ' · ' + (x.disp || '') + ' · ' + crQuando(x.il)) + '</div></div>'; }).join('') + '</div>') +
-        '<p class="note">Le ultime 300 righe degli ultimi 60 giorni. L’azienda non vede questo report.</p>';
+          '<div class="grp">' + list.map(function (x) { return '<div class="u"><div class="nm"' + (crTipo(x) === 'errori' ? ' style="color:#ff8a80"' : '') + '>' + esc(x.cosa || '') + '</div><div class="em">' + esc(crChi(x) + ' · ' + (x.disp || '') + ' · ' + crQuando(x.il)) + '</div></div>'; }).join('') + '</div>') +
+        '<p class="note">Le ultime 300 righe degli ultimi 60 giorni. Solo il tipo di azione: i nomi di barche, clienti e lavori restano all’azienda.</p>';
     } else if (CR.vista && CR.vista.indexOf('az:') === 0 && CR.az[CR.vista.slice(3)]) {
       // scheda dell'azienda: l'essenziale
       var k = CR.vista.slice(3), A = CR.az[k], last = crUltimo(k), e7 = crErr7(k), nota = CR.note[k];
       var ult = {}; ((CR.att[k] || {}).list || []).forEach(function (x) { if (crTipo(x) === 'accessi' && !ult[x.uid]) ult[x.uid] = x.il; });
       h += '<div class="top"><button class="back" data-cr="home">‹ Aziende</button><h3>' + esc(A.nome || 'Azienda') + '</h3><span style="min-width:64px"></span></div>' +
         '<div class="grp"><div class="u"><div class="nm">' + esc(A.adminNome || 'Amministratore') + '</div><div class="em">' + esc((A.stato || '') + ' · codice ' + (codBello(A.codice) || '—') + ' · ' + (A.assistenza ? 'assistenza permessa' : 'assistenza non permessa')) + '<br>' + crAbb(A) + '<br>' + crSpazio(A) + '<br>' + crAi(k, A) +
-        '<br>Ultimo accesso: ' + esc(last ? (last.nome || '') + ', ' + crQuando(last.il) : 'nessuno') + (e7 ? ' · <span style="color:#ff8a80">' + e7 + (e7 === 1 ? ' errore' : ' errori') + ' in 7 giorni</span>' : '') + '</div>' +
+        '<br>' + crCond(A) + '<br>Ultimo accesso: ' + esc(last ? crChi(last) + ', ' + crQuando(last.il) : 'nessuno') + (e7 ? ' · <span style="color:#ff8a80">' + e7 + (e7 === 1 ? ' errore' : ' errori') + ' in 7 giorni</span>' : '') + '</div>' +
         '<div class="acts">' + (A.telefono ? '<a class="b" style="text-decoration:none;color:inherit;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:9px 12px" href="tel:' + esc(String(A.telefono).replace(/[^\d+]/g, '')) + '">Chiama</a>' : '') +
         (A.email ? '<a class="b" style="text-decoration:none;color:inherit;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:9px 12px" href="mailto:' + esc(A.email) + '">Email</a>' : '') +
         '<button class="b pri" data-cr="rep" data-id="' + k + '">Report</button><button class="b" data-cr="pagato" data-id="' + k + '">Segna pagato</button>' + (!A.abbonata ? '<button class="b" data-cr="prova" data-id="' + k + '">Giorni di prova</button>' : '') + '<button class="b" data-cr="quota" data-id="' + k + '">Quota spazio</button><button class="b" data-cr="aimax" data-id="' + k + '">Limite AI</button>' +
@@ -1574,9 +1643,17 @@
     if (azScaduta(a)) return '<span style="color:#ff8a80">' + (a.abbonata ? 'Abbonamento scaduto' : 'Prova finita') + ' il ' + esc(dataIt(a.scade)) + ': app bloccata</span>';
     return '<span' + (d <= 7 ? ' style="color:#ffb020"' : '') + '>' + esc(t + (d <= 7 ? ' (' + (d === 0 ? 'oggi' : d === 1 ? 'domani' : 'tra ' + d + ' giorni') + ')' : '')) + '</span>';
   }
+  // condizioni d'uso: chi le ha accettate e quando (aziende/{az}.condizioni)
+  function crCond(A) {
+    var c = A && A.condizioni;
+    if (!c || !c.versione) return '<span style="color:#ffb020">Condizioni non ancora accettate</span>';
+    var t = c.ts && c.ts.toDate ? c.ts.toDate().toISOString() : c.il;
+    return '<span' + (c.versione !== COND_VER ? ' style="color:#ffb020"' : '') + '>' + esc('Condizioni accettate il ' + crQuando(t) + ' da ' + (c.nome || c.email || '?') + (c.versione !== COND_VER ? ' (versione vecchia del ' + c.versione + ')' : '')) + '</span>';
+  }
   // AI di oggi: quante richieste su quante (si legge quando si apre la scheda dell'azienda)
   function crAi(k, a) {
     var max = aiMaxDi(a), u = CR.ai[k];
+    if (!max) return esc('AI spenta (la accendi con «Limite AI»)');
     if (u === undefined) { CR.ai[k] = null; fs.collection('aziende').doc(k).collection('aiUso').doc(oggiISO()).get().then(function (d) { CR.ai[k] = d.exists ? d.data().n || 0 : 0; crRender(); }, function () { CR.ai[k] = -1; crRender(); }); }
     return esc('AI oggi: ' + (u == null ? '…' : u < 0 ? '?' : u) + ' richieste su ' + max);
   }
@@ -2237,21 +2314,27 @@
 
   /* ---------- attività: chi entra e cosa fa ----------
      Ognuno scrive le proprie azioni in «attivita»; le leggono solo gli amministratori (firestore.rules).
+     Le stesse righe, senza nomi di persone, barche, clienti e lavori, vanno anche in «registro»: è il report del gestore.
      Gli avvisi arrivano solo all'amministratore che ha registrato l'azienda, mentre ha l'app aperta;
      quando la riapre vede chi è entrato mentre non c'era. Si tiene 60 giorni. */
   var ATT = { entrato: false, vista: '', last: {}, uns: null, voci: {} }, ATT_DAYS = 60;
   // gli avvisi vanno all'amministratore che ha registrato l'azienda (o all'email di NM_AVVISI_A in config.js, se c'è)
   function attIo() { var a = window.NM_AVVISI_A; return !!(ME && ME.ruolo === 'admin' && !ME.assist && (a ? String(ME.email || '').toLowerCase() === String(a).trim().toLowerCase() : AZD && AZD.admin === ME.uid)); }
   function attDisp() { return /iPhone|iPad|Android|Mobi/i.test(navigator.userAgent) ? 'telefono' : 'computer'; }
-  function attScrivi(cosa) {
+  // la riga per il registro del gestore: senza i nomi tra «» (barche, clienti, lavori…)
+  function senzaNomi(c) { return String(c || '').replace(/\s*«[^»]*»/g, '').replace(/\s+/g, ' ').trim(); }
+  function attScrivi(cosa, reg) {
     if (!ME || !ME.uid || (attIo() && window.NM_AVVISI_A)) return; // con più aziende si scrive tutto: serve anche al report del gestore
-    var k = cosa, t = Date.now();
+    var k = cosa, t = Date.now(), il = nowISO(), d = attDisp();
     if (ATT.last[k] && t - ATT.last[k] < 60000) return; // la stessa cosa ripetuta subito (salvataggi di fila) conta una volta
     ATT.last[k] = t;
-    AC('attivita').add({ uid: ME.uid, nome: (ME.nome || ME.email || '') + (AS ? ' come ' + ((UT[AS] && UT[AS].nome) || '?') : ''), cosa: String(cosa).slice(0, 200), il: nowISO(), disp: attDisp(), _ts: FV.serverTimestamp() }).catch(function () { });
+    AC('attivita').add({ uid: ME.uid, nome: (ME.nome || ME.email || '') + (AS ? ' come ' + ((UT[AS] && UT[AS].nome) || '?') : ''), cosa: String(cosa).slice(0, 200), il: il, disp: d, _ts: FV.serverTimestamp() }).catch(function () { });
+    AC('registro').add({ uid: ME.uid, cosa: senzaNomi(reg == null ? cosa : reg).slice(0, 200), il: il, disp: d, _ts: FV.serverTimestamp() }).catch(function () { });
   }
   function attEntra() { if (ATT.entrato || !ME) return; ATT.entrato = true; attScrittura.ok = true; attScrivi(CLIENTE ? 'è entrato nell’area clienti' : 'è entrato nell’app'); }
-  function attVista(n) { if (!started || !n || n === ATT.vista) return; ATT.vista = n; attScrivi('apre ' + n); }
+  // il nome della pagina senza dati: «la barca Aurora» diventa «una barca»
+  function vistaSenzaNomi(n) { return /^la barca /.test(n) ? 'una barca' : n; }
+  function attVista(n) { if (!started || !n || n === ATT.vista) return; ATT.vista = n; attScrivi('apre ' + n, 'apre ' + vistaSenzaNomi(n)); }
   function attScrittura(name, verbo, d) {
     if (!attScrittura.ok || name === 'dipendenti' || name === 'portale') return;
     d = d || {};
@@ -2266,7 +2349,9 @@
     try { visto = localStorage.getItem(KEY); } catch (e) { }
     var cut = new Date(Date.now() - ATT_DAYS * 864e5).toISOString();
     if (!visto || visto < cut) visto = new Date(Date.now() - 864e5).toISOString(); // la prima volta: le ultime 24 ore
-    setTimeout(function () { AC('attivita').where('il', '<', cut).limit(300).get().then(function (s) { if (!s.size) return; var b = fs.batch(); s.docs.forEach(function (d) { b.delete(d.ref); }); return b.commit(); }).catch(function () { }); }, 8000);
+    setTimeout(function () {
+      ['attivita', 'registro'].forEach(function (c) { AC(c).where('il', '<', cut).limit(300).get().then(function (s) { if (!s.size) return; var b = fs.batch(); s.docs.forEach(function (d) { b.delete(d.ref); }); return b.commit(); }).catch(function () { }); });
+    }, 8000);
     var primo = true;
     if (window.Notification && Notification.permission === 'default') try { Notification.requestPermission(); } catch (e) { }
     ATT.uns = AC('attivita').where('il', '>', visto).orderBy('il').onSnapshot(function (s) {
@@ -2319,7 +2404,8 @@
       var msg = String((e && (e.message || e.code)) || e || '').slice(0, 120); if (!msg) return;
       var riga = /(index\.html|nm-fb\.js):(\d+)/.exec(String((e && e.stack) || dove || ''));
       var k = msg + (riga ? riga[0] : ''); if (ERR.visti[k]) return; ERR.visti[k] = true; ERR.n++;
-      attScrivi('⚠ errore nell’app' + (ATT.vista ? ' (in ' + ATT.vista + ')' : '') + ': ' + msg + (riga ? ' · ' + riga[1] + ' riga ' + riga[2] : ''));
+      var dopo = ': ' + msg + (riga ? ' · ' + riga[1] + ' riga ' + riga[2] : '');
+      attScrivi('⚠ errore nell’app' + (ATT.vista ? ' (in ' + ATT.vista + ')' : '') + dopo, '⚠ errore nell’app' + (ATT.vista ? ' (in ' + vistaSenzaNomi(ATT.vista) + ')' : '') + dopo);
     } catch (x) { }
   }
   window.addEventListener('error', function (ev) {
@@ -2524,9 +2610,10 @@
     pulizia: function () { var L = live('impostazioni'); return L.map.pulizia || null; }
   };
 
-  /* ---------- tetto dell'AI: ogni azienda ha AI_MAX richieste al giorno (aziende/{az}.aiMax, lo cambia il gestore),
-     contate in aziende/{az}/aiUso/{giorno}. Le regole fanno salire il conto solo di uno alla volta e non oltre il tetto. ---------- */
-  var AI_MAX = 30;
+  /* ---------- tetto dell'AI: ogni azienda ha aiMax richieste al giorno (aziende/{az}.aiMax, lo cambia il gestore),
+     contate in aziende/{az}/aiUso/{giorno}. Le regole fanno salire il conto solo di uno alla volta e non oltre il tetto.
+     Senza aiMax l'AI è spenta (27/11/2026): il gestore la accende azienda per azienda con «Limite AI». ---------- */
+  var AI_MAX = 0;
   function aiMaxDi(a) { return a && typeof a.aiMax === 'number' && a.aiMax >= 0 ? a.aiMax : AI_MAX; }
   function aiConta() {
     var max = aiMaxDi(AZD), r = AC('aiUso').doc(oggiISO());
@@ -2546,6 +2633,7 @@
   /* ---------- quello che vede l'app ---------- */
   window.__NM_FB = {
     aiConta: aiConta,
+    aiMax: function () { return aiMaxDi(AZD); },
     use: function (name) {
       return READY.then(function () { return name === 'db' ? DB : name === 'user' ? USER : name === 'assets' ? ASSETS : name === 'downloads' ? DL : null; });
     },
@@ -2561,7 +2649,7 @@
     foto: FOTO,
     tablet: {
       si: function () { return !!(ME && ME.tablet && ME.stato === 'attivo' && ME.ruolo !== 'cliente' && !ME.assist) && tabStr(); },
-      come: function (uid) { AS = uid || null; attScrivi(uid ? 'sul tablet lavora ' + ((UT[uid] && UT[uid].nome) || '') : 'sul tablet: ha finito'); },
+      come: function (uid) { AS = uid || null; attScrivi(uid ? 'sul tablet lavora ' + ((UT[uid] && UT[uid].nome) || '') : 'sul tablet: ha finito', uid ? 'sul tablet lavora un collega' : 'sul tablet: ha finito'); },
       chi: chi,
       prova: function (uid, pin) { var x = pinDi(uid); return x ? pinHash(uid, pin).then(function (h) { return h === x.hash; }) : Promise.resolve(false); },
       persone: function () { var L = LIVE.pin, m = (L && L.map) || {}; return Object.keys(m).filter(function (id) { return pinDi(id) && UT[id] && UT[id].stato === 'attivo' && UT[id].ruolo !== 'cliente' && !UT[id].tablet; }).map(function (id) { return { id: id, nome: UT[id].nome || '' }; }); }
